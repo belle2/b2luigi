@@ -10,12 +10,13 @@ import sys
 import tempfile
 import warnings
 from collections import Counter
-from datetime import datetime
+from datetime import datetime, timedelta
 from functools import lru_cache
 from getpass import getpass
 from glob import glob
 from itertools import groupby
 from typing import Iterable, List, Optional, Set, Tuple
+
 
 from b2luigi.basf2_helper.utils import get_basf2_git_hash
 from b2luigi.batch.processes import BatchProcess, JobStatus
@@ -295,6 +296,16 @@ class Gbasf2Process(BatchProcess):
         # ``get_job_status`` returns a success.
         self._project_had_been_successful = False
 
+        # Store job status got from gbasf2
+        self._job_status_dict = None
+
+        # Minutes to cache the job status got from gbasf2
+        # default is 5 minutes
+        self._job_status_max_age = 5*60
+
+        # last successful update of the job status got from gbasf2
+        self._last_job_status_update = datetime.fromtimestamp(0)
+
     def get_job_status(self):
         """
         Get overall status of the gbasf2 project.
@@ -303,12 +314,19 @@ class Gbasf2Process(BatchProcess):
         to ``gb2_job_status``, and return an overall project status, e.g. when
         all jobs are done, return ``JobStatus.successful`` to show that the
         gbasf2 project succeeded.
+        The output of `gb2_job_status` get cached for 5 minutes.
         """
-        job_status_dict = get_gbasf2_project_job_status_dict(
-            self.gbasf2_project_name,
-            dirac_user=self.dirac_user,
-            gbasf2_setup_path=self.gbasf2_setup_path,
-        )
+        update_needed = (datetime.now() - self._last_job_status_update) > timedelta(seconds=self._job_status_max_age)
+        job_status_dict = self._job_status_dict
+        if self._job_status_dict is None or update_needed:
+            job_status_dict = get_gbasf2_project_job_status_dict(
+                self.gbasf2_project_name,
+                dirac_user=self.dirac_user,
+                gbasf2_setup_path=self.gbasf2_setup_path,
+            )
+            self._last_job_status_update = datetime.now()
+            self._job_status_dict = job_status_dict
+
         n_jobs_by_status = Counter()
         for _, job_info in job_status_dict.items():
             n_jobs_by_status[job_info["Status"]] += 1
