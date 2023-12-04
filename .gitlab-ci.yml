@@ -43,6 +43,7 @@ test:
     - pip install -U --user wheel setuptools
     - pip uninstall b2luigi
     - pip install -U --user pytest pytest-cov python-coveralls flit pre-commit
+    - export PATH=$PATH:~/.local/bin # add local bin to PATH to make installed pkgs avaible
     - flit install -s
     - pre-commit run --all-files
     - rm -rf .coverage.*
