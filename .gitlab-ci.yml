@@ -14,7 +14,7 @@ workflow:
     - if: $GITLAB_FORCE_RUNNING_PIPELINE == 'yes'
 
 default:
-  image: ubuntu:latest
+  image: ubuntu:latest # possibly use basf2 image
   tags:
     - extagent48
   # cache:
@@ -32,13 +32,15 @@ default:
     #   fi
     - apt-get update -qy
     - apt-get install -y git
+    - apt-get install -y python3.7
+    - python3 -m pip install --upgrade pip
     - source ${GITLAB_BELLE2_TOOLS_B2SETUP}
     - b2setup $(b2help-releases)
 
 test:
   stage: test
   script:
-    - pip install --upgrade --user wheel setuptools
+    - pip install -U --user wheel setuptools
     - pip uninstall b2luigi
     - pip install -U --user pytest pytest-cov python-coveralls flit pre-commit
     - flit install -s
