@@ -14,7 +14,7 @@ workflow:
     - if: $GITLAB_FORCE_RUNNING_PIPELINE == 'yes'
 
 default:
-  image: ubuntu:latest # possibly use basf2 image
+  image: belle2/externals-ubuntu2004:v01-12-01
   tags:
     - extagent48
   # cache:
@@ -30,10 +30,6 @@ default:
     #         git fetch --all && git merge $(< target_head_hash.txt) --strategy-option ours --no-commit --allow-unrelated-histories
     #     fi
     #   fi
-    - apt-get update -qy
-    - apt-get install -y git
-    - apt-get install -y python3.7
-    - python3 -m pip install --upgrade pip
     - source ${GITLAB_BELLE2_TOOLS_B2SETUP}
     - b2setup $(b2help-releases)
 
