@@ -3,6 +3,7 @@ stages:
   - test
 
 variables:
+  FLIT_ROOT_INSTALL: "1"
   PYTHON_VERSION: "3.7"
   ARTIFACTS_PATH: "junit/test-results.xml"
   GITLAB_BELLE2_TOOLS_B2SETUP: "/cvmfs/belle.cern.ch/tools/b2setup"
