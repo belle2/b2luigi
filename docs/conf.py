@@ -11,24 +11,57 @@
 # If extensions (or modules to document with autodoc) are in another directory,
 # add these directories to sys.path here. If the directory is relative to the
 # documentation root, use os.path.abspath to make it absolute, like shown here.
-#
-# import os
-# import sys
-# sys.path.insert(0, os.path.abspath('.'))
+
+import os
+import sys
+sys.path.insert(0, os.path.abspath('..'))
 
 
 # -- Project information -----------------------------------------------------
 
-import os
+
+def get_latest_tag():
+    '''
+    Helper function thar returns the name of the tag if the latest commit is tagged,
+    otherwise it simply returns "latest"
+    '''
+
+    try:
+        import git
+    except ImportError:
+        print('GitPython module is not installed')
+        return 'latest'
+
+    current_directory = os.getcwd()
+    while True:
+        try:
+            print(current_directory)
+            repo = git.Repo(current_directory)
+            latest_commit = repo.head.commit
+            tags = repo.tags
+            for tag in tags:
+                if tag.commit == latest_commit:
+                    return tag.name
+            # If the latest commit has not tags, then it's the latest version
+            return 'latest'
+        except git.InvalidGitRepositoryError:
+            # No Git repository found in the current directory
+            parent_directory = os.path.dirname(current_directory)
+            # Check if we have reached the root directory
+            if parent_directory == current_directory:
+                break
+            # Move to the parent directory
+            current_directory = parent_directory
+
 
 project = 'b2luigi'
 copyright = '2018-2023, Nils Braun, Michael Eliachevitch, The Belle II Collaboration'
 author = 'Nils Braun, Michael Eliachevitch, The Belle II Collaboration'
 
 # The short X.Y version
-version = ''
+version = get_latest_tag()
 # The full version, including alpha/beta/rc tags
-release = '0.10.2'
+release = get_latest_tag()
 
 
 # -- General configuration ---------------------------------------------------
