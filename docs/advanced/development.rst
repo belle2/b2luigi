@@ -47,7 +47,7 @@ You want to help developing ``b2luigi``? Great! Here are some first steps to hel
 
     Now you can start hacking and your changes will be immediately available to you.
 
-4. Install `pre-commit`_, which automatically checks your code
+4.  Install `pre-commit`_, which automatically checks your code
 
     .. code-block:: bash
 
@@ -55,19 +55,19 @@ You want to help developing ``b2luigi``? Great! Here are some first steps to hel
         pre-commit install  # install the pre-commit hooks
         pre-commit  # run pre-commit manually, checks all staged ("added") changes
 
-   In particular, the python files are checked with `flake8`_ for syntax and
-   `PEP 8`_ style errors. I recommend using an IDE or editor which
-   automatically highlights errors with flake8 or a similar python linter (e.g.
-   pylint).
+    In particular, the python files are checked with `flake8`_ for syntax and
+    `PEP 8`_ style errors. I recommend using an IDE or editor which
+    automatically highlights errors with flake8 or a similar python linter (e.g.
+    pylint).
 
-5. We use the unittest_ package for testing some parts of the code. All tests reside in the
-   ``tests/`` sub-directory. To run all tests, run the command
+5.  We use the unittest_ package for testing some parts of the code. All tests reside in the
+    ``tests/`` sub-directory. To run all tests, run the command
 
     .. code-block:: bash
 
         python -m unittest
 
-   in the root of ``b2luigi`` repository. If you add some functionality, try to add some tests for it.
+    in the root of ``b2luigi`` repository. If you add some functionality, try to add some tests for it.
 
 6.  The documentation is hosted on `readthedocs`_ and build automatically on every commit to main.
     You can (and should) also build the documentation locally by installing ``sphinx``

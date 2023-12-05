@@ -21,25 +21,26 @@ def process(
 
     Example:
         This example defines a simple task and tells ``b2luigi`` to execute it 100 times
-        with different parametes::
+        with different parametes:
 
-            import b2luigi
-            import random
+        .. code-block:: python
 
+          import b2luigi
+          import random
 
-            class MyNumberTask(b2luigi.Task):
-                some_parameter = b2luigi.Parameter()
+          class MyNumberTask(b2luigi.Task):
+              some_parameter = b2luigi.Parameter()
 
-                def output(self):
-                    return b2luigi.LocalTarget(f"results/output_file_{self.some_parameter}.txt")
+              def output(self):
+                  return b2luigi.LocalTarget(f"results/output_file_{self.some_parameter}.txt")
 
-                def run(self):
-                    random_number = random.random()
-                    with self.output().open("w") as f:
-                        f.write(f"{random_number}\\n")
+              def run(self):
+                  random_number = random.random()
+                  with self.output().open("w") as f:
+                      f.write(f"{random_number}\\n")
 
-            if __name__ == "__main__":
-                b2luigi.process([MyNumberTask(some_parameter=i) for i in range(100)])
+          if __name__ == "__main__":
+              b2luigi.process([MyNumberTask(some_parameter=i) for i in range(100)])
 
     All flag arguments can also be given as command line arguments.
     This means the call with::

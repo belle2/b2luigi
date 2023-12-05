@@ -32,7 +32,7 @@ def on_temporary_files(run_function):
     """
     Wrapper for decorating a task's run function to use temporary files as outputs.
 
-    A common problem when using long running tasks in luigi is the so called thanksgiving bug
+    A common problem when using long running tasks in ``luigi`` is the so called thanksgiving bug
     (see https://www.arashrouhani.com/luigi-budapest-bi-oct-2015/#/21).
     It occurs, when you define an output of a task and in its run function,
     you create this output before filling it with content
@@ -42,25 +42,27 @@ def on_temporary_files(run_function):
     that the task is already finished (although there is probably only non-sense in the file
     so far).
 
-    A solution is already given by luigi itself, when using the temporary_path() function
+    A solution is already given by luigi itself, when using the ``temporary_path()`` function
     of the file system targets, which is really nice!
     Unfortunately, this means you have to open all your output files with a context manager
     and this is very hard to do if you have external tasks also (because they will
     probably use the output file directly instead of the temporary file version of if).
 
-    This wrapper simplifies the usage of the temporary files::
+    This wrapper simplifies the usage of the temporary files:
 
-        import b2luigi
+    .. code-block:: python
 
-        class MyTask(b2luigi.Task):
-            def output(self):
-                yield self.add_to_output("test.txt")
+      import b2luigi
 
-            @b2luigi.on_temporary_files
-            def run(self):
-                with open(self.get_output_file_name("test.txt"), "w") as f:
-                    raise ValueError()
-                    f.write("Test")
+      class MyTask(b2luigi.Task):
+          def output(self):
+              yield self.add_to_output("test.txt")
+
+          @b2luigi.on_temporary_files
+          def run(self):
+              with open(self.get_output_file_name("test.txt"), "w") as f:
+                  raise ValueError()
+                  f.write("Test")
 
     Instead of creating the file "test.txt" at the beginning and filling it with content
     later (which will never happen because of the exception thrown, which makes the file
@@ -68,10 +70,9 @@ def on_temporary_files(run_function):
     file first and copied to its final location at the end of the run function (but only if there
     was no error).
 
-    *Attention*:
-
-    The decorator only edits the function get_output_file_name. If you are using
-    the output directly, you have to take care of using the temporary path correctly by yourself!
+    Warning:
+        The decorator only edits the function :meth:`b2luigi.Task.get_output_file_name`. If you are using
+        the output directly, you have to take care of using the temporary path correctly by yourself!
 
     """
     @wraps(run_function)
