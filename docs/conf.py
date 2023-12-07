@@ -55,6 +55,7 @@ def get_latest_tag():
             # Move to the parent directory
             current_directory = parent_directory
 
+    print('GitPython did not find a valid repository')
     return default
 
 
