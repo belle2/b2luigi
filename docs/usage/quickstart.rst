@@ -12,10 +12,9 @@ We use a very simple task definition file and submit it to a LSF batch system.
 Our task will be very simple: we want to create 100 files with some random number in it.
 Later, we will build the average of those numbers.
 
-1. Open a code editor and create a new file ``simple-example.py`` with the following content:
+1.  Open a code editor and create a new file ``simple-example.py`` with the following content:
 
     .. literalinclude:: ../../tests/doc_examples/simple_example.py
-       :linenos:
 
     Each building block in ``(b2)luigi`` is a :class:`b2luigi.Task`.
     It defines (which its run function), what should be done.
@@ -106,7 +105,6 @@ Later, we will build the average of those numbers.
     functions given by ``b2luigi``.
 
     .. literalinclude:: ../../tests/doc_examples/simple_example_b2luigi.py
-       :linenos:
 
     Before continuing, remove the output of the former calculation.
 
@@ -122,15 +120,15 @@ Later, we will build the average of those numbers.
 
     you are basically doing the same as before, with some very nice benefits:
 
-        * The parameter values are automatically added to the output file (have a look into the ``results/``
-          folder to see how it works and where the results are stored)
-        * The output for different parameters are stored on different locations, so no need to fear overriding
-          results.
-        * The format of the folder structure makes it easy to work on it using bash commands as well as
-          automated procedures.
-        * Other files related to your job, e.g. the submission files etc. are also placed into this
-          folder (this is why the very first example defined it already).
-        * The default is to use the folder where your script is located.
+    * The parameter values are automatically added to the output file (have a look into the ``results/``
+      folder to see how it works and where the results are stored)
+    * The output for different parameters are stored on different locations, so no need to fear overriding
+      results.
+    * The format of the folder structure makes it easy to work on it using bash commands as well as
+      automated procedures.
+    * Other files related to your job, e.g. the submission files etc. are also placed into this
+      folder (this is why the very first example defined it already).
+    * The default is to use the folder where your script is located.
 
     .. hint::
         In the example, the base path for the results is defined in the python file with
@@ -169,7 +167,6 @@ Later, we will build the average of those numbers.
     So edit your example file to include the following content:
 
     .. literalinclude:: ../../tests/doc_examples/simple_example_b2luigi_2.py
-       :linenos:
 
     See how we defined dependencies in line 19 with the ``requires`` function.
     By calling ``clone`` we make sure that any parameters from the current task (which are none in our case)
@@ -180,7 +177,7 @@ Later, we will build the average of those numbers.
         Again, expert ``luigi`` users will not see anything new here.
 
     By using the helper functions :meth:`b2luigi.Task.get_input_file_names`
-    and :meth:`b2luigi.Task.get_output_file` the output file name generation with parameters
+    and :meth:`b2luigi.Task.get_output_file_name` the output file name generation with parameters
     is transparent to you as a user.
     Super easy!
 
