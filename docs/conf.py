@@ -26,16 +26,18 @@ def get_latest_tag():
     otherwise it simply returns "latest"
     '''
 
+    default = 'latest'
+
     try:
         import git
     except ImportError:
         print('GitPython module is not installed')
-        return 'latest'
+        return default
 
     current_directory = os.getcwd()
+
     while True:
         try:
-            print(current_directory)
             repo = git.Repo(current_directory)
             latest_commit = repo.head.commit
             tags = repo.tags
@@ -43,15 +45,17 @@ def get_latest_tag():
                 if tag.commit == latest_commit:
                     return tag.name
             # If the latest commit has not tags, then it's the latest version
-            return 'latest'
+            return default
         except git.InvalidGitRepositoryError:
             # No Git repository found in the current directory
             parent_directory = os.path.dirname(current_directory)
-            # Check if we have reached the root directory
+            # Check if we have reached the root directory: if yes, break the loop and then return
             if parent_directory == current_directory:
                 break
             # Move to the parent directory
             current_directory = parent_directory
+
+    return default
 
 
 project = 'b2luigi'
@@ -59,9 +63,10 @@ copyright = '2018-2023, Nils Braun, Michael Eliachevitch, The Belle II Collabora
 author = 'Nils Braun, Michael Eliachevitch, The Belle II Collaboration'
 
 # The short X.Y version
-version = get_latest_tag()
+_version = get_latest_tag()
+version = _version
 # The full version, including alpha/beta/rc tags
-release = get_latest_tag()
+release = _version
 
 
 # -- General configuration ---------------------------------------------------
