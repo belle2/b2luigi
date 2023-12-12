@@ -7,7 +7,7 @@ variables:
   FLIT_ROOT_INSTALL: "1"
   PYTHON_VERSION: "3.7"
   ARTIFACTS_TEST_PATH: "junit/test-results.xml"
-  ARTIFACTS_DOCS_PATH: "docs/_build"
+  ARTIFACTS_DOCS_PATH: "docs-build/"
   GITLAB_BELLE2_TOOLS_B2SETUP: "/cvmfs/belle.cern.ch/tools/b2setup"
 
 workflow:
@@ -64,7 +64,7 @@ docs:
     - pip install -U --user flit
     - export PATH=$PATH:~/.local/bin # add local bin to PATH to make installed pkgs avaible
     - flit install -s
-    - sphinx-build docs/ docs/_build
+    - sphinx-build docs/ $ARTIFACTS_DOCS_PATH
   artifacts:
     paths:
       - $ARTIFACTS_DOCS_PATH
