@@ -549,10 +549,10 @@ class Gbasf2Process(BatchProcess):
             )
         if self.gbasf2_custom_steering_file:
             if gbasf2_additional_files:
-                gbasf2_input_sandbox_files = list( gbasf2_additional_files)
+                gbasf2_input_sandbox_files = list( gbasf2_additional_files )
                 
                 gbasf2_command_str = (
-                f"gbasf2 {self.wrapper_file_path} -f {gbasf2_input_sandbox_files} -p {self.gbasf2_project_name} -s {gbasf2_release} "
+                f"gbasf2 {self.wrapper_file_path} -f {' '.join(gbasf2_input_sandbox_files)} -p {self.gbasf2_project_name} -s {gbasf2_release} "
                 )
             else:
                 gbasf2_command_str = (
