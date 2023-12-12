@@ -548,9 +548,16 @@ class Gbasf2Process(BatchProcess):
                 "``gbasf2_additional_files`` is not an iterable or strings."
             )
         if self.gbasf2_custom_steering_file:
-            gbasf2_command_str = (
-            f"gbasf2 {self.wrapper_file_path} -p {self.gbasf2_project_name} -s {gbasf2_release} "
-        )
+            if gbasf2_additional_files:
+                gbasf2_input_sandbox_files = list( gbasf2_additional_files)
+                
+                gbasf2_command_str = (
+                f"gbasf2 {self.wrapper_file_path} -f {gbasf2_input_sandbox_files} -p {self.gbasf2_project_name} -s {gbasf2_release} "
+                )
+            else:
+                gbasf2_command_str = (
+                f"gbasf2 {self.wrapper_file_path} -p {self.gbasf2_project_name} -s {gbasf2_release} "
+                )
         else:
             gbasf2_input_sandbox_files = [os.path.basename(self.pickle_file_path)] + list(
                 gbasf2_additional_files
