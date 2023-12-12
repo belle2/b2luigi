@@ -1,11 +1,13 @@
 stages:
   # - prepare-pipeline
   - test
+  - docs
 
 variables:
   FLIT_ROOT_INSTALL: "1"
   PYTHON_VERSION: "3.7"
-  ARTIFACTS_PATH: "junit/test-results.xml"
+  ARTIFACTS_TEST_PATH: "junit/test-results.xml"
+  ARTIFACTS_DOCS_PATH: "docs/_build"
   GITLAB_BELLE2_TOOLS_B2SETUP: "/cvmfs/belle.cern.ch/tools/b2setup"
 
 workflow:
@@ -44,14 +46,28 @@ test:
     - pip install -U --user wheel setuptools
     - pip uninstall b2luigi
     - pip install -U --user pytest pytest-cov python-coveralls flit pre-commit
-    - export PATH=$PATH:~/.local/bin # add local bin to PATH to make installed pkgs avaible
+    - export PATH=$PATH:~/.local/bin # add local bin to PATH to make installed pkgs available
     - flit install -s
     - pre-commit run --all-files
     - rm -rf .coverage.*
-    - pytest -v --cov b2luigi --junitxml=$ARTIFACTS_PATH --cov-report=xml tests
-
+    - pytest -v --cov b2luigi --junitxml=$ARTIFACTS_TEST_PATH --cov-report=xml tests
   artifacts:
     reports:
-      junit: $ARTIFACTS_PATH
+      junit: $ARTIFACTS_TEST_PATH
     paths:
-      - $ARTIFACTS_PATH
+      - $ARTIFACTS_TEST_PATH
+
+docs:
+  stage: docs
+  script:
+    - pip uninstall b2luigi
+    - pip install -U --user flit
+    - export PATH=$PATH:~/.local/bin # add local bin to PATH to make installed pkgs avaible
+    - flit install -s
+    - sphinx-build docs/ docs/_build
+  artifacts:
+    paths:
+      - $ARTIFACTS_DOCS_PATH
+    expire_in: 1 week
+    expose_as: 'sphinx documentation'
+    when: on_success
