@@ -7,7 +7,7 @@ variables:
   FLIT_ROOT_INSTALL: "1"
   PYTHON_VERSION: "3.8.8"
   ARTIFACTS_TEST_PATH: "junit/test-results.xml"
-  ARTIFACTS_DOCS_PATH: "docs-build"
+  ARTIFACTS_DOCS_PATH: "docs-build/"
   ARTIFACTS_COV_PATH: "coverage/"
   GITLAB_BELLE2_TOOLS_B2SETUP: "/cvmfs/belle.cern.ch/tools/b2setup"
 
