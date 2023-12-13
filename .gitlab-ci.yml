@@ -45,7 +45,7 @@ test:
     - pip install -U --user pytest pytest-cov python-coveralls flit
     - export PATH=$PATH:~/.local/bin
     - flit install -s
-    - pytest -v --cov b2luigi --junitxml=$ARTIFACTS_TEST_PATH/test-results.xml --cov-report=html tests
+    - pytest -v --cov b2luigi --junitxml=$ARTIFACTS_TEST_PATH --cov-report=html tests
     - mv htmlcov $ARTIFACTS_COV_PATH
   artifacts:
     reports:
