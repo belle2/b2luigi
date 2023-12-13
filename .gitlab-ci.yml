@@ -55,8 +55,9 @@ test:
         coverage_format: cobertura
         path: coverage.xml
     paths:
-      - $ARTIFACTS_TEST_PATH
-      - $ARTIFACTS_COV_PATH
+      - junit/test-results.xml
+      - coverage/
+    expose_as: 'test result and coverage'
 
 docs:
   stage: docs
