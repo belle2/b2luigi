@@ -272,7 +272,7 @@ class Gbasf2Process(BatchProcess):
         #: Maximum number of times that each job in the project can be rescheduled until the project is declared as failed.
         self.max_retries = get_setting("gbasf2_max_retries", default=0, task=self.task)
 
-        #: Setting to incorporate custom steering files into b2luigi. 
+        #: Setting to incorporate custom steering files into b2luigi.
         self.gbasf2_custom_steering_file = get_setting(
             "gbasf2_custom_steering_file", default = "", task=self.task
         )
@@ -297,8 +297,6 @@ class Gbasf2Process(BatchProcess):
         # there's actions we want to do only the first time that
         # ``get_job_status`` returns a success.
         self._project_had_been_successful = False
-        
-        
 
     def get_job_status(self):
         """
@@ -483,17 +481,15 @@ class Gbasf2Process(BatchProcess):
             )
             return
 
-        
         if self.gbasf2_custom_steering_file:
             self._copy_custom_steering_script()
-    
         else:
             self._write_path_to_file()
             self._create_wrapper_steering_file()
-        
+
         # submit gbasf2 project
         gbasf2_command = self._build_gbasf2_submit_command()
-        
+
         print(f"\nSubmitting gbasf2 project: {self.gbasf2_project_name}")
         print("\nUsing command:\n" + " ".join(gbasf2_command) + "\n")
 
@@ -538,34 +534,29 @@ class Gbasf2Process(BatchProcess):
         gbasf2_release = get_setting(
             "gbasf2_release", default=get_basf2_git_hash(), task=self.task
         )
+
+        gbasf2_command_str = (
+        f"gbasf2 {self.wrapper_file_path} -p {self.gbasf2_project_name} -s {gbasf2_release} "
+        )
+
         gbasf2_additional_files = get_setting(
             "gbasf2_additional_files", default=[], task=self.task
         )
+
         if not isinstance(gbasf2_additional_files, Iterable) or isinstance(
             gbasf2_additional_files, str
         ):
             raise ValueError(
                 "``gbasf2_additional_files`` is not an iterable or strings."
             )
-        if self.gbasf2_custom_steering_file:
-            if gbasf2_additional_files:
-                gbasf2_input_sandbox_files = list( gbasf2_additional_files )
-                
-                gbasf2_command_str = (
-                f"gbasf2 {self.wrapper_file_path} -f {' '.join(gbasf2_input_sandbox_files)} -p {self.gbasf2_project_name} -s {gbasf2_release} "
-                )
-            else:
-                gbasf2_command_str = (
-                f"gbasf2 {self.wrapper_file_path} -p {self.gbasf2_project_name} -s {gbasf2_release} "
-                )
-        else:
+
+        if self.gbasf2_custom_steering_file and gbasf2_additional_files:
+            gbasf2_command_str += f"-f {' '.join(gbasf2_additional_files)}"
+
+        elif not self.gbasf2_custom_steering_file:
             gbasf2_input_sandbox_files = [os.path.basename(self.pickle_file_path)] + list(
-                gbasf2_additional_files
-            )
-            gbasf2_command_str = (
-                f"gbasf2 {self.wrapper_file_path} -f {' '.join(gbasf2_input_sandbox_files)} "
-                + f"-p {self.gbasf2_project_name} -s {gbasf2_release} "
-            )
+                gbasf2_additional_files)
+            gbasf2_command_str += f"-f {' '.join(gbasf2_input_sandbox_files)}"
 
         gbasf2_noscout = get_setting("gbasf2_noscout", default=False, task=self.task)
         if gbasf2_noscout:
@@ -705,14 +696,14 @@ class Gbasf2Process(BatchProcess):
     def _copy_custom_steering_script(self):
         if os.path.exists(self.gbasf2_custom_steering_file):
             shutil.copy(
-                src = self.gbasf2_custom_steering_file, 
+                src = self.gbasf2_custom_steering_file,
                 dst = self.wrapper_file_path
             )
         else:
             raise ValueError(
                 f'Custom gbasf2 output file does not exists at {self.gbasf2_custom_steering_file}. Ensure this file exists and try again.'
             )
-            
+
     def _get_gbasf2_dataset_query(self, output_file_name: str) -> str:
         """
         Helper method that returns the gbasf2 query string with the correct wildcard pattern

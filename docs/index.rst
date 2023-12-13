@@ -124,7 +124,7 @@ Original author
 
 Former developer and maintainer
     Michael Eliachevitch (`meliache`_)
-    
+
 Features, fixing, help and testing
     * Felix Metzner (`FelixMetzner`_)
     * Patrick Ecker (`eckerpatrick`_)
