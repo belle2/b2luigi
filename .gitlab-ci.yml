@@ -67,7 +67,7 @@ docs:
     - sphinx-build docs/ $ARTIFACTS_DOCS_PATH
   artifacts:
     paths:
-      - docs-build
+      - docs-build/
     expire_in: 1 week
     expose_as: 'sphinx documentation'
     when: on_success
