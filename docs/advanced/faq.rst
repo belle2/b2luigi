@@ -11,17 +11,17 @@ output of a task processed on a batch system. The paths of these log files are d
 relative to the location of the executed python file and contain the parameter of
 the task.
 In some cases one might one to specify other paths for the log files. To achieve this,
-a own :meth:`get_log_file_dir()` method of the task class must be implemented. This method
+a own ``get_log_file_dir()`` method of the task class must be implemented. This method
 must return a directory path for the stdout and the stderr files, for example:
 
 .. code-block:: python
 
-    class MyBatchTask(b2luigi.Task):
-        ...
-        def get_log_file_dir(self):
-            filename = os.path.realpath(sys.argv[0])
-            path = os.path.join(os.path.dirname(filename), "logs")
-            return path
+  class MyBatchTask(b2luigi.Task):
+      ...
+      def get_log_file_dir(self):
+          filename = os.path.realpath(sys.argv[0])
+          path = os.path.join(os.path.dirname(filename), "logs")
+          return path
 
 ``b2luigi`` will use this method if it is defined and write the log output in the respective
 files. Be careful, though, as these log files will of course be overwritten if more than one
@@ -52,7 +52,7 @@ How do I handle parameter values which include "/" (or other unusual characters)
 ``b2luigi`` automatically generates the filenames for your output or log files out of
 the current tasks values in the form::
 
-    <result-path>/param1=value1/param2=value2/..../filename.ext
+    <result-path>/param1=value1/param2=value2/.../<output-file-name.ext>
 
 The values are given by the serialisation of your parameter, which is basically its string representation.
 Sometimes, this representation may include characters not suitable for their usage as a path name,
@@ -62,7 +62,7 @@ want to have its value in your output.
 Also, if you have credentials in the parameter (what you should never do of course!), you do not
 want to show them to everyone.
 
-When using a parameter in `b2luigi` (or any of its derivatives), they have a new flag called ``hashed``
+When using a parameter in ``b2luigi`` (or any of its derivatives), they have a new flag called ``hashed``
 in their constructor, which makes the path creation only using a hashed version of your parameter value.
 
 For example will this task::

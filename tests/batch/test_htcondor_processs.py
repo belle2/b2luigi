@@ -24,6 +24,7 @@ class TestHTCondorCreateSubmitFile(B2LuigiTestCase):
         # class to obtain ``self.task``, to it's sufficient to provide a mock class for ``self``, `
         htcondor_mock_process = mock.Mock()
         task.get_task_file_dir = lambda: self.test_dir
+        task.get_log_file_dir = lambda: self.test_dir
         htcondor_mock_process.task = task
         #  create submit file
         HTCondorProcess._create_htcondor_submit_file(htcondor_mock_process)

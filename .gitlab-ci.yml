@@ -1,0 +1,74 @@
+stages:
+  - pre_commit
+  - test
+  - docs
+
+variables:
+  FLIT_ROOT_INSTALL: "1"
+  PYTHON_VERSION: "3.8.8"
+  ARTIFACTS_TEST_PATH: "junit/test-results.xml"
+  ARTIFACTS_DOCS_PATH: "docs-build"
+  ARTIFACTS_COV_PATH: "coverage/"
+  GITLAB_BELLE2_TOOLS_B2SETUP: "/cvmfs/belle.cern.ch/tools/b2setup"
+
+workflow:
+  rules:
+    - if: $CI_PIPELINE_SOURCE == 'merge_request_event'
+    - if: $CI_PIPELINE_SOURCE == 'push' && ($CI_COMMIT_BRANCH == 'main') && $CI_COMMIT_TITLE =~ /Merge branch.*/
+    - if: $GITLAB_FORCE_RUNNING_PIPELINE == 'yes'
+
+default:
+  image: belle2/externals-ubuntu2004:v01-12-01
+  tags:
+    - extagent48
+  before_script:
+    # Preliminary operations with Git
+    - git config user.email "something@something.com"
+    - git config user.name "someone"
+    - git config --global --add safe.directory $(dirname ${GITLAB_BELLE2_TOOLS_B2SETUP})
+    # setup of basf2
+    - source ${GITLAB_BELLE2_TOOLS_B2SETUP}
+    - b2setup $(b2help-releases)
+
+pre_commit:
+  stage: pre_commit
+  script:
+    - pip install -U --user pre-commit
+    - export PATH=$PATH:~/.local/bin
+    - pre-commit run --all-files
+    - git add .
+    - git commit -m "Apply pre-commit changes" || true
+
+test:
+  stage: test
+  script:
+    - pip install -U --user pytest pytest-cov python-coveralls flit
+    - export PATH=$PATH:~/.local/bin
+    - flit install -s
+    - pytest -v --cov b2luigi --junitxml=$ARTIFACTS_TEST_PATH --cov-report=xml --cov-report=html --cov-report=term tests
+    - mv htmlcov $ARTIFACTS_COV_PATH
+  coverage: '/(?i)total.*? (100(?:\.0+)?\%|[1-9]?\d(?:\.\d+)?\%)$/'
+  artifacts:
+    reports:
+      junit: $ARTIFACTS_TEST_PATH
+      coverage_report:
+        coverage_format: cobertura
+        path: coverage.xml
+    paths:
+      - junit/test-results.xml
+      - coverage/
+    expose_as: 'test result and coverage'
+
+docs:
+  stage: docs
+  script:
+    - pip install -U --user flit
+    - export PATH=$PATH:~/.local/bin
+    - flit install -s
+    - sphinx-build docs/ $ARTIFACTS_DOCS_PATH
+  artifacts:
+    paths:
+      - docs-build/
+    expire_in: 1 week
+    expose_as: 'sphinx documentation'
+    when: on_success
