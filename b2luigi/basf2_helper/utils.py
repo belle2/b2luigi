@@ -11,20 +11,16 @@ def get_basf2_git_hash():
     """
     basf2_release = os.getenv("BELLE2_RELEASE")
 
-    if basf2_release not in ("head", None):
-        return basf2_release
-    # else if BASF2_RELEASE environment variable is not set, get version hash of
-    # local basf2
-    try:
-        import basf2.version
-        # try both get_version method and version attribute, one of which
-        # should work depending on basf2 release
-        if hasattr(basf2.version, "get_version"):
-            return basf2.version.get_version()
-        return basf2.version.version
-    except ImportError as err:
-        warnings.warn(
-            f"No basf2 was found. Setting basf2 git hash to \"not_set\": \n {err}",
-            category=ImportWarning,
-        )
-        return "not_set"
+    if basf2_release in ("head", None):
+        try:
+            import basf2.version
+            basf2_release = basf2.version.get_version()
+
+        except ImportError as err:
+            warnings.warn(
+                f"No basf2 was found. Setting basf2 git hash to \"not_set\": \n {err}",
+                category=ImportWarning,
+            )
+            basf2_release = "not_set"
+
+    return basf2_release

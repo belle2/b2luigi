@@ -20,14 +20,16 @@ def dispatch(run_function):
         When it dies unexpectedly (e.g. because of a segfault etc.)
         the task will be marked as failed. If not, it is successful.
         The log output will be written to two files in the log folder (marked with
-        the parameters of the task), which you can check afterwards::
+        the parameters of the task), which you can check afterwards:
 
-            import b2luigi
+        .. code-block:: python
 
-            class MyTask(b2luigi.Task):
-                @b2luigi.dispatch
-                def run(self):
-                    call_some_evil_function()
+          import b2luigi
+
+          class MyTask(b2luigi.Task):
+              @b2luigi.dispatch
+              def run(self):
+                  call_some_evil_function()
 
     Note:
         We are reusing the batch system implementation here, with all its settings
@@ -37,7 +39,7 @@ def dispatch(run_function):
     Implementation note:
         In the subprocess we are calling the current executable (which should by python)
         with the current input file as a parameter, but let it only run this
-        specific task (by handing over the task id and the `--batch-worker` option).
+        specific task (by handing over the task id and the ``--batch-worker`` option).
         The run function notices this and actually runs the task instead of dispatching again.
 
     Additionally, you can add a ``cmd_prefix`` parameter to your class, which also

@@ -13,6 +13,7 @@ class Task(luigi.Task):
     See :ref:`quick-start-label` on information on how to use the methods.
 
     Example:
+
         .. code-block:: python
 
           class MyAverageTask(b2luigi.Task):
@@ -40,23 +41,25 @@ class Task(luigi.Task):
 
     def add_to_output(self, output_file_name):
         """
-        Call this in your output() function to add a target to the list of files,
+        Call this in your ``output()`` function to add a target to the list of files,
         this task will output.
-        Always use in combination with `yield`.
+        Always use in combination with ``yield``.
         This function will automatically add all current parameter values to
-        the file name when used in the form
+        the file name when used in the form::
 
-            result_dir/param_1=value/param_2=value/output_file_name
+            <result-path>/param1=value1/param2=value2/.../<output-file-name.ext>
 
         This function will automatically use a ``LocalTarget``.
         If you do not want this, you can override the :obj:`_get_output_file_target` function.
 
         Example:
-            This adds two files called ``some_file.txt`` and ``some_other_file.txt`` to the output::
+            This adds two files called ``some_file.txt`` and ``some_other_file.txt`` to the output:
 
-                def output(self):
-                    yield self.add_to_output("some_file.txt")
-                    yield self.add_to_output("some_other_file.txt")
+            .. code-block:: python
+
+              def output(self):
+                  yield self.add_to_output("some_file.txt")
+                  yield self.add_to_output("some_other_file.txt")
 
         Args:
             output_file_name (:obj:`str`): the file name of the output file.
@@ -79,10 +82,14 @@ class Task(luigi.Task):
         Return all file paths required by this task.
 
         Example:
-            class TheSuperFancyTask(b2luigi.Task):
-                def dry_run(self):
-                    for name in self.get_all_output_file_names():
-                        print(f"\t\toutput:\t{name}")
+
+            .. code-block:: python
+
+              class TheSuperFancyTask(b2luigi.Task):
+                  def dry_run(self):
+                      for name in self.get_all_output_file_names():
+                          print(f"\t\toutput:\t{name}")
+
         """
         for file_names in self._transform_input(self.input()).values():
             for file_name in file_names:
@@ -111,6 +118,7 @@ class Task(luigi.Task):
         yielding required task objects.
 
         Example:
+
             .. code-block:: python
 
               class TaskB(luigi.Task):
@@ -138,9 +146,8 @@ class Task(luigi.Task):
                   def output(self):
                       yield self.add_to_output("combined_results.txt")
 
-
-            Either use the key argument or dictionary indexing with the key given to :obj:`add_to_output`
-            to get back a list (!) of file paths.
+        Either use the key argument or dictionary indexing with the key given to :obj:`add_to_output`
+        to get back a list (!) of file paths.
 
         Args:
             requirement_key (:obj:`str`): Specifies the required task expression.
@@ -166,10 +173,13 @@ class Task(luigi.Task):
         Return all file paths created by this task.
 
         Example:
-            class TheSuperFancyTask(b2luigi.Task):
-                def dry_run(self):
-                    for name in self.get_all_output_file_names():
-                        print(f"\t\toutput:\t{name}")
+
+            .. code-block:: python
+
+              class TheSuperFancyTask(b2luigi.Task):
+                  def dry_run(self):
+                      for name in self.get_all_output_file_names():
+                          print(f"\t\toutput:\t{name}")
         """
         for file_names in self._transform_output(self.output()).values():
             for file_name in file_names:
