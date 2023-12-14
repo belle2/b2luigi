@@ -274,9 +274,7 @@ class Gbasf2Process(BatchProcess):
         self.max_retries = get_setting("gbasf2_max_retries", default=0, task=self.task)
 
         #: Setting to incorporate custom steering files into b2luigi.
-        self.gbasf2_custom_steering_file = get_setting(
-            "gbasf2_custom_steering_file", default = "", task=self.task
-        )
+        self.gbasf2_custom_steering_file = get_setting("gbasf2_custom_steering_file", default="", task=self.task)
         #: Store number of times each job had been rescheduled
         self.n_retries_by_job = Counter()
 
@@ -537,7 +535,7 @@ class Gbasf2Process(BatchProcess):
         )
 
         gbasf2_command_str = (
-        f"gbasf2 {self.wrapper_file_path} -p {self.gbasf2_project_name} -s {gbasf2_release} "
+            f"gbasf2 {self.wrapper_file_path} -p {self.gbasf2_project_name} -s {gbasf2_release} "
         )
 
         gbasf2_additional_files = get_setting(
@@ -700,12 +698,13 @@ class Gbasf2Process(BatchProcess):
     def _copy_custom_steering_script(self):
         if os.path.exists(self.gbasf2_custom_steering_file):
             shutil.copy(
-                src = self.gbasf2_custom_steering_file,
-                dst = self.wrapper_file_path
+                src=self.gbasf2_custom_steering_file,
+                dst=self.wrapper_file_path
             )
         else:
             raise ValueError(
-                f'Custom gbasf2 output file does not exists at {self.gbasf2_custom_steering_file}. Ensure this file exists and try again.'
+                f'Custom gbasf2 output file does not exists at {self.gbasf2_custom_steering_file}. '
+                'Ensure this file exists and try again.'
             )
 
     def _get_gbasf2_dataset_query(self, output_file_name: str) -> str:
