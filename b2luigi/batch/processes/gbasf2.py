@@ -550,13 +550,16 @@ class Gbasf2Process(BatchProcess):
                 "``gbasf2_additional_files`` is not an iterable or strings."
             )
 
-        if self.gbasf2_custom_steering_file and gbasf2_additional_files:
-            gbasf2_command_str += f"-f {' '.join(gbasf2_additional_files)}"
+        input_sandboxfiles = []
 
-        elif not self.gbasf2_custom_steering_file:
-            gbasf2_input_sandbox_files = [os.path.basename(self.pickle_file_path)] + list(
-                gbasf2_additional_files)
-            gbasf2_command_str += f"-f {' '.join(gbasf2_input_sandbox_files)}"
+        if self.gbasf2_custom_steering_file:
+            input_sandboxfiles.extend(gbasf2_additional_files)
+        else:
+            gbasf2_input_sandbox_files = [os.path.basename(self.pickle_file_path)] + list(gbasf2_additional_files)
+            input_sandboxfiles.extend(gbasf2_input_sandbox_files)
+
+        if input_sandboxfiles:
+            gbasf2_command_str += f"-f {' '.join(input_sandboxfiles)}"
 
         gbasf2_noscout = get_setting("gbasf2_noscout", default=False, task=self.task)
         if gbasf2_noscout:
