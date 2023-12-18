@@ -28,7 +28,7 @@ def write_path_and_state_to_file(basf2_path, file_path):
     :param path: Basf2 path object to serialize
     :param file_path: File path to write the serialized pickle object to.
     """
-    with open(file_path, 'bw') as pickle_file:
+    with open(file_path, "bw") as pickle_file:
         serialized = serialize_path(basf2_path)
         serialized["aliases"] = get_alias_dict_from_variable_manager()
         serialized["globaltags"] = b2conditions.globaltags

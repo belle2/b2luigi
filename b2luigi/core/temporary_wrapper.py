@@ -75,6 +75,7 @@ def on_temporary_files(run_function):
         the output directly, you have to take care of using the temporary path correctly by yourself!
 
     """
+
     @wraps(run_function)
     def run(self):
         with TemporaryFileContextManager(self):

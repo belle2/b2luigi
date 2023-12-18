@@ -5,10 +5,7 @@ import random
 class MyNumberTask(b2luigi.Task):
     some_parameter = b2luigi.IntParameter()
 
-    htcondor_settings = {
-        "request_cpus": 1,
-        "request_memory": "100 MB"
-    }
+    htcondor_settings = {"request_cpus": 1, "request_memory": "100 MB"}
 
     def output(self):
         yield self.add_to_output("output_file.txt")
@@ -25,10 +22,7 @@ class MyNumberTask(b2luigi.Task):
 
 
 class MyAverageTask(b2luigi.Task):
-    htcondor_settings = {
-        "request_cpus": 1,
-        "request_memory": "200 MB"
-    }
+    htcondor_settings = {"request_cpus": 1, "request_memory": "200 MB"}
 
     def requires(self):
         for i in range(10):

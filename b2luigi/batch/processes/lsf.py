@@ -11,7 +11,6 @@ from b2luigi.core.settings import get_setting
 
 
 class LSFJobStatusCache(BatchJobStatusCache):
-
     def _ask_for_job_status(self, job_id=None):
         if job_id:
             output = subprocess.check_output(["bjobs", "-json", "-o", "jobid stat", str(job_id)])

@@ -33,8 +33,10 @@ def run_as_batch_worker(task_list, cli_args, kwargs):
             return
 
     if not found_task:
-        raise ValueError(f"The task id {task.task_id} to be executed by this batch worker "
-                         f"does not exist in the locally reproduced task graph.")
+        raise ValueError(
+            f"The task id {task.task_id} to be executed by this batch worker "
+            f"does not exist in the locally reproduced task graph."
+        )
 
 
 def run_batched(task_list, cli_args, kwargs):
@@ -104,7 +106,7 @@ def dry_run(task_list):
             print("\tWould run", task)
 
             # execute the dry_run method of the task if it is implemented
-            if hasattr(task, 'dry_run'):
+            if hasattr(task, "dry_run"):
                 print("\tcall: dry_run()")
                 task.dry_run()
             print()

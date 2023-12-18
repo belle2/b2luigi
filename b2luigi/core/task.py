@@ -222,11 +222,13 @@ class Task(luigi.Task):
 
 class ExternalTask(Task, luigi.ExternalTask):
     """Direct copy of :obj:`luigi.ExternalTask`, but with the capabilities of :obj:`Task` added."""
+
     pass
 
 
 class WrapperTask(Task, luigi.WrapperTask):
     """Direct copy of :obj:`luigi.WrapperTask`, but with the capabilities of :obj:`Task` added."""
+
     pass
 
 

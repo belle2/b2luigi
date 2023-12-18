@@ -14,7 +14,6 @@ from b2luigi.core.executable import create_executable_wrapper
 
 
 class HTCondorJobStatusCache(BatchJobStatusCache):
-
     @retry(subprocess.CalledProcessError, tries=3, delay=2, backoff=3)  # retry after 2,6,18 seconds
     def _ask_for_job_status(self, job_id: int = None):
         """
@@ -81,6 +80,7 @@ class HTCondorJobStatus(enum.IntEnum):
     """
     See https://htcondor.readthedocs.io/en/latest/classad-attributes/job-classad-attributes.html
     """
+
     idle = 1
     running = 2
     removed = 3
@@ -162,8 +162,12 @@ class HTCondorProcess(BatchProcess):
 
         if job_status in [HTCondorJobStatus.completed]:
             return JobStatus.successful
-        if job_status in [HTCondorJobStatus.idle, HTCondorJobStatus.running, HTCondorJobStatus.transferring_output,
-                          HTCondorJobStatus.suspended]:
+        if job_status in [
+            HTCondorJobStatus.idle,
+            HTCondorJobStatus.running,
+            HTCondorJobStatus.transferring_output,
+            HTCondorJobStatus.suspended,
+        ]:
             return JobStatus.running
         if job_status in [HTCondorJobStatus.removed, HTCondorJobStatus.held, HTCondorJobStatus.failed]:
             return JobStatus.aborted
@@ -230,8 +234,8 @@ class HTCondorProcess(BatchProcess):
             for transfer_file in transfer_files:
                 if os.path.abspath(transfer_file) != transfer_file:
                     raise ValueError(
-                        "You should only give absolute file names in transfer_files!" +
-                        f"{os.path.abspath(transfer_file)} != {transfer_file}"
+                        "You should only give absolute file names in transfer_files!"
+                        + f"{os.path.abspath(transfer_file)} != {transfer_file}"
                     )
 
             env_setup_script = get_setting("env_script", task=self.task, default="")

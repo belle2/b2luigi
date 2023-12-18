@@ -26,6 +26,7 @@ class JobStatusEncoder(json.JSONEncoder):
     """
     JSON encoder for data structures that can be returned by the job status information collector.
     """
+
     def default(self, obj):
         if isinstance(obj, (datetime.date, datetime.datetime)):
             return obj.isoformat()
@@ -56,24 +57,23 @@ def get_job_status_dict(project_name, user_name, group_name):
     if user_name is None:
         user_name = os.getenv("BELLE2_USER")
     login = [user_name, group_name]
-    newer_than = '1970-01-01'
+    newer_than = "1970-01-01"
     projects = [project_name]
     info_collector = InformationCollector()
-    result = info_collector.getAllJobsInProjects(
-        projects, date=newer_than, login=login, statuses={'Status': ['all']})
-    project_items = result['Value'][projects[0]]
+    result = info_collector.getAllJobsInProjects(projects, date=newer_than, login=login, statuses={"Status": ["all"]})
+    project_items = result["Value"][projects[0]]
     status = info_collector.getJobSummary(project_items)
-    if not status['OK']:
+    if not status["OK"]:
         # info_collector returned with False status, probably means project does not exist
         raise sys.exit(3)
-    return status['Value']
+    return status["Value"]
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument('-p', '--project', type=str, required=True, help="gbasf2 project name")
-    parser.add_argument('-u', '--user', type=str, default=None, help="grid username")
-    parser.add_argument('-g', '--group', type=str, default="belle", help="gbasf2 group name")
+    parser.add_argument("-p", "--project", type=str, required=True, help="gbasf2 project name")
+    parser.add_argument("-u", "--user", type=str, default=None, help="grid username")
+    parser.add_argument("-g", "--group", type=str, default="belle", help="gbasf2 group name")
     args = parser.parse_args()
     initializeCS()
     job_status_dict = get_job_status_dict(args.project, args.user, args.group)

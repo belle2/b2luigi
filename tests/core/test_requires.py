@@ -50,7 +50,7 @@ class InheritsTestCase(B2LuigiTestCase):
             def output(self):
                 yield self.add_to_output("test.txt")
 
-        @b2luigi.inherits(TaskA, without='some_other_parameter')
+        @b2luigi.inherits(TaskA, without="some_other_parameter")
         class TaskB(b2luigi.Task):
             another_parameter = b2luigi.IntParameter()
 
@@ -69,18 +69,18 @@ class InheritsTestCase(B2LuigiTestCase):
         self.assertEqual(task.get_param_names(), ["some_parameter", "another_parameter"])
         self.assertEqual(task.another_parameter, 42)
         self.assertEqual(task.some_parameter, 23)
-        self.assertFalse(hasattr(task, 'some_other_parameter'))
+        self.assertFalse(hasattr(task, "some_other_parameter"))
 
-        self.assertTrue(
-            task.get_output_file_name("out.dat").endswith("results/some_parameter=23/another_parameter=42/out.dat")
-        )
+        self.assertTrue(task.get_output_file_name("out.dat").endswith("results/some_parameter=23/another_parameter=42/out.dat"))
 
         input_files = task.get_input_file_names("test.txt")
         self.assertEqual(len(input_files), 10)
         for my_other_parameter in range(10):
-            self.assertTrue(input_files[my_other_parameter]
-                            .endswith(f"results/some_parameter=23/some_other_parameter={my_other_parameter}/test.txt")
-                            )
+            self.assertTrue(
+                input_files[my_other_parameter].endswith(
+                    f"results/some_parameter=23/some_other_parameter={my_other_parameter}/test.txt"
+                )
+            )
 
         required_tasks = list(task.requires())
         for some_other_parameter_values, required_task in enumerate(required_tasks):
@@ -88,7 +88,7 @@ class InheritsTestCase(B2LuigiTestCase):
             self.assertEqual(required_task.some_other_parameter, some_other_parameter_values)
             self.assertEqual(required_task.some_parameter, 23)
             self.assertTrue(
-                required_task
-                .get_output_file_name("test.txt")
-                .endswith(f"results/some_parameter=23/some_other_parameter={some_other_parameter_values}/test.txt")
+                required_task.get_output_file_name("test.txt").endswith(
+                    f"results/some_parameter=23/some_other_parameter={some_other_parameter_values}/test.txt"
+                )
             )

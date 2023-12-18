@@ -37,8 +37,9 @@ class SendJobWorker(luigi.worker.Worker):
         else:
             raise NotImplementedError
 
-        return process_class(task=task, scheduler=self._scheduler,
-                             result_queue=self._task_result_queue, worker_timeout=self._config.timeout)
+        return process_class(
+            task=task, scheduler=self._scheduler, result_queue=self._task_result_queue, worker_timeout=self._config.timeout
+        )
 
 
 class SendJobWorkerSchedulerFactory(luigi.interface._WorkerSchedulerFactory):

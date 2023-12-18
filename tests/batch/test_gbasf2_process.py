@@ -7,8 +7,7 @@ from typing import List
 from unittest.mock import MagicMock, Mock, patch
 
 import b2luigi
-from b2luigi.batch.processes.gbasf2 import (Gbasf2Process, JobStatus,
-                                            get_unique_project_name)
+from b2luigi.batch.processes.gbasf2 import Gbasf2Process, JobStatus, get_unique_project_name
 
 from ..helpers import B2LuigiTestCase
 from .batch_task_1 import MyTask
@@ -19,7 +18,6 @@ class MyGbasf2Task(MyTask):
 
 
 class TestGbasf2RescheduleJobs(B2LuigiTestCase):
-
     job_statuses_dir = os.path.join(os.path.dirname(os.path.realpath(__file__)), "_gbasf2_project_statuses")
     joblist_tmpfile_name = "jobs_to_be_rescheduled.txt"
 
@@ -41,10 +39,11 @@ class TestGbasf2RescheduleJobs(B2LuigiTestCase):
         pass
 
     def assert_rescheduled_jobs(self, job_status_fname, expected_jobs_to_be_rescheduled):
-        with patch("b2luigi.batch.processes.gbasf2.get_gbasf2_project_job_status_dict",
-                   MagicMock(return_value=self._get_job_status_dict(job_status_fname))):
+        with patch(
+            "b2luigi.batch.processes.gbasf2.get_gbasf2_project_job_status_dict",
+            MagicMock(return_value=self._get_job_status_dict(job_status_fname)),
+        ):
             with patch("b2luigi.batch.processes.gbasf2.Gbasf2Process._reschedule_jobs", new=self._reschedule_jobs):
-
                 Gbasf2Process._reschedule_failed_jobs(self.gb2_mock_process)
 
                 self.assertCountEqual(list(self.gb2_mock_process.n_retries_by_job.keys()), expected_jobs_to_be_rescheduled)
@@ -69,7 +68,6 @@ class TestGbasf2RescheduleJobs(B2LuigiTestCase):
 
 
 class TestGbasf2GetJobStatus(B2LuigiTestCase):
-
     job_statuses_dir = os.path.join(os.path.dirname(os.path.realpath(__file__)), "_gbasf2_project_statuses")
 
     def setUp(self):
@@ -86,8 +84,10 @@ class TestGbasf2GetJobStatus(B2LuigiTestCase):
             return json.load(job_status_json_file)
 
     def assert_job_status(self, job_status_fname, expected_job_status):
-        with patch("b2luigi.batch.processes.gbasf2.get_gbasf2_project_job_status_dict",
-                   MagicMock(return_value=self._get_job_status_dict(job_status_fname))):
+        with patch(
+            "b2luigi.batch.processes.gbasf2.get_gbasf2_project_job_status_dict",
+            MagicMock(return_value=self._get_job_status_dict(job_status_fname)),
+        ):
             job_status = Gbasf2Process.get_job_status(self.gb2_mock_process)
             self.assertEqual(job_status, expected_job_status)
 
@@ -131,8 +131,10 @@ class TestBuildGbasf2SubmitCommand(B2LuigiTestCase):
 
     def test_input_dataset_in_command(self):
         "Test that if the input dataset is set, it occurs once in the command string"
+
         class _Task(MyGbasf2Task):
             gbasf2_input_dataset = b2luigi.Parameter(default=self.dummy_lfn)
+
         gb2_cmd = self._build_gbasf2_submit_command(_Task("some_parameter"))
         gb2_cmd_str = " ".join(gb2_cmd)
         self.assertEqual(gb2_cmd.count(self.dummy_lfn), 1)
@@ -142,8 +144,10 @@ class TestBuildGbasf2SubmitCommand(B2LuigiTestCase):
 
     def test_input_dslist_in_command(self):
         "Test that if the input dataset list is set, it occurs once in the command string"
+
         class _Task(MyGbasf2Task):
             gbasf2_input_dslist = self.dummy_lfn_file.name
+
         gb2_cmd = self._build_gbasf2_submit_command(_Task("some_parameter"))
         gb2_cmd_str = " ".join(gb2_cmd)
         self.assertEqual(gb2_cmd.count(self.dummy_lfn_file.name), 1)
@@ -153,8 +157,10 @@ class TestBuildGbasf2SubmitCommand(B2LuigiTestCase):
 
     def test_input_dslist_set_but_does_not_exist(self):
         """Test that if the input dataset list is set but the file does not exist, an ``FileNotFoundError`` is raised"""
+
         class _Task(MyGbasf2Task):
             gbasf2_input_dslist = self.dummy_lfn_file.name
+
         self.dummy_lfn_file.close()
         self.assertRaises(FileNotFoundError, lambda: self._build_gbasf2_submit_command(_Task("some_parameter")))
 
@@ -164,9 +170,11 @@ class TestBuildGbasf2SubmitCommand(B2LuigiTestCase):
 
     def test_both_input_dataset_and_dslist_raises_error(self):
         """Test that en error is raise when both gbasf2_input_dataset and gbasf2_inputdslist settings are given"""
+
         class _Task(MyGbasf2Task):
             gbasf2_input_dataset = b2luigi.Parameter(default=self.dummy_lfn)
             gbasf2_input_dslist = self.dummy_lfn_file.name
+
         self.assertRaises(RuntimeError, lambda: self._build_gbasf2_submit_command(MyGbasf2Task("some_parameter")))
 
 
@@ -181,32 +189,17 @@ class TestGetGbasf2DatasetQuery(unittest.TestCase):
         self.gb2_mock_process.task = MyTask("some_parameter")
 
     def test_filename_single_root_extension(self):
-        dataset_query = Gbasf2Process._get_gbasf2_dataset_query(
-            self.gb2_mock_process,
-            output_file_name="output.root"
-        )
-        self.assertEqual(
-            dataset_query,
-            "/belle/user/username/projectname/sub*/output_*.root"
-        )
+        dataset_query = Gbasf2Process._get_gbasf2_dataset_query(self.gb2_mock_process, output_file_name="output.root")
+        self.assertEqual(dataset_query, "/belle/user/username/projectname/sub*/output_*.root")
 
     def test_filename_multi_extension(self):
-        dataset_query = Gbasf2Process._get_gbasf2_dataset_query(
-            self.gb2_mock_process,
-            output_file_name="output.mdst.root"
-        )
-        self.assertEqual(
-            dataset_query,
-            "/belle/user/username/projectname/sub*/output_*.mdst.root"
-        )
+        dataset_query = Gbasf2Process._get_gbasf2_dataset_query(self.gb2_mock_process, output_file_name="output.mdst.root")
+        self.assertEqual(dataset_query, "/belle/user/username/projectname/sub*/output_*.mdst.root")
 
     def test_non_root_extension_raises_err(self):
         "Raise an error if gbasf2 output does not end with .root"
         with self.assertRaises(ValueError):
-            Gbasf2Process._get_gbasf2_dataset_query(
-                self.gb2_mock_process,
-                output_file_name="output.mdst"
-            )
+            Gbasf2Process._get_gbasf2_dataset_query(self.gb2_mock_process, output_file_name="output.mdst")
 
     def test_non_basename_raises_err(self):
         """
@@ -214,10 +207,7 @@ class TestGetGbasf2DatasetQuery(unittest.TestCase):
         LPN is guessed via dirac username for user projects.
         """
         with self.assertRaises(ValueError):
-            Gbasf2Process._get_gbasf2_dataset_query(
-                self.gb2_mock_process,
-                output_file_name="/path/to/output.root"
-            )
+            Gbasf2Process._get_gbasf2_dataset_query(self.gb2_mock_process, output_file_name="/path/to/output.root")
 
     def test_filename_single_extension(self):
         gb2_mock_process = Mock()
@@ -225,11 +215,5 @@ class TestGetGbasf2DatasetQuery(unittest.TestCase):
         gb2_mock_process.dirac_user = "username"
         gb2_mock_process.task = MyTask("some_parameter")
 
-        dataset_query = Gbasf2Process._get_gbasf2_dataset_query(
-            self=gb2_mock_process,
-            output_file_name="output.root"
-        )
-        self.assertEqual(
-            dataset_query,
-            "/belle/user/username/projectname/sub*/output_*.root"
-        )
+        dataset_query = Gbasf2Process._get_gbasf2_dataset_query(self=gb2_mock_process, output_file_name="output.root")
+        self.assertEqual(dataset_query, "/belle/user/username/projectname/sub*/output_*.root")

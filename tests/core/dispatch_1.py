@@ -14,6 +14,7 @@ class MyTask(b2luigi.DispatchableTask):
 
         print("Bye!")
         import sys
+
         sys.stdout.flush()
         os.kill(os.getpid(), 11)
 

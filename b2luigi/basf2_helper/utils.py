@@ -14,11 +14,12 @@ def get_basf2_git_hash():
     if basf2_release in ("head", None):
         try:
             import basf2.version
+
             basf2_release = basf2.version.get_version()
 
         except ImportError as err:
             warnings.warn(
-                f"No basf2 was found. Setting basf2 git hash to \"not_set\": \n {err}",
+                f'No basf2 was found. Setting basf2 git hash to "not_set": \n {err}',
                 category=ImportWarning,
             )
             basf2_release = "not_set"
