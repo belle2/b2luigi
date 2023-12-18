@@ -3,6 +3,7 @@ from unittest import TestCase, mock
 
 import b2luigi
 from b2luigi.core import utils
+from ..helpers import B2LuigiTestCase
 
 
 class ProductDictTestCase(TestCase):
@@ -147,6 +148,42 @@ class FlattenTestCase(TestCase):
         self.assertEqual(outputs["key1"], ["value1", "repeated"])
         self.assertIn("key2", outputs)
         self.assertEqual(outputs["key2"], ["value2"])
+
+
+class OutputFileNameTestCase(B2LuigiTestCase):
+    dummy_dir = "/foo/bar/"
+    dummy_filename = "/foo/bar/run.py"
+    dummy_parameter = "foo"
+
+    def _get_dummy_task(self, parameter):
+        class MyTask(b2luigi.Task):
+            parameter = b2luigi.Parameter()
+
+        task = MyTask(parameter)
+        return task
+
+    def test_output_file_name_basename(self):
+        """
+        Test that utils.create_output_file_name will return the expected output filename path
+        """
+        test_task = self._get_dummy_task(self.dummy_parameter)
+        output = utils.create_output_file_name(test_task, base_filename="output.txt", result_dir=f"{self.test_dir}/results")
+
+        self.assertEqual(output, f"{self.test_dir}/results/parameter={self.dummy_parameter}/output.txt")
+
+    def test_output_file_name_basename_error(self):
+        """
+        Test that utils.create_output_file_name will raise an error if a parameter contains
+        path separator "/" or is not interpretable as basename due to other reasons.
+        """
+
+        test_task_dir = self._get_dummy_task(self.dummy_dir)
+        with self.assertRaises(ValueError):
+            utils.create_output_file_name(test_task_dir, base_filename="output.txt")
+
+        test_task_filename = self._get_dummy_task(self.dummy_filename)
+        with self.assertRaises(ValueError):
+            utils.create_output_file_name(test_task_filename, base_filename="output.txt")
 
 
 class MapFolderTestCase(TestCase):
