@@ -139,7 +139,16 @@ def _get_data_kwargs(data_mode, experiment_number, run_number, prefix=None, file
 
 
 def clone_on_mdst(
-    self, task_class, experiment_number, run_number, release, prod, database, prefix=None, file_name=None, **additional_kwargs
+    self,
+    task_class,
+    experiment_number,
+    run_number,
+    release,
+    prod,
+    database,
+    prefix=None,
+    file_name=None,
+    **additional_kwargs,
 ):
     # TODO: make database not needed
     for kwargs in _get_data_kwargs(
@@ -156,7 +165,16 @@ def clone_on_mdst(
 
 
 def clone_on_cdst(
-    self, task_class, experiment_number, run_number, release, prod, database, prefix=None, file_name=None, **additional_kwargs
+    self,
+    task_class,
+    experiment_number,
+    run_number,
+    release,
+    prod,
+    database,
+    prefix=None,
+    file_name=None,
+    **additional_kwargs,
 ):
     # TODO: make database not needed
     for kwargs in _get_data_kwargs(
@@ -173,7 +191,16 @@ def clone_on_cdst(
 
 
 def clone_on_skimmed_raw(
-    self, task_class, experiment_number, run_number, release, prod, database, prefix=None, file_name=None, **additional_kwargs
+    self,
+    task_class,
+    experiment_number,
+    run_number,
+    release,
+    prod,
+    database,
+    prefix=None,
+    file_name=None,
+    **additional_kwargs,
 ):
     # TODO: make database not needed
     for kwargs in _get_data_kwargs(
@@ -191,6 +218,10 @@ def clone_on_skimmed_raw(
 
 def clone_on_raw(self, task_class, experiment_number, run_number, prefix=None, file_name=None, **additional_kwargs):
     for kwargs in _get_data_kwargs(
-        data_mode=DataMode.raw, experiment_number=experiment_number, run_number=run_number, prefix=prefix, file_name=file_name
+        data_mode=DataMode.raw,
+        experiment_number=experiment_number,
+        run_number=run_number,
+        prefix=prefix,
+        file_name=file_name,
     ):
         yield self.clone(task_class, **kwargs, **additional_kwargs)

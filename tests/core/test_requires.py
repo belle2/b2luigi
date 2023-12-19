@@ -37,7 +37,9 @@ class RequiresTestCase(B2LuigiTestCase):
         self.assertEqual(required_task.some_parameter, 3)
         self.assertEqual(required_task.some_other_parameter, 1)
         self.assertTrue(
-            required_task.get_output_file_name("test.txt").endswith("results/some_parameter=3/some_other_parameter=1/test.txt")
+            required_task.get_output_file_name("test.txt").endswith(
+                "results/some_parameter=3/some_other_parameter=1/test.txt"
+            )
         )
 
 
@@ -71,7 +73,9 @@ class InheritsTestCase(B2LuigiTestCase):
         self.assertEqual(task.some_parameter, 23)
         self.assertFalse(hasattr(task, "some_other_parameter"))
 
-        self.assertTrue(task.get_output_file_name("out.dat").endswith("results/some_parameter=23/another_parameter=42/out.dat"))
+        self.assertTrue(
+            task.get_output_file_name("out.dat").endswith("results/some_parameter=23/another_parameter=42/out.dat")
+        )
 
         input_files = task.get_input_file_names("test.txt")
         self.assertEqual(len(input_files), 10)

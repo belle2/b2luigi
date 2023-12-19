@@ -12,7 +12,7 @@ classifiers = ["License :: OSI Approved :: GNU General Public License v3 or late
 requires=["luigi>=3.0.2", "parse>=1.8.4", "GitPython>=2.1.11", "colorama>=0.3.9", "cachetools>=2.1.0", "jinja2", "retry2>=0.9.3"]
 
 [tool.ruff]
-line-length = 132
+line-length = 120
 
 [tool.ruff.extend-per-file-ignores]
 "__init__.py" = ["F401", "F403", "E402"]

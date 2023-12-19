@@ -46,7 +46,9 @@ class TestGbasf2RescheduleJobs(B2LuigiTestCase):
             with patch("b2luigi.batch.processes.gbasf2.Gbasf2Process._reschedule_jobs", new=self._reschedule_jobs):
                 Gbasf2Process._reschedule_failed_jobs(self.gb2_mock_process)
 
-                self.assertCountEqual(list(self.gb2_mock_process.n_retries_by_job.keys()), expected_jobs_to_be_rescheduled)
+                self.assertCountEqual(
+                    list(self.gb2_mock_process.n_retries_by_job.keys()), expected_jobs_to_be_rescheduled
+                )
                 for jobid in self.gb2_mock_process.n_retries_by_job.keys():
                     self.assertEqual(self.gb2_mock_process.n_retries_by_job[jobid], 1)
 
@@ -193,7 +195,9 @@ class TestGetGbasf2DatasetQuery(unittest.TestCase):
         self.assertEqual(dataset_query, "/belle/user/username/projectname/sub*/output_*.root")
 
     def test_filename_multi_extension(self):
-        dataset_query = Gbasf2Process._get_gbasf2_dataset_query(self.gb2_mock_process, output_file_name="output.mdst.root")
+        dataset_query = Gbasf2Process._get_gbasf2_dataset_query(
+            self.gb2_mock_process, output_file_name="output.mdst.root"
+        )
         self.assertEqual(dataset_query, "/belle/user/username/projectname/sub*/output_*.mdst.root")
 
     def test_non_root_extension_raises_err(self):

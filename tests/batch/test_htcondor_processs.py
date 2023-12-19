@@ -107,7 +107,9 @@ class TestHTCondorJobStatusCache(unittest.TestCase):
 
         # make check_output fail 2 times before  return status dict
         n_fail = 2
-        mock_check_output.side_effect = n_fail * [subprocess.CalledProcessError(1, ["mock", "command"])] + [self.mock_status_json]
+        mock_check_output.side_effect = n_fail * [subprocess.CalledProcessError(1, ["mock", "command"])] + [
+            self.mock_status_json
+        ]
         self.htcondor_job_status_cache._ask_for_job_status()
         self.assertEqual(mock_check_output.call_count, 3)
 
@@ -126,6 +128,8 @@ class TestHTCondorJobStatusCache(unittest.TestCase):
 
         # make check_output fail 2 times before  return status dict
         n_fail = 4
-        mock_check_output.side_effect = n_fail * [subprocess.CalledProcessError(1, ["mock", "command"])] + [self.mock_status_json]
+        mock_check_output.side_effect = n_fail * [subprocess.CalledProcessError(1, ["mock", "command"])] + [
+            self.mock_status_json
+        ]
         with self.assertRaises(subprocess.CalledProcessError):
             self.htcondor_job_status_cache._ask_for_job_status()

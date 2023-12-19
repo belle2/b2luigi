@@ -52,7 +52,9 @@ def create_analysis_path(
         treename="D",
         path=path,
     )
-    mA.variablesToNtuple("B-", ["Mbc", "deltaE", "isSignal", "mcErrors", "M"], filename=b_ntuple_filename, treename="B", path=path)
+    mA.variablesToNtuple(
+        "B-", ["Mbc", "deltaE", "isSignal", "mcErrors", "M"], filename=b_ntuple_filename, treename="B", path=path
+    )
     return path
 
 

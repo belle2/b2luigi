@@ -52,7 +52,15 @@ class HTCondorJobStatusCache(BatchJobStatusCache):
         # If the specified job can not be found in the condor_q output, we need to request its history
         if job_id and job_id not in seen_ids:
             # https://htcondor.readthedocs.io/en/latest/man-pages/condor_history.html
-            history_cmd = ["condor_history", "-json", "-attributes", "ClusterId,JobStatus,ExitCode", "-match", "1", str(job_id)]
+            history_cmd = [
+                "condor_history",
+                "-json",
+                "-attributes",
+                "ClusterId,JobStatus,ExitCode",
+                "-match",
+                "1",
+                str(job_id),
+            ]
             output = subprocess.check_output(history_cmd)
 
             self._fill_from_output(output)

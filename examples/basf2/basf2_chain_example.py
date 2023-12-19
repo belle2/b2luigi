@@ -102,7 +102,10 @@ class AnalysisTask(Basf2PathTask):
             path=path,
         )
         modularAnalysis.variablesToNtuple(
-            "B-", ["Mbc", "deltaE", "isSignal", "mcErrors", "M"], filename=self.get_output_file_name("B_n_tuple.root"), path=path
+            "B-",
+            ["Mbc", "deltaE", "isSignal", "mcErrors", "M"],
+            filename=self.get_output_file_name("B_n_tuple.root"),
+            path=path,
         )
         return path
 

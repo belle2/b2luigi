@@ -94,7 +94,9 @@ def flatten_to_file_paths(inputs):
         pass
 
     if isinstance(inputs, dict):
-        return {os.path.basename(flatten_to_file_paths(key)): flatten_to_file_paths(value) for key, value in inputs.items()}
+        return {
+            os.path.basename(flatten_to_file_paths(key)): flatten_to_file_paths(value) for key, value in inputs.items()
+        }
     if isinstance(inputs, list):
         return [flatten_to_file_paths(value) for value in inputs]
     return inputs
@@ -174,7 +176,11 @@ def get_all_output_files_in_tree(root_module, key=None):
             file_key, file_name = converted_dict.popitem()
 
             all_output_files[file_key].append(
-                dict(exists=target.exists(), parameters=get_serialized_parameters(task), file_name=os.path.abspath(file_name))
+                dict(
+                    exists=target.exists(),
+                    parameters=get_serialized_parameters(task),
+                    file_name=os.path.abspath(file_name),
+                )
             )
 
     return all_output_files

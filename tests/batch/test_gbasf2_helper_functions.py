@@ -273,7 +273,9 @@ class TestMoveDownloadedDatasetToOutputDir(unittest.TestCase):
 
     def test_moving_of_multiple_subs(self):
         root_files_per_sub = [10, 10, 10]
-        project_path = self._create_mock_project_download_dir(project_name="multiple_subs", root_files_per_sub=root_files_per_sub)
+        project_path = self._create_mock_project_download_dir(
+            project_name="multiple_subs", root_files_per_sub=root_files_per_sub
+        )
         project_root_fnames = [root_fpath.name for root_fpath in project_path.glob("sub*/*.root")]
 
         output_path = self.test_dir / "multiple_subs_output.root"
@@ -289,7 +291,9 @@ class TestMoveDownloadedDatasetToOutputDir(unittest.TestCase):
 
     def test_error_when_a_sub_is_empty(self):
         root_files_per_sub = [10, 0, 10]
-        project_path = self._create_mock_project_download_dir(project_name="empty_subs", root_files_per_sub=root_files_per_sub)
+        project_path = self._create_mock_project_download_dir(
+            project_name="empty_subs", root_files_per_sub=root_files_per_sub
+        )
         output_path = self.test_dir / "empty_subs_output.root"
         with self.assertRaises(RuntimeError):
             _move_downloaded_dataset_to_output_dir(project_path.as_posix(), output_path.as_posix())

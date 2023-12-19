@@ -167,7 +167,9 @@ class OutputFileNameTestCase(B2LuigiTestCase):
         Test that utils.create_output_file_name will return the expected output filename path
         """
         test_task = self._get_dummy_task(self.dummy_parameter)
-        output = utils.create_output_file_name(test_task, base_filename="output.txt", result_dir=f"{self.test_dir}/results")
+        output = utils.create_output_file_name(
+            test_task, base_filename="output.txt", result_dir=f"{self.test_dir}/results"
+        )
 
         self.assertEqual(output, f"{self.test_dir}/results/parameter={self.dummy_parameter}/output.txt")
 
