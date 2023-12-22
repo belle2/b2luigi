@@ -33,20 +33,18 @@ class SimulationTask(Basf2PathTask):
             # With ``silent=True``, ``find_file`` returns empty string if nothing is
             # found. With ``silent=False``, a ``FileNotFoundError`` exception is
             # raised.
-            dec_file = basf2.find_file(
-                'analysis/examples/tutorials/B2A101-Y4SEventGeneration.dec', silent=True
-            )
+            dec_file = basf2.find_file("analysis/examples/tutorials/B2A101-Y4SEventGeneration.dec", silent=True)
             if not dec_file:
-                dec_file = basf2.find_file('analysis/examples/simulations/B2A101-Y4SEventGeneration.dec')
+                dec_file = basf2.find_file("analysis/examples/simulations/B2A101-Y4SEventGeneration.dec")
         elif self.event_type == SimulationType.continuum:
-            dec_file = basf2.find_file('analysis/examples/simulations/B2A102-ccbarEventGeneration.dec')
+            dec_file = basf2.find_file("analysis/examples/simulations/B2A102-ccbarEventGeneration.dec")
         else:
             raise ValueError(f"Event type {self.event_type} is not valid. It should be either 'Y(4S)' or 'Continuum'!")
 
-        generators.add_evtgen_generator(path, 'signal', dec_file)
+        generators.add_evtgen_generator(path, "signal", dec_file)
         simulation.add_simulation(path)
 
-        path.add_module('RootOutput', outputFileName=self.get_output_file_name('simulation_full_output.root'))
+        path.add_module("RootOutput", outputFileName=self.get_output_file_name("simulation_full_output.root"))
 
         return path
 
@@ -59,10 +57,10 @@ class ReconstructionTask(Basf2PathTask):
     def create_path(self):
         path = basf2.create_path()
 
-        path.add_module('RootInput', inputFileNames=self.get_input_file_names("simulation_full_output.root"))
+        path.add_module("RootInput", inputFileNames=self.get_input_file_names("simulation_full_output.root"))
 
-        path.add_module('Gearbox')
-        path.add_module('Geometry')
+        path.add_module("Gearbox")
+        path.add_module("Geometry")
         reconstruction.add_reconstruction(path)
 
         mdst.add_mdst_output(path=path, filename=self.get_output_file_name("reconstructed_output.root"))
@@ -77,25 +75,38 @@ class ReconstructionTask(Basf2PathTask):
 class AnalysisTask(Basf2PathTask):
     def create_path(self):
         path = basf2.Path()
-        modularAnalysis.inputMdstList('default', self.get_input_file_names("reconstructed_output.root"), path=path)
-        modularAnalysis.fillParticleLists([('K+', 'kaonID > 0.1'), ('pi+', 'pionID > 0.1')], path=path)
-        modularAnalysis.reconstructDecay('D0 -> K- pi+', '1.7 < M < 1.9', path=path)
-        modularAnalysis.matchMCTruth('D0', path=path)
-        modularAnalysis.reconstructDecay('B- -> D0 pi-', '5.2 < Mbc < 5.3', path=path)
+        modularAnalysis.inputMdstList("default", self.get_input_file_names("reconstructed_output.root"), path=path)
+        modularAnalysis.fillParticleLists([("K+", "kaonID > 0.1"), ("pi+", "pionID > 0.1")], path=path)
+        modularAnalysis.reconstructDecay("D0 -> K- pi+", "1.7 < M < 1.9", path=path)
+        modularAnalysis.matchMCTruth("D0", path=path)
+        modularAnalysis.reconstructDecay("B- -> D0 pi-", "5.2 < Mbc < 5.3", path=path)
         try:  # treeFit is the new function name in light releases after release 4 (e.g. light-2002-janus)
-            vertex.treeFit('B+', 0.1, update_all_daughters=True, path=path)
+            vertex.treeFit("B+", 0.1, update_all_daughters=True, path=path)
         except AttributeError:  # vertexTree is the function name in release 4
-            vertex.vertexTree('B+', 0.1, update_all_daughters=True, path=path)
-        modularAnalysis.matchMCTruth('B-', path=path)
-        modularAnalysis.variablesToNtuple('D0',
-                                          ['M', 'p', 'E', 'useCMSFrame(p)', 'useCMSFrame(E)',
-                                           'daughter(0, kaonID)', 'daughter(1, pionID)', 'isSignal', 'mcErrors'],
-                                          filename=self.get_output_file_name("D_n_tuple.root"),
-                                          path=path)
-        modularAnalysis.variablesToNtuple('B-',
-                                          ['Mbc', 'deltaE', 'isSignal', 'mcErrors', 'M'],
-                                          filename=self.get_output_file_name("B_n_tuple.root"),
-                                          path=path)
+            vertex.vertexTree("B+", 0.1, update_all_daughters=True, path=path)
+        modularAnalysis.matchMCTruth("B-", path=path)
+        modularAnalysis.variablesToNtuple(
+            "D0",
+            [
+                "M",
+                "p",
+                "E",
+                "useCMSFrame(p)",
+                "useCMSFrame(E)",
+                "daughter(0, kaonID)",
+                "daughter(1, pionID)",
+                "isSignal",
+                "mcErrors",
+            ],
+            filename=self.get_output_file_name("D_n_tuple.root"),
+            path=path,
+        )
+        modularAnalysis.variablesToNtuple(
+            "B-",
+            ["Mbc", "deltaE", "isSignal", "mcErrors", "M"],
+            filename=self.get_output_file_name("B_n_tuple.root"),
+            path=path,
+        )
         return path
 
     def output(self):

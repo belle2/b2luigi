@@ -167,7 +167,9 @@ class OutputFileNameTestCase(B2LuigiTestCase):
         Test that utils.create_output_file_name will return the expected output filename path
         """
         test_task = self._get_dummy_task(self.dummy_parameter)
-        output = utils.create_output_file_name(test_task, base_filename="output.txt", result_dir=f"{self.test_dir}/results")
+        output = utils.create_output_file_name(
+            test_task, base_filename="output.txt", result_dir=f"{self.test_dir}/results"
+        )
 
         self.assertEqual(output, f"{self.test_dir}/results/parameter={self.dummy_parameter}/output.txt")
 
@@ -201,9 +203,7 @@ class MapFolderTestCase(TestCase):
         """
         with mock.patch("__main__.__file__", self.dummy_abs_dir):
             mapped_folder = utils.map_folder(self.dummy_rel_dir)
-            self.assertEqual(
-                mapped_folder, os.path.join(self.dummy_abs_dir, mapped_folder)
-            )
+            self.assertEqual(mapped_folder, os.path.join(self.dummy_abs_dir, mapped_folder))
 
     def test_map_folder_abspath_identity_when_no_filename(self):
         """
@@ -262,9 +262,7 @@ class MapFolderTestCase(TestCase):
         information to the ``AttributeError`` raised by ``get_filename``
         """
         message = self._get_map_folder_error_mesage()
-        self.assertTrue(
-            message.startswith("Could not determine the current script location.")
-        )
+        self.assertTrue(message.startswith("Could not determine the current script location."))
 
 
 class TaskIteratorTestCase(TestCase):
@@ -297,7 +295,5 @@ class TaskIteratorTestCase(TestCase):
             "WorkerTask(some_parameter=1)",
             "WorkerTask(some_parameter=2)",
         ]
-        resulting_task_str_order = [
-            str(t) for t in utils.task_iterator(AggregatorTask())
-        ]
+        resulting_task_str_order = [str(t) for t in utils.task_iterator(AggregatorTask())]
         self.assertListEqual(expected_task_str_order, resulting_task_str_order)

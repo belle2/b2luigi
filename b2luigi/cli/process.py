@@ -6,13 +6,13 @@ __has_run_already = False
 
 
 def process(
-        task_like_elements,
-        show_output=False,
-        dry_run=False,
-        test=False,
-        batch=False,
-        ignore_additional_command_line_args=False,
-        **kwargs
+    task_like_elements,
+    show_output=False,
+    dry_run=False,
+    test=False,
+    batch=False,
+    ignore_additional_command_line_args=False,
+    **kwargs,
 ):
     """
     Call this function in your main method to tell ``b2luigi`` where your entry
@@ -87,8 +87,7 @@ def process(
     # Assert, that process is only run once
     global __has_run_already
     if __has_run_already:
-        raise RuntimeError(
-            "You are not allowed to call process twice in your code!")
+        raise RuntimeError("You are not allowed to call process twice in your code!")
     __has_run_already = True
 
     # Create Task List

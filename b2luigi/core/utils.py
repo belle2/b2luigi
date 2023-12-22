@@ -94,8 +94,9 @@ def flatten_to_file_paths(inputs):
         pass
 
     if isinstance(inputs, dict):
-        return {os.path.basename(flatten_to_file_paths(key)):
-                flatten_to_file_paths(value) for key, value in inputs.items()}
+        return {
+            os.path.basename(flatten_to_file_paths(key)): flatten_to_file_paths(value) for key, value in inputs.items()
+        }
     if isinstance(inputs, list):
         return [flatten_to_file_paths(value) for value in inputs]
     return inputs
@@ -174,9 +175,13 @@ def get_all_output_files_in_tree(root_module, key=None):
             converted_dict = flatten_to_file_paths({target_key: target})
             file_key, file_name = converted_dict.popitem()
 
-            all_output_files[file_key].append(dict(exists=target.exists(),
-                                                   parameters=get_serialized_parameters(task),
-                                                   file_name=os.path.abspath(file_name)))
+            all_output_files[file_key].append(
+                dict(
+                    exists=target.exists(),
+                    parameters=get_serialized_parameters(task),
+                    file_name=os.path.abspath(file_name),
+                )
+            )
 
     return all_output_files
 
@@ -260,20 +265,19 @@ def create_output_file_name(task, base_filename, result_dir=None):
 
 
 def get_log_file_dir(task):
-    if hasattr(task, 'get_log_file_dir'):
+    if hasattr(task, "get_log_file_dir"):
         log_file_dir = task.get_log_file_dir()
         return log_file_dir
 
     # Be sure to evaluate things relative to the current executed file, not to where we are now
-    base_log_file_dir = map_folder(get_setting("log_dir", task=task, default="logs",
-                                               deprecated_keys=["log_folder"]))
+    base_log_file_dir = map_folder(get_setting("log_dir", task=task, default="logs", deprecated_keys=["log_folder"]))
     log_file_dir = create_output_file_name(task, task.get_task_family() + "/", result_dir=base_log_file_dir)
 
     return log_file_dir
 
 
 def get_task_file_dir(task):
-    if hasattr(task, 'get_task_file_dir'):
+    if hasattr(task, "get_task_file_dir"):
         task_file_dir = task.get_task_file_dir()
         return task_file_dir
 
@@ -284,6 +288,7 @@ def get_task_file_dir(task):
 
 def get_filename():
     import __main__
+
     return __main__.__file__
 
 
@@ -349,8 +354,7 @@ def add_on_failure_function(task):
 def create_cmd_from_task(task):
     filename = os.path.basename(get_filename())
 
-    prefix = get_setting("executable_prefix", task=task, default=[],
-                         deprecated_keys=["cmd_prefix"])
+    prefix = get_setting("executable_prefix", task=task, default=[], deprecated_keys=["cmd_prefix"])
 
     if isinstance(prefix, str):
         raise ValueError("Your specified executable_prefix needs to be a list of strings, e.g. [strace]")

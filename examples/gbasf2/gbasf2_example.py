@@ -17,9 +17,7 @@ class AnalysisTask(Basf2PathTask):
     def create_path(self):
         mbc_range = (self.mbc_lower_cut, 5.3)
         return example_mdst_analysis.create_analysis_path(
-            d_ntuple_filename="D_ntuple.root",
-            b_ntuple_filename="B_ntuple.root",
-            mbc_range=mbc_range
+            d_ntuple_filename="D_ntuple.root", b_ntuple_filename="B_ntuple.root", mbc_range=mbc_range
         )
 
     def output(self):
@@ -35,9 +33,10 @@ class AnalysisWrapperTask(b2luigi.WrapperTask):
     """
 
     def requires(self):
-        input_dataset = \
-            "/belle/MC/release-04-01-04/DB00000774/SkimM13ax1/prod00011778/e1003/4S/r00000/mixed/11180100/udst/sub00/"\
+        input_dataset = (
+            "/belle/MC/release-04-01-04/DB00000774/SkimM13ax1/prod00011778/e1003/4S/r00000/mixed/11180100/udst/sub00/"
             "udst_000006_prod00011778_task10020000006.root"
+        )
         # if you want to iterate over different cuts, just add more values to this list
         mbc_lower_cuts = [5.15, 5.2]
         for mbc_lower_cut in mbc_lower_cuts:
@@ -49,7 +48,7 @@ class AnalysisWrapperTask(b2luigi.WrapperTask):
             )
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main_task_instance = AnalysisWrapperTask()
     n_gbasf2_tasks = len(list(main_task_instance.requires()))
     b2luigi.process(main_task_instance, workers=n_gbasf2_tasks)

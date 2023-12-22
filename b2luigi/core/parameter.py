@@ -22,6 +22,7 @@ def wrap_parameter():
     where the resulting file path may include "/" or "{}".
     """
     import b2luigi
+
     parameter_class = b2luigi.Parameter
 
     def serialize_hashed(self, x):
@@ -37,8 +38,7 @@ def wrap_parameter():
 
         if hash_function is not None:
             n_params = len(signature(hash_function).parameters)
-            assert n_params == 1, "Custom hash function can have only"\
-                f" 1 argument, found {n_params}"
+            assert n_params == 1, "Custom hash function can have only" f" 1 argument, found {n_params}"
 
         self.hash_function = hash_function
 
@@ -50,6 +50,7 @@ def wrap_parameter():
 
 class BoolParameter(luigi.BoolParameter):
     """Copied BoolParameter without default value"""
+
     def __init__(self, **kwargs):
         kwargs.setdefault("default", _no_value)
         luigi.Parameter.__init__(self, **kwargs)

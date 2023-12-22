@@ -143,13 +143,12 @@ class inherits(object):
         # Modify task_that_inherits by adding methods
         def clone_parent(_self, **kwargs):
             return _self.clone(cls=self.tasks_to_inherit[0], **kwargs)
+
         task_that_inherits.clone_parent = clone_parent
 
         def clone_parents(_self, **kwargs):
-            return [
-                _self.clone(cls=task_to_inherit, **kwargs)
-                for task_to_inherit in self.tasks_to_inherit
-            ]
+            return [_self.clone(cls=task_to_inherit, **kwargs) for task_to_inherit in self.tasks_to_inherit]
+
         task_that_inherits.clone_parents = clone_parents
 
         return task_that_inherits

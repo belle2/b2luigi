@@ -166,6 +166,8 @@ class DeprecatedSettingsWarning(DeprecationWarning):
 
 
 def _warn_deprecated_setting(setting_name, new_name):
-    warnings.warn(f"The setting with the name {setting_name} is deprecated. "
-                  f"Please use {new_name} instead. Future versions might remove this setting.",
-                  DeprecatedSettingsWarning)
+    warnings.warn(
+        f"The setting with the name {setting_name} is deprecated. "
+        f"Please use {new_name} instead. Future versions might remove this setting.",
+        DeprecatedSettingsWarning,
+    )

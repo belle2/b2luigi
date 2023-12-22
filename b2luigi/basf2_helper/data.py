@@ -69,24 +69,32 @@ requires_cdst_data = b2luigi.requires(CdstDataTask)
 
 def _get_dir_structure(data_mode):
     if data_mode == DataMode.mdst:
-        return b2luigi.get_setting("mdst_dir_structure",
-                                   "/hsm/belle2/bdata/Data/release-{p.release}/DB{p.database:08d}/prod{p.prod:08d}/" +
-                                   "e{p.experiment_number:04d}/4S/r{p.run_number:05d}/all/mdst/sub00/" +
-                                   "mdst.{p.prefix}.{p.experiment_number:04d}.{p.run_number:05d}.{p.file_name}.root")
+        return b2luigi.get_setting(
+            "mdst_dir_structure",
+            "/hsm/belle2/bdata/Data/release-{p.release}/DB{p.database:08d}/prod{p.prod:08d}/"
+            + "e{p.experiment_number:04d}/4S/r{p.run_number:05d}/all/mdst/sub00/"
+            + "mdst.{p.prefix}.{p.experiment_number:04d}.{p.run_number:05d}.{p.file_name}.root",
+        )
     if data_mode == DataMode.cdst:
-        return b2luigi.get_setting("cdst_dir_structure",
-                                   "/hsm/belle2/bdata/Data/release-{p.release}/DB{p.database:08d}/prod{p.prod:08d}/" +
-                                   "e{p.experiment_number:04d}/4S/r{p.run_number:05d}/all/cdst/sub00/" +
-                                   "cdst.{p.prefix}.{p.experiment_number:04d}.{p.run_number:05d}.{p.file_name}.root")
+        return b2luigi.get_setting(
+            "cdst_dir_structure",
+            "/hsm/belle2/bdata/Data/release-{p.release}/DB{p.database:08d}/prod{p.prod:08d}/"
+            + "e{p.experiment_number:04d}/4S/r{p.run_number:05d}/all/cdst/sub00/"
+            + "cdst.{p.prefix}.{p.experiment_number:04d}.{p.run_number:05d}.{p.file_name}.root",
+        )
     if data_mode == DataMode.skimmed_raw:
-        return b2luigi.get_setting("skimmed_raw_dir_structure",
-                                   "/hsm/belle2/bdata/Data/release-{p.release}/DB{p.database:08d}/prod{p.prod:08d}/" +
-                                   "e{p.experiment_number:04d}/4S/r{p.run_number:05d}/all/raw/sub00/" +
-                                   "raw.{p.prefix}.{p.file_name}.{p.experiment_number:04d}.{p.run_number:05d}.root")
+        return b2luigi.get_setting(
+            "skimmed_raw_dir_structure",
+            "/hsm/belle2/bdata/Data/release-{p.release}/DB{p.database:08d}/prod{p.prod:08d}/"
+            + "e{p.experiment_number:04d}/4S/r{p.run_number:05d}/all/raw/sub00/"
+            + "raw.{p.prefix}.{p.file_name}.{p.experiment_number:04d}.{p.run_number:05d}.root",
+        )
     if data_mode == DataMode.raw:
-        return b2luigi.get_setting("raw_dir_structure",
-                                   "/ghi/fs01/belle2/bdata/Data/Raw/e{p.experiment_number:04d}/r{p.run_number:05d}/sub00/" +
-                                   "{p.prefix}.{p.experiment_number:04d}.{p.run_number:05d}.{p.file_name}.root")
+        return b2luigi.get_setting(
+            "raw_dir_structure",
+            "/ghi/fs01/belle2/bdata/Data/Raw/e{p.experiment_number:04d}/r{p.run_number:05d}/sub00/"
+            + "{p.prefix}.{p.experiment_number:04d}.{p.run_number:05d}.{p.file_name}.root",
+        )
 
 
 def _build_data_path(parameters):
@@ -115,45 +123,105 @@ def _get_data_kwargs(data_mode, experiment_number, run_number, prefix=None, file
     if prefix is None:
         prefix = "*"
 
-    all_kwargs = fill_kwargs_with_lists(data_mode=data_mode, experiment_number=experiment_number, run_number=run_number,
-                                        prefix=prefix,
-                                        file_name=file_name, **other_kwargs)
+    all_kwargs = fill_kwargs_with_lists(
+        data_mode=data_mode,
+        experiment_number=experiment_number,
+        run_number=run_number,
+        prefix=prefix,
+        file_name=file_name,
+        **other_kwargs,
+    )
     for kwargs in product_dict(**all_kwargs):
         # The build_data_path wants an object, so lets convert the dict to a named tuple
-        kwargs = namedtuple('GenericDict', kwargs.keys())(**kwargs)
+        kwargs = namedtuple("GenericDict", kwargs.keys())(**kwargs)
         for data_file in glob(_build_data_path(kwargs)):
             yield _parse_data_path(data_mode, data_file)
 
 
-def clone_on_mdst(self, task_class, experiment_number, run_number, release, prod, database, prefix=None, file_name=None,
-                  **additional_kwargs):
+def clone_on_mdst(
+    self,
+    task_class,
+    experiment_number,
+    run_number,
+    release,
+    prod,
+    database,
+    prefix=None,
+    file_name=None,
+    **additional_kwargs,
+):
     # TODO: make database not needed
-    for kwargs in _get_data_kwargs(data_mode=DataMode.mdst, experiment_number=experiment_number, run_number=run_number,
-                                   release=release,
-                                   prod=prod, database=database, prefix=prefix, file_name=file_name):
+    for kwargs in _get_data_kwargs(
+        data_mode=DataMode.mdst,
+        experiment_number=experiment_number,
+        run_number=run_number,
+        release=release,
+        prod=prod,
+        database=database,
+        prefix=prefix,
+        file_name=file_name,
+    ):
         yield self.clone(task_class, **kwargs, **additional_kwargs)
 
 
-def clone_on_cdst(self, task_class, experiment_number, run_number, release, prod, database, prefix=None, file_name=None,
-                  **additional_kwargs):
+def clone_on_cdst(
+    self,
+    task_class,
+    experiment_number,
+    run_number,
+    release,
+    prod,
+    database,
+    prefix=None,
+    file_name=None,
+    **additional_kwargs,
+):
     # TODO: make database not needed
-    for kwargs in _get_data_kwargs(data_mode=DataMode.cdst, experiment_number=experiment_number, run_number=run_number,
-                                   release=release,
-                                   prod=prod, database=database, prefix=prefix, file_name=file_name):
+    for kwargs in _get_data_kwargs(
+        data_mode=DataMode.cdst,
+        experiment_number=experiment_number,
+        run_number=run_number,
+        release=release,
+        prod=prod,
+        database=database,
+        prefix=prefix,
+        file_name=file_name,
+    ):
         yield self.clone(task_class, **kwargs, **additional_kwargs)
 
 
-def clone_on_skimmed_raw(self, task_class, experiment_number, run_number, release, prod, database, prefix=None, file_name=None,
-                         **additional_kwargs):
+def clone_on_skimmed_raw(
+    self,
+    task_class,
+    experiment_number,
+    run_number,
+    release,
+    prod,
+    database,
+    prefix=None,
+    file_name=None,
+    **additional_kwargs,
+):
     # TODO: make database not needed
-    for kwargs in _get_data_kwargs(data_mode=DataMode.skimmed_raw, experiment_number=experiment_number, run_number=run_number,
-                                   release=release,
-                                   prod=prod, database=database, prefix=prefix, file_name=file_name):
+    for kwargs in _get_data_kwargs(
+        data_mode=DataMode.skimmed_raw,
+        experiment_number=experiment_number,
+        run_number=run_number,
+        release=release,
+        prod=prod,
+        database=database,
+        prefix=prefix,
+        file_name=file_name,
+    ):
         yield self.clone(task_class, **kwargs, **additional_kwargs)
 
 
 def clone_on_raw(self, task_class, experiment_number, run_number, prefix=None, file_name=None, **additional_kwargs):
-    for kwargs in _get_data_kwargs(data_mode=DataMode.raw, experiment_number=experiment_number, run_number=run_number,
-                                   prefix=prefix,
-                                   file_name=file_name):
+    for kwargs in _get_data_kwargs(
+        data_mode=DataMode.raw,
+        experiment_number=experiment_number,
+        run_number=run_number,
+        prefix=prefix,
+        file_name=file_name,
+    ):
         yield self.clone(task_class, **kwargs, **additional_kwargs)

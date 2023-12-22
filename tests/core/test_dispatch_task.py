@@ -36,4 +36,6 @@ class DispatchTaskTestCase(B2LuigiTestCase):
                 self.assertIn("MY_SECRET_VARIABLE 42\n", stdout_content)
                 self.assertIn("MY_SECOND_SECRET_VARIABLE 47\n", stdout_content)
 
-            self.assertIn(b"This progress looks :) because there were no failed tasks or missing dependencies", out.splitlines())
+            self.assertIn(
+                b"This progress looks :) because there were no failed tasks or missing dependencies", out.splitlines()
+            )

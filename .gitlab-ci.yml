@@ -36,8 +36,6 @@ pre_commit:
     - pip install -U --user pre-commit
     - export PATH=$PATH:~/.local/bin
     - pre-commit run --all-files
-    - git add .
-    - git commit -m "Apply pre-commit changes" || true
 
 test:
   stage: test

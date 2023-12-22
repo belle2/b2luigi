@@ -61,6 +61,7 @@ class BatchProcess:
 
         Checkout the implementation of the ``lsf`` task for some implementation example.
     """
+
     def __init__(self, task, scheduler, result_queue, worker_timeout):
         self.use_multiprocessing = False
         self.task = task

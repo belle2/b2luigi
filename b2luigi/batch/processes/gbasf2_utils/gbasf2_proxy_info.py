@@ -20,10 +20,11 @@ class CertEncoder(json.JSONEncoder):
     """
     JSON encoder for data structures possibly including certificate objects.
     """
+
     def default(self, obj):
         if isinstance(obj, X509Chain):
             x509_dict = obj.dumpAllToString()
-            x509_dict['Value'] = x509_dict['Value'].decode()
+            x509_dict["Value"] = x509_dict["Value"].decode()
             return x509_dict
         return json.JSONEncoder.default(self, obj)
 

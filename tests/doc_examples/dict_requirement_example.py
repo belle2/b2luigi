@@ -7,7 +7,6 @@ class TaskA(luigi.Task):
     index = luigi.IntParameter()
 
     def run(self):
-
         with open(self.get_output_file_name("random_numbers.txt"), "w") as f:
             for _ in range(1000):
                 f.write(f"{random.gauss(self.central_value, 0.0)}\n")
@@ -17,7 +16,6 @@ class TaskA(luigi.Task):
 
 
 class TaskB(luigi.Task):
-
     def requires(self):
         self.required_tasks = {
             "a": (TaskA(5.0, i) for i in range(100)),

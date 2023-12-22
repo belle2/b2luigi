@@ -65,6 +65,7 @@ class TestGetBasf2GitHash(TestCase):
         should detect basf2 and use the ``basf2.version.get_version()`` method
         to return the version hash.
         """
+
         class MockVersion:
             @staticmethod
             def get_version():

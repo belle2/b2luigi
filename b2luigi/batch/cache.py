@@ -15,6 +15,7 @@ class BatchJobStatusCache(abc.ABC, TTLCache):
     Having too much information (e.g. information on jobs
     which are not started by this b2luigi instance) does not matter.
     """
+
     def __init__(self):
         super().__init__(maxsize=1000, ttl=20)
 

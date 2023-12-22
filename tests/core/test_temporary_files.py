@@ -20,7 +20,6 @@ class TemporaryWrapperTestCase(B2LuigiTestCase):
             self.assertEqual(f.read(), "Test")
 
     def test_reset_output(self):
-
         class MyTask(b2luigi.Task):
             def output(self):
                 yield self.add_to_output("test.txt")

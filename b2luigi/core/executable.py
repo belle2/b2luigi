@@ -3,8 +3,14 @@ import stat
 import subprocess
 
 from b2luigi.core.settings import get_setting
-from b2luigi.core.utils import (add_on_failure_function, create_cmd_from_task, get_filename, get_log_file_dir,
-                                get_task_file_dir, map_folder)
+from b2luigi.core.utils import (
+    add_on_failure_function,
+    create_cmd_from_task,
+    get_filename,
+    get_log_file_dir,
+    get_task_file_dir,
+    map_folder,
+)
 
 
 def create_executable_wrapper(task):
@@ -36,7 +42,7 @@ def create_executable_wrapper(task):
     # (b) Now override with any environment from the task or settings
     env_overrides = get_setting("env", task=task, default={})
     for key, value in env_overrides.items():
-        value = value.replace("'", "'\''")
+        value = value.replace("'", "'''")
         value = f"'{value}'"
         executable_wrapper_content.append(f"export {key}={value}")
 
@@ -51,8 +57,7 @@ def create_executable_wrapper(task):
     executable_file_dir = get_task_file_dir(task)
     os.makedirs(executable_file_dir, exist_ok=True)
 
-    executable_wrapper_path = os.path.join(
-        executable_file_dir, "executable_wrapper.sh")
+    executable_wrapper_path = os.path.join(executable_file_dir, "executable_wrapper.sh")
 
     with open(executable_wrapper_path, "w") as f:
         f.write("\n".join(executable_wrapper_content))
@@ -81,8 +86,7 @@ def run_task_remote(task):
 
     with open(stdout_log_file, "w") as stdout_file:
         with open(stderr_log_file, "w") as stderr_file:
-            return_code = subprocess.call([executable_file],
-                                          stdout=stdout_file, stderr=stderr_file)
+            return_code = subprocess.call([executable_file], stdout=stdout_file, stderr=stderr_file)
 
     if return_code:
         raise RuntimeError(f"Execution failed with return code {return_code}")
