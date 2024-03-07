@@ -34,7 +34,7 @@ def run_as_batch_worker(task_list, cli_args, kwargs):
 
     if not found_task:
         raise ValueError(
-            f"The task id {task.task_id} to be executed by this batch worker "
+            f"The task id {cli_args.task_id} to be executed by this batch worker "
             f"does not exist in the locally reproduced task graph."
         )
 
