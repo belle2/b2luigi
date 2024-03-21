@@ -1,6 +1,8 @@
 stages:
   - pre_commit
   - test
+  - build
+  - publish
   - docs
 
 variables:
@@ -10,6 +12,8 @@ variables:
   ARTIFACTS_DOCS_PATH: "docs-build"
   ARTIFACTS_COV_PATH: "coverage/"
   GITLAB_BELLE2_TOOLS_B2SETUP: "/cvmfs/belle.cern.ch/tools/b2setup"
+  PYPI_SERVER: "https://test.pypi.org/legacy/"
+  PYPI_API_TOKEN: $PYPI_API_TOKEN
 
 workflow:
   rules:
@@ -56,6 +60,20 @@ test:
       - junit/test-results.xml
       - coverage/
     expose_as: 'test result and coverage'
+
+build:
+  stage: build
+  script:
+    - pip install flit
+    - flit build
+
+publish:
+  stage: publish
+  script:
+    - pip install twine
+    - twine upload --repository-url $PYPI_SERVER --non-interactive --skip-existing --verbose dist/* -u __token__ -p $PYPI_API_TOKEN
+  only:
+    - tags
 
 docs:
   stage: docs
