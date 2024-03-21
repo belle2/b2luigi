@@ -64,13 +64,13 @@ test:
 build:
   stage: build
   script:
-    - pip install flit
+    - pip install -U --user flit
     - flit build
 
 publish:
   stage: publish
   script:
-    - pip install twine
+    - pip install -U --user twine
     - twine upload --repository-url $PYPI_SERVER --non-interactive --skip-existing --verbose dist/* -u __token__ -p $PYPI_API_TOKEN
   only:
     - tags
