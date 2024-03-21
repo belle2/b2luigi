@@ -1,6 +1,7 @@
 stages:
   - pre_commit
   - test
+  - publish
   - docs
 
 variables:
@@ -10,11 +11,14 @@ variables:
   ARTIFACTS_DOCS_PATH: "docs-build"
   ARTIFACTS_COV_PATH: "coverage/"
   GITLAB_BELLE2_TOOLS_B2SETUP: "/cvmfs/belle.cern.ch/tools/b2setup"
+  FLIT_INDEX_URL: "https://upload.pypi.org/legacy/"
+  FLIT_USERNAME: __token__
 
 workflow:
   rules:
     - if: $CI_PIPELINE_SOURCE == 'merge_request_event'
     - if: $CI_PIPELINE_SOURCE == 'push' && ($CI_COMMIT_BRANCH == 'main') && $CI_COMMIT_TITLE =~ /Merge branch.*/
+    - if: $CI_COMMIT_TAG
     - if: $GITLAB_FORCE_RUNNING_PIPELINE == 'yes'
 
 default:
@@ -57,8 +61,20 @@ test:
       - coverage/
     expose_as: 'test result and coverage'
 
+publish:
+  stage: publish
+  needs: [test]
+  script:
+    - git clean -df
+    - pip install -U --user setuptools wheel twine flit
+    - export PATH=$PATH:~/.local/bin
+    - flit publish
+  only:
+    - tags
+
 docs:
   stage: docs
+  needs: [test]
   script:
     - pip install -U --user flit
     - export PATH=$PATH:~/.local/bin
