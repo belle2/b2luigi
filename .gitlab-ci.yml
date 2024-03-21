@@ -65,12 +65,14 @@ build:
   stage: build
   script:
     - pip install -U --user flit
+    - export PATH=$PATH:~/.local/bin
     - flit build
 
 publish:
   stage: publish
   script:
     - pip install -U --user twine
+    - export PATH=$PATH:~/.local/bin
     - twine upload --repository-url $PYPI_SERVER --non-interactive --skip-existing --verbose dist/* -u __token__ -p $PYPI_API_TOKEN
   only:
     - tags
