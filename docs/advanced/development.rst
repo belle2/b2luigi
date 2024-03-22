@@ -69,12 +69,14 @@ You want to help developing ``b2luigi``? Great! Here are some first steps to hel
 
     in the root of ``b2luigi`` repository. If you add some functionality, try to add some tests for it.
 
-6.  The documentation is hosted on `readthedocs`_ and build automatically on every commit to main.
-    You can (and should) also build the documentation locally by installing ``sphinx``
+6.  The documentation is hosted on `b2luigi.belle2.org`_ and build automatically on every commit to main.
+    You can (and should) also build the documentation locally by installing ``sphinx``, ``sphinx-book-theme``,
+    ``sphinx-autobuild`` and few, additional, dependencies (note they should have already been installed
+    when running ``flit install -s``):
 
     .. code-block:: bash
 
-        python -m pip [ --user ] install sphinx sphinx-autobuild
+        flit install --only-deps
 
     And starting the automatic build process in the projects root folder
 
@@ -86,16 +88,12 @@ You want to help developing ``b2luigi``? Great! Here are some first steps to hel
     the created docs now (most likely http://127.0.0.1:8000).
     Please make sure the documentation looks fine before creating a pull request.
 
-7.  Add a summary of your changes to the ``[Unreleased]`` section of the ``CHANGELOG.md``,
-    following the `Keep a Changelog`_ format.
-
-8.  If you are a core developer and want to release a new version:
+7.  If you are a core developer and want to release a new version:
 
     a.  Make sure all changes are committed and merged on main
 
-    b.  Change the ``[Unreleased]`` heading in the ``CHANGELOG.md`` file to the new version number and commit the change.
-        Then use the `bump-my-version`_ package to update the version in ``b2luigi/__init__.py``, ``.bumpversion.cfg``, ``docs/conf.py`` as well
-        as the git tag. ``flit`` will automatically use this.
+    b.  Use the `bump-my-version`_ package to update the version in ``b2luigi/__init__.py``,
+	``.bumpversion.cfg`` as well as the git tag. ``flit`` will automatically use this.
 
         .. code-block:: bash
 
@@ -109,7 +107,8 @@ You want to help developing ``b2luigi``? Great! Here are some first steps to hel
             git push
             git push --tags
 
-    d.  Create a new `release`_ on GitLab, with the description copied from the ``CHANGELOG.md``.
+    d.  Create a new release on `GitLab <https://gitlab.desy.de/belle2/software/b2luigi/-/releases>`_
+	and on `GitHub <https://github.com/belle2/b2luigi/releases>`_ with an appropriate description.
 
     e.  Check that the new release had been published to PyPi, which should happen automatically via
         GitLab `pipeline`_. Alternatively, you can also manually publish a release via
@@ -129,7 +128,7 @@ For the Belle II collaborators: for a list of potential features, improvements a
 .. _flit: https://pypi.org/project/flit/
 .. _gitlab issues: https://gitlab.desy.de/belle2/software/b2luigi/-/issues
 .. _unittest: https://docs.python.org/3/library/unittest.html
-.. _readthedocs: https://readthedocs.org
+.. _b2luigi.belle2.org: https://b2luigi.belle2.org
 .. _pre-commit: https://pre-commit.com
 .. _flake8: https://flake8.pycqa.org
 .. _PEP 8: https://www.python.org/dev/peps/pep-0008/
