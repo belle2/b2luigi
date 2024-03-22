@@ -21,7 +21,16 @@ class BatchSystems(enum.Enum):
 
 class SendJobWorker(luigi.worker.Worker):
     def _create_task_process(self, task):
-        batch_system = BatchSystems(get_setting("batch_system", default=BatchSystems.lsf, task=task))
+        batch_system_setting = get_setting("batch_system", default=BatchSystems.lsf, task=task)
+        if batch_system_setting = "auto":
+            if shutil.which("bsub"):
+                batch_system_setting = "lsf"
+            elif shutil.which("condor_submit"):
+                batch_system_setting = "htcondor"
+            else:
+                batch_system_setting = "local
+        
+        batch_system = BatchSystems(batch_system_setting)
 
         if batch_system == BatchSystems.lsf:
             process_class = LSFProcess
