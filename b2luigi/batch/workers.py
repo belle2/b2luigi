@@ -28,7 +28,7 @@ class SendJobWorker(luigi.worker.Worker):
             elif shutil.which("condor_submit"):
                 batch_system_setting = "htcondor"
             else:
-                batch_system_setting = "local
+                batch_system_setting = "local"
         
         batch_system = BatchSystems(batch_system_setting)
 
