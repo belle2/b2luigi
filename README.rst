@@ -7,6 +7,8 @@ b2luigi
            :target: https://github.com/belle2/b2luigi/blob/main/LICENSE
 .. image:: https://img.shields.io/pypi/v/b2luigi?logo=pypi
            :target: https://pypi.python.org/pypi/b2luigi/
+.. image:: https://zenodo.org/badge/726161674.svg
+	   :target: https://zenodo.org/doi/10.5281/zenodo.10853220
 
 
 ``b2luigi`` is a helper package constructed around ``luigi`` that helps you schedule working packages (so-called tasks)
@@ -28,7 +30,7 @@ Contributors are listed `here <https://software.belle2.org/b2luigi/index.html#th
 This project is in still beta. Please be extra cautious when using in production mode.
 
 To get notified about new features, (potentially breaking) changes, bugs and
-their fixes, I recommend using the ``Watch`` button on github to get
+their fixes, I recommend using the ``Watch`` button on GitHub to get
 notifications for new releases and/or issues or to subscribe the `releases feed
 <https://github.com/belle2/b2luigi/releases.atom>`_ (requires no GitHub
 account, just a feed reader).

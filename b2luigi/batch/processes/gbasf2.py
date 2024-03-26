@@ -105,7 +105,7 @@ class Gbasf2Process(BatchProcess):
 
 
 
-    Settings for gbasf2 tasks
+    Settings for gbasf2 tasks:
         To submit a task with the gbasf2 wrapper, you first you have to add the property
         ``batch_system = "gbasf2"``, which sets the ``batch_system`` setting.
         It is not recommended to set that setting globally, as not all tasks can be submitted to the grid,
@@ -190,11 +190,11 @@ class Gbasf2Process(BatchProcess):
         ``gbasf2_jobtype``,
         ``gbasf2_basf2opt``
 
-       It is further possible to append arbitrary command line arguments to the ``gbasf2`` submission command
-       with the ``gbasf2_additional_params`` setting.
-       If you want to blacklist a grid site, you can e.g. add
+        It is further possible to append arbitrary command line arguments to the ``gbasf2`` submission command
+        with the ``gbasf2_additional_params`` setting.
+        If you want to blacklist a grid site, you can e.g. add
 
-       .. code-block:: python
+        .. code-block:: python
 
           b2luigi.set_setting("gbasf2_additional_params",  "--banned_site LCG.KEK.jp")
 

@@ -64,15 +64,15 @@ Where to find this depends on your installation type:
 
 a. If you have a installed ``b2luigi`` without user flag, you can just call the executable as it is already in your path:
 
-    .. code-block:: bash
+   .. code-block:: bash
 
-        luigid --port PORT
+     luigid --port PORT
 
 b. If you have a local installation, luigid is installed into your home directory:
 
-    .. code-block:: bash
+   .. code-block:: bash
 
-        ~/.local/bin/luigid --port PORT
+     ~/.local/bin/luigid --port PORT
 
 The default port is 8082, but you can choose any non-occupied port.
 
