@@ -1,8 +1,8 @@
 stages:
   - pre_commit
   - test
-  - publish
   - docs
+  - publish
 
 variables:
   FLIT_ROOT_INSTALL: "1"
@@ -30,22 +30,22 @@ default:
     - git config user.email "something@something.com"
     - git config user.name "someone"
     - git config --global --add safe.directory $(dirname ${GITLAB_BELLE2_TOOLS_B2SETUP})
-    # setup of basf2
+    # Setup of basf2
     - source ${GITLAB_BELLE2_TOOLS_B2SETUP}
     - b2setup $(b2help-releases)
+    # Add $HOME/.local/bin to the path
+    - export PATH=${PATH}:${HOME}/.local/bin
 
 pre_commit:
   stage: pre_commit
   script:
     - pip install -U --user pre-commit
-    - export PATH=$PATH:~/.local/bin
     - pre-commit run --all-files
 
 test:
   stage: test
   script:
     - pip install -U --user pytest pytest-cov python-coveralls flit
-    - export PATH=$PATH:~/.local/bin
     - flit install -s
     - pytest -v --cov b2luigi --junitxml=$ARTIFACTS_TEST_PATH --cov-report=xml --cov-report=html --cov-report=term tests
     - mv htmlcov $ARTIFACTS_COV_PATH
@@ -61,23 +61,13 @@ test:
       - coverage/
     expose_as: 'test result and coverage'
 
-publish:
-  stage: publish
-  needs: [test]
-  script:
-    - git clean -df
-    - pip install -U --user setuptools wheel twine flit
-    - export PATH=$PATH:~/.local/bin
-    - flit publish
-  only:
-    - tags
-
 docs:
   stage: docs
-  needs: [test]
+  needs:
+    - job: test
+      artifacts: false
   script:
     - pip install -U --user flit
-    - export PATH=$PATH:~/.local/bin
     - flit install -s
     - sphinx-build docs/ $ARTIFACTS_DOCS_PATH
   artifacts:
@@ -86,3 +76,16 @@ docs:
     expire_in: 1 week
     expose_as: 'sphinx documentation'
     when: on_success
+
+publish:
+  stage: publish
+  needs:
+    - job: test
+      artifacts: false
+    - job: docs
+      artifacts: false
+  script:
+    - pip install -U --user setuptools wheel twine flit
+    - flit publish
+  only:
+    - tags
