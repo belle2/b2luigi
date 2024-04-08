@@ -58,7 +58,7 @@ class HTCondorJobStatusCache(BatchJobStatusCache):
                 "-attributes",
                 "ClusterId,JobStatus,ExitCode",
                 "-match",
-                f"1,{job_id}"
+                f"1,{job_id}",
             ]
             output = subprocess.check_output(history_cmd)
 
