@@ -1,3 +1,4 @@
+from datetime import datetime
 import json
 import os
 import tempfile
@@ -79,6 +80,8 @@ class TestGbasf2GetJobStatus(B2LuigiTestCase):
         self.gb2_mock_process.dirac_user = "username"
         self.gb2_mock_process.gbasf2_project_name = get_unique_project_name(self.gb2_mock_process.task)
         self.gb2_mock_process.max_retries = 0
+        self.gb2_mock_process._last_job_status_update = datetime.fromtimestamp(0)
+        self.gb2_mock_process._job_status_max_age = 5 * 60
         b2luigi.set_setting("gbasf2_print_status_updates", False)
 
     def _get_job_status_dict(self, job_status_fname):
