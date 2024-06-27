@@ -724,7 +724,7 @@ class Gbasf2Process(BatchProcess):
         project_download_path = self._get_project_download_path(base_output_dir=tmp_output_dir_path)
         if check_temp_dir:
             # files in the temporary download directory
-            glob_expression = os.path.join(project_download_path, self.gbasf2_project_name, "sub*", "*.root")
+            glob_expression = os.path.join(project_download_path, "sub*", "*.root")
             downloaded_dataset_basenames = [os.path.basename(fpath) for fpath in glob(glob_expression)]
         else:
             # file in the final output directory
