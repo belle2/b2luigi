@@ -12,7 +12,6 @@ from b2luigi.core.utils import create_output_dirs, get_serialized_parameters
 
 
 class Basf2Task(b2luigi.DispatchableTask):
-    git_hash = b2luigi.Parameter(default=get_basf2_git_hash())
 
     def get_output_file_target(self, *args, **kwargs):
         file_name = self.get_output_file_name(*args, **kwargs)
