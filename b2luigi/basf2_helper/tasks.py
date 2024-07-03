@@ -4,7 +4,6 @@ import shutil
 
 import b2luigi
 from b2luigi.basf2_helper.targets import ROOTLocalTarget
-from b2luigi.basf2_helper.utils import get_basf2_git_hash
 
 import subprocess
 
@@ -24,7 +23,6 @@ class Basf2Task(b2luigi.DispatchableTask):
 
         # Git hash should go to the front
         return_dict = collections.OrderedDict()
-        return_dict["git_hash"] = serialized_parameters["git_hash"]
 
         for key, value in serialized_parameters.items():
             return_dict[key] = value
@@ -41,7 +39,6 @@ class Basf2PathTask(Basf2Task):
 
     @b2luigi.on_temporary_files
     def process(self):
-        assert get_basf2_git_hash() == self.git_hash
 
         try:
             import basf2
