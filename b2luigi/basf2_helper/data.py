@@ -9,7 +9,13 @@ import b2luigi
 from parse import parse
 
 from warnings import warn
-warn("The DataTasks from basf2_helpers/data.py will be deprecated in the future. Please do not build an analysis on them", DeprecationWarning, stacklevel=2)
+
+warn(
+    "The DataTasks from basf2_helpers/data.py will be deprecated in the future. Please do not build an analysis on them",
+    DeprecationWarning,
+    stacklevel=2,
+)
+
 
 class DataMode(enum.Enum):
     raw = "raw"

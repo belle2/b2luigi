@@ -11,7 +11,6 @@ from b2luigi.core.utils import create_output_dirs, get_serialized_parameters
 
 
 class Basf2Task(b2luigi.DispatchableTask):
-
     def get_output_file_target(self, *args, **kwargs):
         file_name = self.get_output_file_name(*args, **kwargs)
         if os.path.splitext(file_name)[-1] == ".root":
@@ -39,7 +38,6 @@ class Basf2PathTask(Basf2Task):
 
     @b2luigi.on_temporary_files
     def process(self):
-
         try:
             import basf2
         except ImportError:
