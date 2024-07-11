@@ -7,10 +7,13 @@ from b2luigi.basf2_helper.targets import ROOTLocalTarget
 
 import subprocess
 
+from b2luigi.basf2_helper.utils import get_basf2_git_hash
 from b2luigi.core.utils import create_output_dirs, get_serialized_parameters
 
 
 class Basf2Task(b2luigi.DispatchableTask):
+    git_hash = b2luigi.Parameter(default=get_basf2_git_hash())
+
     def get_output_file_target(self, *args, **kwargs):
         file_name = self.get_output_file_name(*args, **kwargs)
         if os.path.splitext(file_name)[-1] == ".root":
@@ -22,6 +25,7 @@ class Basf2Task(b2luigi.DispatchableTask):
 
         # Git hash should go to the front
         return_dict = collections.OrderedDict()
+        return_dict["git_hash"] = serialized_parameters["git_hash"]
 
         for key, value in serialized_parameters.items():
             return_dict[key] = value
