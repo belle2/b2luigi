@@ -1,5 +1,5 @@
 import enum
-import shutils
+import shutil
 
 import luigi.interface
 import luigi.worker
@@ -21,18 +21,20 @@ class BatchSystems(enum.Enum):
 
 
 class SendJobWorker(luigi.worker.Worker):
-    def _create_task_process(self, task):
+    def detect_batch_system(self, task):
         batch_system_setting = get_setting("batch_system", default=BatchSystems.lsf, task=task)
         if batch_system_setting == "auto":
-            if shutils.which("bsub"):
+            if shutil.which("bsub"):
                 batch_system_setting = "lsf"
-            elif shutils.which("condor_submit"):
+            elif shutil.which("condor_submit"):
                 batch_system_setting = "htcondor"
             else:
                 batch_system_setting = "local"
 
-        batch_system = BatchSystems(batch_system_setting)
+        return BatchSystems(batch_system_setting)
 
+    def _create_task_process(self, task):
+        batch_system = self.detect_batch_system(task)
         if batch_system == BatchSystems.lsf:
             process_class = LSFProcess
         elif batch_system == BatchSystems.htcondor:
