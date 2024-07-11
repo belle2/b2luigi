@@ -10,6 +10,8 @@ arbitrary task graphs on the batch.
 It is very similar to ``luigi.build``, but lets you hand in additional parameters
 for steering the batch execution.
 
+If you are not yet familiar with ``luigi`` itself, we recommend you to read its current documentation: `Luigi Documentation <https://luigi.readthedocs.io/en/stable/index.html>`_
+
 Top-Level Function
 ------------------
 
@@ -72,7 +74,20 @@ Turning it to true (it is turned off by default) will make ``b2luigi`` use a has
 of the parameters value, when constructing output or log file paths.
 This is especially useful if you have parameters, which may include "dangerous" characters, like "/" or "{" (e.g.
 when using list or dictionary parameters).
+If you want to exclude certain parameters from the creation of the directory structure , you can use the ``significant`` flag and set it to ``False``.
+
 See also one of our :ref:`faq-label`.
+
+For more information on ``luigi.Parameters`` and what types there are see `the Luigi Documentation <https://luigi.readthedocs.io/en/stable/parameters.html>`_
+
+
+Other important features from luigi
+-----------------------------------
+
+``luigi`` itself already boasts a number of nice features. Check out some highlights:
+- `The central scheduler  <https://luigi.readthedocs.io/en/stable/central_scheduler.html>`_
+- `The notification system <https://luigi.readthedocs.io/en/stable/api/luigi.notifications.html#module-luigi.notifications>`_
+- `communication with tasks <https://luigi.readthedocs.io/en/stable/luigi_patterns.html#sending-messages-to-tasks>`_
 
 XrootDTargets
 -------------

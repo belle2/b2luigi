@@ -24,7 +24,8 @@ class CertEncoder(json.JSONEncoder):
     def default(self, obj):
         if isinstance(obj, X509Chain):
             x509_dict = obj.dumpAllToString()
-            x509_dict["Value"] = x509_dict["Value"].decode()
+            if isinstance(x509_dict["Value"], bytes):
+                x509_dict["Value"] = x509_dict["Value"].decode()
             return x509_dict
         return json.JSONEncoder.default(self, obj)
 
