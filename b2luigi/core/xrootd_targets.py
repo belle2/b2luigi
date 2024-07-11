@@ -250,3 +250,6 @@ class XrootDTarget(FileSystemTarget):
         tmp_path = f"{self._scratch_dir}/{self.base_name}"
         yield tmp_path
         self.fs.copy_file_to_remote(tmp_path, self.path, force=True)
+
+    def open(self, mode):
+        raise NotImplementedError("XrootDTarget does not support open yet")
