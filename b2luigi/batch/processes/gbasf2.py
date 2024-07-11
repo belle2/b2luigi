@@ -301,7 +301,7 @@ class Gbasf2Process(BatchProcess):
 
         # Minutes to cache the job status got from gbasf2
         # default is 5 minutes
-        self._job_status_max_age = 5*60
+        self._job_status_max_age = 5 * 60
 
         # last successful update of the job status got from gbasf2
         self._last_job_status_update = datetime.fromtimestamp(0)
