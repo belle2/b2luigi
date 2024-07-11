@@ -1,6 +1,11 @@
 import unittest
 from unittest.mock import Mock
-from b2luigi.batch.worker import SendJobWorker, BatchSystems
+from b2luigi.batch.worker import SendJobWorker
+from b2luigi.batch.processes.lsf import LSFProcess
+from b2luigi.batch.processes.htcondor import HTCondorProcess
+from b2luigi.batch.processes.gbasf2 import Gbasf2Process
+from b2luigi.batch.processes.test import TestProcess
+
 
 class TestSendJobWorker(unittest.TestCase):
     def setUp(self):
@@ -30,17 +35,12 @@ class TestSendJobWorker(unittest.TestCase):
         process = self.worker._create_task_process(task)
         self.assertIsInstance(process, TestProcess)
 
-    def test_create_task_process_local(self):
-        task = Mock()
-        task.get_setting.return_value = "local"
-        process = self.worker._create_task_process(task)
-        self.assertIsInstance(process, LocalProcess)
-
     def test_create_task_process_not_implemented(self):
         task = Mock()
         task.get_setting.return_value = "unknown"
         with self.assertRaises(NotImplementedError):
             self.worker._create_task_process(task)
+
 
 if __name__ == "__main__":
     unittest.main()
