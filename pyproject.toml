@@ -7,7 +7,20 @@ module = "b2luigi"
 author = "Nils Braun, Michael Eliachevitch, The Belle II Collaboration"
 author-email = "software-b2luigi@belle2.org"
 home-page = "https://github.com/belle2/b2luigi"
-classifiers = ["License :: OSI Approved :: GNU General Public License v3 or later (GPLv3+)"]
+summary = "b2luigi — bringing batch 2 luigi!"
+license = {text = "GNU General Public License v3 or later (GPLv3+)"}
+keywords = ["luigi", "workflow management", "belle2"]
+classifiers = [
+    "Development Status :: 5 - Production/Stable",
+    "Intended Audience :: Developers",
+    "Topic :: Software Development :: Build Tools",
+    "License :: OSI Approved :: GNU General Public License v3 or later (GPLv3+)",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11"
+]
 requires = [
 	 "luigi>=3.0.2",
 	 "parse>=1.8.4",
@@ -33,6 +46,10 @@ doc = [
     "sphinxcontrib-serializinghtml==1.1.5",
     "sphinx-autobuild"
 ]
+
+[tool.flit.metadata.urls]
+"Homepage" = "https://github.com/belle2/b2luigi"
+"Documentation" = "https://b2luigi.belle2.org/i"
 
 [tool.ruff]
 line-length = 120
