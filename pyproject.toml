@@ -16,6 +16,7 @@ requires = [
 	 "cachetools>=2.1.0",
 	 "jinja2",
 	 "retry2>=0.9.3"]
+description-file = "README.rst"
 
 [tool.flit.metadata.requires-extra]
 # Use the same versions of sphinx and sphinx-book-theme
