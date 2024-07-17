@@ -29,6 +29,7 @@ requires = [
 	 "cachetools>=2.1.0",
 	 "jinja2",
 	 "retry2>=0.9.3"]
+requires-python = ">=3.8, <3.12"
 description-file = "README.rst"
 
 [tool.flit.metadata.requires-extra]
@@ -49,7 +50,7 @@ doc = [
 
 [tool.flit.metadata.urls]
 "Homepage" = "https://github.com/belle2/b2luigi"
-"Documentation" = "https://b2luigi.belle2.org/i"
+"Documentation" = "https://b2luigi.belle2.org/"
 
 [tool.ruff]
 line-length = 120
