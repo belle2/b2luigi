@@ -7,9 +7,8 @@ module = "b2luigi"
 author = "Nils Braun, Michael Eliachevitch, The Belle II Collaboration"
 author-email = "software-b2luigi@belle2.org"
 home-page = "https://github.com/belle2/b2luigi"
-summary = "b2luigi — bringing batch 2 luigi!"
-license = {text = "GNU General Public License v3 or later (GPLv3+)"}
-keywords = ["luigi", "workflow management", "belle2"]
+license = "GNU General Public License v3 or later (GPLv3+)"
+keywords = "luigi, workflow management, belle2"
 classifiers = [
     "Development Status :: 5 - Production/Stable",
     "Intended Audience :: Developers",
