@@ -7,6 +7,8 @@ import collections
 import sys
 import types
 
+import luigi
+
 import colorama
 
 from b2luigi.core.settings import get_setting
@@ -77,7 +79,7 @@ def fill_kwargs_with_lists(**kwargs):
     return return_kwargs
 
 
-def flatten_to_file_paths(inputs):
+def flatten_to_file_paths(inputs: dict | luigi.Target | list) -> dict[str, list[str] | str]:
     """
     Take in a structure of something and replace each luigi target by its corresponding path.
     For dicts, it will replace the value as well as the key. The key will however only by the basename of the path.
@@ -97,12 +99,14 @@ def flatten_to_file_paths(inputs):
         return {
             os.path.basename(flatten_to_file_paths(key)): flatten_to_file_paths(value) for key, value in inputs.items()
         }
+
     if isinstance(inputs, list):
         return [flatten_to_file_paths(value) for value in inputs]
+
     return inputs
 
 
-def flatten_to_dict(inputs):
+def flatten_to_dict(inputs: list | dict) -> dict:
     """
     Return a whatever input structure into a dictionary.
     If it is a dict already, return this.
@@ -128,11 +132,11 @@ def flatten_to_dict(inputs):
     return joined_dict
 
 
-def flatten_to_list_of_dicts(inputs):
-    inputs = _flatten(inputs)
-    inputs = map(_to_dict, inputs)
+def flatten_to_list_of_dicts(inputs) -> dict[str, list[str]]:
+    inputs: list = _flatten(inputs)
+    inputs: list[dict] = map(_to_dict, inputs)
 
-    joined_dict = collections.defaultdict(list)
+    joined_dict: dict[str, list] = collections.defaultdict(list)
     for i in inputs:
         for key, value in i.items():
             joined_dict[key].append(value)
@@ -241,12 +245,12 @@ def get_serialized_parameters(task):
     return serialized_parameters
 
 
-def create_output_file_name(task, base_filename, result_dir=None):
+def create_output_file_name(task, base_filename: str, result_dir: str | None = None) -> str:
     serialized_parameters = get_serialized_parameters(task)
 
     if not result_dir:
         # Be sure to evaluate things relative to the current executed file, not to where we are now
-        result_dir = map_folder(get_setting("result_dir", task=task, default=".", deprecated_keys=["result_path"]))
+        result_dir: str = map_folder(get_setting("result_dir", task=task, default=".", deprecated_keys=["result_path"]))
 
     for key, value in serialized_parameters.items():
         # Raise error if parameter value contains path separator "/" ("\" on Windows)
@@ -258,8 +262,8 @@ def create_output_file_name(task, base_filename, result_dir=None):
                 "Consider using a hashed parameter (e.g. ``b2luigi.Parameter(hashed=True)``)."
             )
 
-    param_list = [f"{key}={value}" for key, value in serialized_parameters.items()]
-    output_path = os.path.join(result_dir, *param_list)
+    param_list: list[str] = [f"{key}={value}" for key, value in serialized_parameters.items()]
+    output_path: str = os.path.join(result_dir, *param_list)
 
     return os.path.join(output_path, base_filename)
 
@@ -311,14 +315,14 @@ def map_folder(input_folder):
     return os.path.join(filepath, input_folder)
 
 
-def _to_dict(d):
+def _to_dict(d) -> dict:
     if isinstance(d, dict):
         return d
 
     return {d: d}
 
 
-def _flatten(struct):
+def _flatten(struct: dict | str) -> list:
     if isinstance(struct, dict) or isinstance(struct, str):
         return [struct]
 

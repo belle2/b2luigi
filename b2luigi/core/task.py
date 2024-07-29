@@ -1,3 +1,4 @@
+from collections.abc import Iterable, Iterator
 from b2luigi.core import utils
 
 import luigi
@@ -39,7 +40,7 @@ class Task(luigi.Task):
                       f.write(f"{average}\\n")
     """
 
-    def add_to_output(self, output_file_name):
+    def add_to_output(self, output_file_name: str) -> dict[str, luigi.LocalTarget]:
         """
         Call this in your ``output()`` function to add a target to the list of files,
         this task will output.
@@ -69,15 +70,17 @@ class Task(luigi.Task):
         return {output_file_name: self._get_output_file_target(output_file_name)}
 
     @staticmethod
-    def _transform_input(input_generator, key=None):
-        input_list = utils.flatten_to_list_of_dicts(input_generator)
-        file_paths = utils.flatten_to_file_paths(input_list)
+    def _transform_input(
+        input_generator: Iterable[luigi.Target], key: str | None = None
+    ) -> dict[str, str] | dict[str, list[str]] | list[str]:
+        input_list: dict[str, list[str]] = utils.flatten_to_list_of_dicts(input_generator)
+        file_paths: dict[str, list[str]] = utils.flatten_to_file_paths(input_list)
 
         if key is not None:
             return file_paths[key]
         return file_paths
 
-    def get_all_input_file_names(self):
+    def get_all_input_file_names(self) -> Iterator[str]:
         """
         Return all file paths required by this task.
 
@@ -95,7 +98,7 @@ class Task(luigi.Task):
             for file_name in file_names:
                 yield file_name
 
-    def get_input_file_names(self, key=None):
+    def get_input_file_names(self, key: str | None = None):
         """
         Get a dictionary of input file names of the tasks, which are defined in our requirements.
         Either use the key argument or dictionary indexing with the key given to :obj:`add_to_output`
@@ -110,7 +113,9 @@ class Task(luigi.Task):
         """
         return self._transform_input(self.input(), key)
 
-    def get_input_file_names_from_dict(self, requirement_key, key=None):
+    def get_input_file_names_from_dict(
+        self, requirement_key: str, key: str | None = None
+    ) -> dict[str, list[str]] | list[str]:
         """
         Get a dictionary of input file names of the tasks, which are defined in our requirements.
 
@@ -160,15 +165,15 @@ class Task(luigi.Task):
         return self._transform_input(self.input()[requirement_key], key)
 
     @staticmethod
-    def _transform_output(output_generator, key=None):
-        output_list = utils.flatten_to_list_of_dicts(output_generator)
-        file_paths = utils.flatten_to_file_paths(output_list)
+    def _transform_output(output_generator, key=None) -> dict[str, str] | str:
+        output_list: dict = utils.flatten_to_list_of_dicts(output_generator)
+        file_paths: dict = utils.flatten_to_file_paths(output_list)
 
         if key is not None:
             return file_paths[key]
         return file_paths
 
-    def get_all_output_file_names(self):
+    def get_all_output_file_names(self) -> Iterator[str]:
         """
         Return all file paths created by this task.
 
@@ -185,7 +190,7 @@ class Task(luigi.Task):
             for file_name in file_names:
                 yield file_name
 
-    def get_output_file_name(self, key):
+    def get_output_file_name(self, key: str) -> str:
         """
         Analogous to :obj:`get_input_file_names` this function returns
         a an output file defined in out output function with
@@ -200,23 +205,24 @@ class Task(luigi.Task):
         Return:
             Returns only the file path for this given key.
         """
-        target = self._get_output_target(key)
-        file_paths = utils.flatten_to_file_paths(target)
+        target: luigi.Target = self._get_output_target(key)
+        # why does this line use flatten to file paths? It could just be file_paths target.path
+        file_paths: str = utils.flatten_to_file_paths(target)
 
         return file_paths
 
-    def _get_input_targets(self, key):
+    def _get_input_targets(self, key: str) -> luigi.Target:
         """Shortcut to get the input targets for a given key. Will return a luigi target."""
         input_dict = utils.flatten_to_list_of_dicts(self.input())
         return input_dict[key]
 
-    def _get_output_target(self, key):
+    def _get_output_target(self, key: str) -> luigi.Target:
         """Shortcut to get the output target for a given key. Will return a luigi target."""
-        output_dict = utils.flatten_to_dict(self.output())
+        output_dict: dict = utils.flatten_to_dict(self.output())
         return output_dict[key]
 
-    def _get_output_file_target(self, base_filename, **kwargs):
-        file_name = create_output_file_name(self, base_filename, **kwargs)
+    def _get_output_file_target(self, base_filename: str, **kwargs) -> luigi.LocalTarget:
+        file_name: str = create_output_file_name(self, base_filename, **kwargs)
         return luigi.LocalTarget(file_name)
 
 
@@ -236,9 +242,9 @@ class NotCompletedTask(Task):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-        self.check_complete = True
+        self.check_complete: bool = True
 
-    def complete(self):
+    def complete(self) -> bool:
         """Custom complete function checking also the child tasks until a check_complete = False is reached"""
         if not super().complete():
             return False
