@@ -197,10 +197,9 @@ class Task(luigi.Task):
             Returns only the file path for this given key.
         """
         target: luigi.Target = self._get_output_target(key)
-        # why does this line use flatten to file paths? It could just be file_paths target.path
-        file_paths: str = utils.flatten_to_file_paths(target)
+        file_path: str = target.path
 
-        return file_paths
+        return file_path
 
     def _get_input_targets(self, key: str) -> luigi.Target:
         """Shortcut to get the input targets for a given key. Will return a luigi target."""
