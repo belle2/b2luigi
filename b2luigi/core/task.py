@@ -72,8 +72,8 @@ class Task(luigi.Task):
     @staticmethod
     def _transform_io(
         input_generator: Iterable[luigi.Target], key: str | None = None
-    ) -> dict[str, str] | dict[str, list[str]] | list[str]:
-        io_dict: dict[str, list[str]] = utils.flatten_to_list_of_dicts(input_generator)
+    ) -> dict[str, list[str]] | list[str]:
+        io_dict: dict[str, list[str]] = utils.flatten_to_dict_of_lists(input_generator)
         file_paths: dict[str, list[str]] = utils.flatten_to_file_paths(io_dict)
 
         if key is not None:
@@ -203,7 +203,7 @@ class Task(luigi.Task):
 
     def _get_input_targets(self, key: str) -> luigi.Target:
         """Shortcut to get the input targets for a given key. Will return a luigi target."""
-        input_dict = utils.flatten_to_list_of_dicts(self.input())
+        input_dict = utils.flatten_to_dict_of_lists(self.input())
         return input_dict[key]
 
     def _get_output_target(self, key: str) -> luigi.Target:
