@@ -79,7 +79,7 @@ def fill_kwargs_with_lists(**kwargs):
     return return_kwargs
 
 
-def flatten_to_file_paths(inputs: dict | luigi.Target | list) -> dict[str, list[str] | str]:
+def flatten_to_file_paths(inputs: dict[str, list[luigi.Target]] | luigi.Target) -> dict[str, list[str]]:
     """
     Take in a structure of something and replace each luigi target by its corresponding path.
     For dicts, it will replace the value as well as the key. The key will however only by the basename of the path.
@@ -87,23 +87,15 @@ def flatten_to_file_paths(inputs: dict | luigi.Target | list) -> dict[str, list[
     :param inputs: A dict or a luigi target
     :return: A dict with the keys replaced by the basename of the targets and the values by the full path
     """
+
     if not inputs:
         return None
 
-    try:
+    if isinstance(inputs, luigi.Target):
         return inputs.path
-    except AttributeError:
-        pass
 
     if isinstance(inputs, dict):
-        return {
-            os.path.basename(flatten_to_file_paths(key)): flatten_to_file_paths(value) for key, value in inputs.items()
-        }
-
-    if isinstance(inputs, list):
-        return [flatten_to_file_paths(value) for value in inputs]
-
-    return inputs
+        return {os.path.basename(key): [val.path for val in value] for key, value in inputs.items()}
 
 
 def flatten_to_dict(inputs: list | dict) -> dict:
