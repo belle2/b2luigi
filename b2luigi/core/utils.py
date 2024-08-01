@@ -132,7 +132,7 @@ def flatten_to_dict(inputs: list | dict) -> dict:
     return joined_dict
 
 
-def flatten_to_list_of_dicts(inputs) -> dict[str, list[str]]:
+def flatten_to_list_of_dicts(inputs) -> dict[str, list]:
     inputs: list = _flatten(inputs)
     inputs: list[dict] = map(_to_dict, inputs)
 

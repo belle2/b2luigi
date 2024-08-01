@@ -70,11 +70,11 @@ class Task(luigi.Task):
         return {output_file_name: self._get_output_file_target(output_file_name)}
 
     @staticmethod
-    def _transform_input(
+    def _transform_io(
         input_generator: Iterable[luigi.Target], key: str | None = None
     ) -> dict[str, str] | dict[str, list[str]] | list[str]:
-        input_list: dict[str, list[str]] = utils.flatten_to_list_of_dicts(input_generator)
-        file_paths: dict[str, list[str]] = utils.flatten_to_file_paths(input_list)
+        io_dict: dict[str, list[str]] = utils.flatten_to_list_of_dicts(input_generator)
+        file_paths: dict[str, list[str]] = utils.flatten_to_file_paths(io_dict)
 
         if key is not None:
             return file_paths[key]
@@ -94,7 +94,7 @@ class Task(luigi.Task):
                           print(f"\t\toutput:\t{name}")
 
         """
-        for file_names in self._transform_input(self.input()).values():
+        for file_names in self._transform_io(self.input()).values():
             for file_name in file_names:
                 yield file_name
 
@@ -111,7 +111,7 @@ class Task(luigi.Task):
             If key is none, returns a dictionary of keys to list of file paths.
             Else, returns only the list of file paths for this given key.
         """
-        return self._transform_input(self.input(), key)
+        return self._transform_io(self.input(), key)
 
     def get_input_file_names_from_dict(
         self, requirement_key: str, key: str | None = None
@@ -162,16 +162,7 @@ class Task(luigi.Task):
             If key is none, returns a dictionary of keys to list of file paths.
             Else, returns only the list of file paths for this given key.
         """
-        return self._transform_input(self.input()[requirement_key], key)
-
-    @staticmethod
-    def _transform_output(output_generator, key=None) -> dict[str, str] | str:
-        output_list: dict = utils.flatten_to_list_of_dicts(output_generator)
-        file_paths: dict = utils.flatten_to_file_paths(output_list)
-
-        if key is not None:
-            return file_paths[key]
-        return file_paths
+        return self._transform_io(self.input()[requirement_key], key)
 
     def get_all_output_file_names(self) -> Iterator[str]:
         """
@@ -186,7 +177,7 @@ class Task(luigi.Task):
                       for name in self.get_all_output_file_names():
                           print(f"\t\toutput:\t{name}")
         """
-        for file_names in self._transform_output(self.output()).values():
+        for file_names in self._transform_io(self.output()).values():
             for file_name in file_names:
                 yield file_name
 
