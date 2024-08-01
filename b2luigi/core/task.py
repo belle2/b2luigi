@@ -98,7 +98,7 @@ class Task(luigi.Task):
             for file_name in file_names:
                 yield file_name
 
-    def get_input_file_names(self, key: str | None = None):
+    def get_input_file_names(self, key: str | None = None) -> dict[str, list[str]] | list[str]:
         """
         Get a dictionary of input file names of the tasks, which are defined in our requirements.
         Either use the key argument or dictionary indexing with the key given to :obj:`add_to_output`
@@ -208,7 +208,7 @@ class Task(luigi.Task):
 
     def _get_output_target(self, key: str) -> luigi.Target:
         """Shortcut to get the output target for a given key. Will return a luigi target."""
-        output_dict: dict = utils.flatten_to_dict(self.output())
+        output_dict: dict[str, luigi.Target] = utils.flatten_to_dict(self.output())
         return output_dict[key]
 
     def _get_output_file_target(self, base_filename: str, **kwargs) -> luigi.LocalTarget:
