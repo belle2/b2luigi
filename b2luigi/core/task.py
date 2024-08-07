@@ -73,8 +73,7 @@ class Task(luigi.Task):
     def _transform_io(
         input_generator: Iterable[luigi.Target], key: str | None = None
     ) -> dict[str, list[str]] | list[str]:
-        io_dict: dict[str, list[str]] = utils.flatten_to_dict_of_lists(input_generator)
-        file_paths: dict[str, list[str]] = utils.flatten_to_file_paths(io_dict)
+        file_paths: dict[str, list[str]] = utils.flatten_to_file_paths(input_generator)
 
         if key is not None:
             return file_paths[key]
