@@ -1,5 +1,6 @@
 from collections.abc import Iterable, Iterator
 from b2luigi.core import utils
+from typing import Union, List, Dict, Optional
 
 import luigi
 
@@ -40,7 +41,7 @@ class Task(luigi.Task):
                       f.write(f"{average}\\n")
     """
 
-    def add_to_output(self, output_file_name: str) -> dict[str, luigi.LocalTarget]:
+    def add_to_output(self, output_file_name: str) -> Dict[str, luigi.LocalTarget]:
         """
         Call this in your ``output()`` function to add a target to the list of files,
         this task will output.
@@ -71,9 +72,9 @@ class Task(luigi.Task):
 
     @staticmethod
     def _transform_io(
-        input_generator: Iterable[luigi.Target], key: str | None = None
-    ) -> dict[str, list[str]] | list[str]:
-        file_paths: dict[str, list[str]] = utils.flatten_to_file_paths(input_generator)
+        input_generator: Iterable[luigi.Target], key: Optional[str] = None
+    ) -> Union[Dict[str, List[str]], List[str]]:
+        file_paths: Dict[str, List[str]] = utils.flatten_to_file_paths(input_generator)
 
         if key is not None:
             return file_paths[key]
@@ -97,7 +98,7 @@ class Task(luigi.Task):
             for file_name in file_names:
                 yield file_name
 
-    def get_input_file_names(self, key: str | None = None) -> dict[str, list[str]] | list[str]:
+    def get_input_file_names(self, key: Optional[str] = None) -> Union[Dict[str, List[str]], List[str]]:
         """
         Get a dictionary of input file names of the tasks, which are defined in our requirements.
         Either use the key argument or dictionary indexing with the key given to :obj:`add_to_output`
@@ -113,8 +114,8 @@ class Task(luigi.Task):
         return self._transform_io(self.input(), key)
 
     def get_input_file_names_from_dict(
-        self, requirement_key: str, key: str | None = None
-    ) -> dict[str, list[str]] | list[str]:
+        self, requirement_key: str, key: Optional[str] = None
+    ) -> Union[Dict[str, List[str]], List[str]]:
         """
         Get a dictionary of input file names of the tasks, which are defined in our requirements.
 
@@ -207,7 +208,7 @@ class Task(luigi.Task):
 
     def _get_output_target(self, key: str) -> luigi.Target:
         """Shortcut to get the output target for a given key. Will return a luigi target."""
-        output_dict: dict[str, luigi.Target] = utils.flatten_to_dict(self.output())
+        output_dict: Dict[str, luigi.Target] = utils.flatten_to_dict(self.output())
         return output_dict[key]
 
     def _get_output_file_target(self, base_filename: str, **kwargs) -> luigi.LocalTarget:
