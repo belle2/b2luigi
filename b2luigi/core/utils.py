@@ -81,7 +81,7 @@ def fill_kwargs_with_lists(**kwargs):
     return return_kwargs
 
 
-def flatten_to_file_paths(inputs: collections.abc.Iterable[luigi.Target]) -> Dict[str, List[str]]:
+def flatten_to_file_paths(inputs: collections.abc.Iterable[luigi.target.FileSystemTarget]) -> Dict[str, List[str]]:
     """
     Take in a dict of lists of luigi targets and replace each luigi target by its corresponding path.
     For dicts, it will replace the value as well as the key. The key will however only by the basename of the path.
@@ -89,9 +89,12 @@ def flatten_to_file_paths(inputs: collections.abc.Iterable[luigi.Target]) -> Dic
     :param inputs: A dict of lists of luigi targets
     :return: A dict with the keys replaced by the basename of the targets and the values by the full path
     """
-    input_dict: Dict[str, List[str]] = flatten_to_dict_of_lists(inputs)
+    input_dict: Dict[str, List[luigi.target.FileSystemTarget]] = flatten_to_dict_of_lists(inputs)
 
-    return {os.path.basename(key): [val.path for val in value] for key, value in input_dict.items()}
+    return {
+        os.path.basename(key): [val.path if hasattr(val, "path") else val for val in value]
+        for key, value in input_dict.items()
+    }
 
 
 def flatten_to_dict(inputs: Union[List, Dict]) -> dict:
