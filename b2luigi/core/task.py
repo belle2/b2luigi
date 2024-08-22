@@ -1,6 +1,6 @@
 from collections.abc import Iterable, Iterator
 from b2luigi.core import utils
-from typing import Union, List, Dict, Optional
+from typing import Any, Union, List, Dict, Optional
 
 import luigi
 
@@ -71,13 +71,9 @@ class Task(luigi.Task):
         return {output_file_name: self._get_output_file_target(output_file_name)}
 
     @staticmethod
-    def _transform_io(
-        input_generator: Iterable[luigi.Target], key: Optional[str] = None
-    ) -> Union[Dict[str, List[str]], List[str]]:
+    def _transform_io(input_generator: Iterable[luigi.target.FileSystemTarget]) -> Dict[str, List[str]]:
         file_paths: Dict[str, List[str]] = utils.flatten_to_file_paths(input_generator)
 
-        if key is not None:
-            return file_paths[key]
         return file_paths
 
     def get_all_input_file_names(self) -> Iterator[str]:
@@ -111,7 +107,9 @@ class Task(luigi.Task):
             If key is none, returns a dictionary of keys to list of file paths.
             Else, returns only the list of file paths for this given key.
         """
-        return self._transform_io(self.input(), key)
+        if key is not None:
+            return self._transform_io(self.input())[key]
+        return self._transform_io(self.input())
 
     def get_input_file_names_from_dict(
         self, requirement_key: str, key: Optional[str] = None
@@ -162,7 +160,9 @@ class Task(luigi.Task):
             If key is none, returns a dictionary of keys to list of file paths.
             Else, returns only the list of file paths for this given key.
         """
-        return self._transform_io(self.input()[requirement_key], key)
+        if key is not None:
+            return self._transform_io(self.input()[requirement_key])[key]
+        return self._transform_io(self.input()[requirement_key])
 
     def get_all_output_file_names(self) -> Iterator[str]:
         """
@@ -211,7 +211,7 @@ class Task(luigi.Task):
         output_dict: Dict[str, luigi.Target] = utils.flatten_to_dict(self.output())
         return output_dict[key]
 
-    def _get_output_file_target(self, base_filename: str, **kwargs) -> luigi.LocalTarget:
+    def _get_output_file_target(self, base_filename: str, **kwargs: Any) -> luigi.LocalTarget:
         file_name: str = create_output_file_name(self, base_filename, **kwargs)
         return luigi.LocalTarget(file_name)
 
@@ -229,7 +229,7 @@ class WrapperTask(Task, luigi.WrapperTask):
 
 
 class NotCompletedTask(Task):
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args: Any, **kwargs: Any):
         super().__init__(*args, **kwargs)
 
         self.check_complete: bool = True
