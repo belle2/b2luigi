@@ -208,7 +208,7 @@ class Task(luigi.Task):
 
     def _get_output_target(self, key: str) -> luigi.Target:
         """Shortcut to get the output target for a given key. Will return a luigi target."""
-        output_dict: Dict[str, luigi.Target] = utils.flatten_to_dict(self.output())
+        output_dict: Dict[str, luigi.target.FileSystemTarget] = utils.flatten_to_dict(self.output())
         return output_dict[key]
 
     def _get_output_file_target(self, base_filename: str, **kwargs: Any) -> luigi.LocalTarget:

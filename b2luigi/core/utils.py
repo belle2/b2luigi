@@ -7,7 +7,7 @@ import os
 import collections
 import sys
 import types
-from typing import Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional
 
 import luigi
 
@@ -26,7 +26,7 @@ def remember_cwd():
         os.chdir(old_cwd)
 
 
-def product_dict(**kwargs):
+def product_dict(**kwargs: Any) -> collections.abc.Iterator[Dict[str, Any]]:
     """
     Cross-product the given parameters and return a list of dictionaries.
 
@@ -57,7 +57,7 @@ def product_dict(**kwargs):
         yield dict(zip(keys, instance))
 
 
-def fill_kwargs_with_lists(**kwargs):
+def fill_kwargs_with_lists(**kwargs: Any) -> Dict[str, List[Any]]:
     """
     Return the kwargs with each value mapped to [value] if not a list already.
 
@@ -74,7 +74,7 @@ def fill_kwargs_with_lists(**kwargs):
     for key, value in kwargs.items():
         if value is None:
             value = []
-        if isinstance(value, str) or not isinstance(value, collections.Iterable):
+        if isinstance(value, str) or not isinstance(value, collections.abc.Iterable):
             value = [value]
         return_kwargs[key] = value
 
@@ -97,7 +97,7 @@ def flatten_to_file_paths(inputs: collections.abc.Iterable[luigi.target.FileSyst
     }
 
 
-def flatten_to_dict(inputs: Union[List, Dict]) -> dict:
+def flatten_to_dict(inputs: collections.abc.Iterable[Any]) -> Dict[Any, Any]:
     """
     Return a whatever input structure into a dictionary.
     If it is a dict already, return this.
@@ -113,8 +113,8 @@ def flatten_to_dict(inputs: Union[List, Dict]) -> dict:
     :param inputs: The input structure
     :return: A dict constructed as described above.
     """
-    inputs: List = _flatten(inputs)
-    inputs: Dict = map(_to_dict, inputs)
+    inputs: List[Any] = _flatten(inputs)
+    inputs: Dict[Any, Any] = map(_to_dict, inputs)
 
     joined_dict = {}
     for i in inputs:
@@ -123,7 +123,7 @@ def flatten_to_dict(inputs: Union[List, Dict]) -> dict:
     return joined_dict
 
 
-def flatten_to_dict_of_lists(inputs: collections.abc.Iterable) -> Dict[str, List]:
+def flatten_to_dict_of_lists(inputs: collections.abc.Iterable[Any]) -> Dict[str, List]:
     inputs: List = _flatten(inputs)
     inputs: Dict[List] = map(_to_dict, inputs)
 
