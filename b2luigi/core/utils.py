@@ -174,7 +174,7 @@ def get_all_output_files_in_tree(root_module, key=None):
                 dict(
                     exists=target.exists(),
                     parameters=get_serialized_parameters(task),
-                    file_name=os.path.abspath(file_name),
+                    file_name=os.path.abspath(file_name.pop()),
                 )
             )
 
