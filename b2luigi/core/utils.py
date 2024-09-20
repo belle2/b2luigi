@@ -1,3 +1,4 @@
+import collections.abc
 import contextlib
 import importlib
 
@@ -6,6 +7,9 @@ import os
 import collections
 import sys
 import types
+from typing import Any, Dict, List, Optional
+
+import luigi
 
 import colorama
 
@@ -22,7 +26,7 @@ def remember_cwd():
         os.chdir(old_cwd)
 
 
-def product_dict(**kwargs):
+def product_dict(**kwargs: Any) -> collections.abc.Iterator[Dict[str, Any]]:
     """
     Cross-product the given parameters and return a list of dictionaries.
 
@@ -53,7 +57,7 @@ def product_dict(**kwargs):
         yield dict(zip(keys, instance))
 
 
-def fill_kwargs_with_lists(**kwargs):
+def fill_kwargs_with_lists(**kwargs: Any) -> Dict[str, List[Any]]:
     """
     Return the kwargs with each value mapped to [value] if not a list already.
 
@@ -70,39 +74,30 @@ def fill_kwargs_with_lists(**kwargs):
     for key, value in kwargs.items():
         if value is None:
             value = []
-        if isinstance(value, str) or not isinstance(value, collections.Iterable):
+        if isinstance(value, str) or not isinstance(value, collections.abc.Iterable):
             value = [value]
         return_kwargs[key] = value
 
     return return_kwargs
 
 
-def flatten_to_file_paths(inputs):
+def flatten_to_file_paths(inputs: collections.abc.Iterable[luigi.target.FileSystemTarget]) -> Dict[str, List[str]]:
     """
-    Take in a structure of something and replace each luigi target by its corresponding path.
+    Take in a dict of lists of luigi targets and replace each luigi target by its corresponding path.
     For dicts, it will replace the value as well as the key. The key will however only by the basename of the path.
 
-    :param inputs: A dict or a luigi target
+    :param inputs: A dict of lists of luigi targets
     :return: A dict with the keys replaced by the basename of the targets and the values by the full path
     """
-    if not inputs:
-        return None
+    input_dict: Dict[str, List[luigi.target.FileSystemTarget]] = flatten_to_dict_of_lists(inputs)
 
-    try:
-        return inputs.path
-    except AttributeError:
-        pass
-
-    if isinstance(inputs, dict):
-        return {
-            os.path.basename(flatten_to_file_paths(key)): flatten_to_file_paths(value) for key, value in inputs.items()
-        }
-    if isinstance(inputs, list):
-        return [flatten_to_file_paths(value) for value in inputs]
-    return inputs
+    return {
+        os.path.basename(key): [val.path if hasattr(val, "path") else val for val in value]
+        for key, value in input_dict.items()
+    }
 
 
-def flatten_to_dict(inputs):
+def flatten_to_dict(inputs: collections.abc.Iterable[Any]) -> Dict[Any, Any]:
     """
     Return a whatever input structure into a dictionary.
     If it is a dict already, return this.
@@ -118,8 +113,8 @@ def flatten_to_dict(inputs):
     :param inputs: The input structure
     :return: A dict constructed as described above.
     """
-    inputs = _flatten(inputs)
-    inputs = map(_to_dict, inputs)
+    inputs: List[Any] = _flatten(inputs)
+    inputs: Dict[Any, Any] = map(_to_dict, inputs)
 
     joined_dict = {}
     for i in inputs:
@@ -128,11 +123,11 @@ def flatten_to_dict(inputs):
     return joined_dict
 
 
-def flatten_to_list_of_dicts(inputs):
-    inputs = _flatten(inputs)
-    inputs = map(_to_dict, inputs)
+def flatten_to_dict_of_lists(inputs: collections.abc.Iterable[Any]) -> Dict[str, List]:
+    inputs: List = _flatten(inputs)
+    inputs: Dict[List] = map(_to_dict, inputs)
 
-    joined_dict = collections.defaultdict(list)
+    joined_dict: Dict[str, List] = collections.defaultdict(list)
     for i in inputs:
         for key, value in i.items():
             joined_dict[key].append(value)
@@ -179,7 +174,7 @@ def get_all_output_files_in_tree(root_module, key=None):
                 dict(
                     exists=target.exists(),
                     parameters=get_serialized_parameters(task),
-                    file_name=os.path.abspath(file_name),
+                    file_name=os.path.abspath(file_name.pop()),
                 )
             )
 
@@ -241,12 +236,12 @@ def get_serialized_parameters(task):
     return serialized_parameters
 
 
-def create_output_file_name(task, base_filename, result_dir=None):
+def create_output_file_name(task, base_filename: str, result_dir: Optional[str] = None) -> str:
     serialized_parameters = get_serialized_parameters(task)
 
     if not result_dir:
         # Be sure to evaluate things relative to the current executed file, not to where we are now
-        result_dir = map_folder(get_setting("result_dir", task=task, default=".", deprecated_keys=["result_path"]))
+        result_dir: str = map_folder(get_setting("result_dir", task=task, default=".", deprecated_keys=["result_path"]))
 
     for key, value in serialized_parameters.items():
         # Raise error if parameter value contains path separator "/" ("\" on Windows)
@@ -258,8 +253,8 @@ def create_output_file_name(task, base_filename, result_dir=None):
                 "Consider using a hashed parameter (e.g. ``b2luigi.Parameter(hashed=True)``)."
             )
 
-    param_list = [f"{key}={value}" for key, value in serialized_parameters.items()]
-    output_path = os.path.join(result_dir, *param_list)
+    param_list: List[str] = [f"{key}={value}" for key, value in serialized_parameters.items()]
+    output_path: str = os.path.join(result_dir, *param_list)
 
     return os.path.join(output_path, base_filename)
 
@@ -311,14 +306,14 @@ def map_folder(input_folder):
     return os.path.join(filepath, input_folder)
 
 
-def _to_dict(d):
+def _to_dict(d) -> Dict:
     if isinstance(d, dict):
         return d
 
     return {d: d}
 
 
-def _flatten(struct):
+def _flatten(struct: collections.abc.Iterable) -> List:
     if isinstance(struct, dict) or isinstance(struct, str):
         return [struct]
 
