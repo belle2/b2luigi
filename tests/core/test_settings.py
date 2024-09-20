@@ -10,9 +10,18 @@ from b2luigi.core.settings import DeprecatedSettingsWarning
 
 class TaskTestCase(B2LuigiTestCase):
     def setUp(self):
+        # Create a dummy settings.json file
+        with open("settings.json", "w") as f:
+            json.dump({}, f)
         super().setUp()
 
         b2luigi.clear_setting("my_setting")
+
+    def tearDown(self):
+        super().tearDown()
+
+        # Delete the dummy settings.json file
+        os.remove("settings.json")
 
     def test_set_by_function(self):
         self.assertRaises(ValueError, b2luigi.get_setting, "my_setting")
