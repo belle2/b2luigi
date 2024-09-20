@@ -2,6 +2,7 @@ from luigi.target import FileSystemTarget, FileSystem
 import os
 from contextlib import contextmanager
 import logging
+from typing import Tuple, Dict, List, Generator
 
 from XRootD import client
 from XRootD.client.flags import DirListFlags, OpenFlags, MkDirFlags
@@ -37,7 +38,7 @@ class XrootDSystem(FileSystem):
         else:
             return True
 
-    def copy_file_to_remote(self, local_path: str, remote_path: str, force=False) -> None:
+    def copy_file_to_remote(self, local_path: str, remote_path: str, force: bool = False) -> None:
         """
         Function to copy a file from the local file system to the remote file system.
         In case the copy fails, a warning will be printed and a assertion will fail.
@@ -49,10 +50,10 @@ class XrootDSystem(FileSystem):
 
         status, _ = self.client.copy("file://" + local_path, self.server_path + remote_path, force=force)
         if not status.ok:
-            logging.warn(status.message)
+            logging.warning(status.message)
         assert status.ok
 
-    def copy_file_from_remote(self, remote_path: str, local_path: str, force=False) -> None:
+    def copy_file_from_remote(self, remote_path: str, local_path: str, force: bool = False) -> None:
         """
         Function to copy a file from the remote file system to the local file system.
         In case the copy fails, a warning will be printed and a assertion will fail.
@@ -64,13 +65,13 @@ class XrootDSystem(FileSystem):
         """
         status, _ = self.client.copy(self.server_path + "//" + remote_path, local_path, force=force)
         if not status.ok:
-            logging.warn(status.message)
+            logging.warning(status.message)
             if "file exists" in status.message:
-                logging.warn(f"File already exists: {local_path}")
+                logging.warning(f"File already exists: {local_path}")
                 status.ok = True
         assert status.ok
 
-    def copy_dir_from_remote(self, remote_path: str, local_path: str, force=False) -> None:
+    def copy_dir_from_remote(self, remote_path: str, local_path: str, force: bool = False) -> None:
         """
         A function to copy a directory with all its files from the remote file system to the local file system.
         Nested directories are not supported.
@@ -84,7 +85,7 @@ class XrootDSystem(FileSystem):
         _, list_dir = self.listdir(remote_path)
         for file in list_dir:
             if file.statinfo.size != 512:  # adhoc test, if the `file` is not a directory
-                logging.warn(file.name)
+                logging.warning(file.name)
                 self.copy_file_from_remote(remote_path + "/" + file.name, local_path + file.name, force=force)
 
     def move(self, source_path: str, dest_path: str) -> None:
@@ -97,7 +98,7 @@ class XrootDSystem(FileSystem):
         """
         status, _ = self.client.mv(source_path, dest_path)
         if not status.ok:
-            logging.warn(status.message)
+            logging.warning(status.message)
         assert status.ok
 
     def mkdir(self, path: str) -> None:
@@ -108,19 +109,19 @@ class XrootDSystem(FileSystem):
 
         dir_path, file_path = os.path.split(path)
         if self.exists(dir_path):
-            logging.warn(f"dir already exists: {dir_path}")
+            logging.warning(f"dir already exists: {dir_path}")
             return
         status, _ = self.client.mkdir(dir_path, MkDirFlags.MAKEPATH)
         if not status.ok:
-            logging.warn(status.message, path)
+            logging.warning(status.message, path)
             if "File exists" in status.message:
                 status.ok = True
         assert status.ok
 
-    def locate(self, path: str) -> None:
+    def locate(self, path: str) -> bool:
         status, locations = self.client.locate(path, OpenFlags.REFRESH)
         if not status.ok:
-            logging.warn(status.message)
+            logging.warning(status.message)
         assert status.ok
         return True
 
@@ -135,10 +136,10 @@ class XrootDSystem(FileSystem):
         """
         status, _ = self.client.rm(path)
         if not status.ok:
-            logging.warn(status.message)
+            logging.warning(status.message)
         assert status.ok
 
-    def listdir(self, path) -> None:
+    def listdir(self, path: str) -> Tuple[Dict[str, int], List[client.DirListEntry]]:
         """
         A function to list the content of a directory on the remote file system.
         In case the listing fails, a warning will be printed and a assertion will fail.
@@ -148,7 +149,7 @@ class XrootDSystem(FileSystem):
         dir_dict = {}
         status, listing = self.client.dirlist(path, DirListFlags.STAT)
         if not status.ok:
-            logging.warn(f"[get_directory_listing] Status: {status.message}")
+            logging.warning(f"[get_directory_listing] Status: {status.message}")
         assert status.ok  # directory or redirector faulty
 
         for entry in listing:
@@ -160,12 +161,12 @@ class XrootDSystem(FileSystem):
             elif entry.statinfo.flags == 48 or entry.statinfo.flags == 16:
                 dir_dict[f"{listing.parent + entry.name}"] = 0
             else:
-                logging.warn(f"[get_directory_listing] Info: {entry}")
+                logging.warning(f"[get_directory_listing] Info: {entry}")
                 exit("Unknown flags. RO files, strange permissions?")
             print(entry.name, f"{entry.statinfo.size/1024/1024} MB")
         return dir_dict, listing
 
-    def remove_dir(self, path) -> None:
+    def remove_dir(self, path: str) -> None:
         """
         A function to iteratively remove a directory and all its content from the remote file system.
         In case the removal fails, a warning will be printed and a assertion will fail.
@@ -174,12 +175,12 @@ class XrootDSystem(FileSystem):
         """
         status, listing = self.client.dirlist(path, DirListFlags.STAT)
         if not status.ok:
-            logging.warn(f"Status: {status.message}")
+            logging.warning(f"Status: {status.message}")
         assert status.ok  # directory does not exists
         for file in listing:  # unfortunately, there is no recursive way in xrd...
             logging.info(f"{path}{listing.parent}{file.name}")
             if file.statinfo.size == 512:  # check if "file" is a directory -> delete recursively
-                logging.warn(f"[rm dir] list entry: {file}")
+                logging.warning(f"[rm dir] list entry: {file}")
                 assert (
                     file.statinfo.flags == 51 or file.statinfo.flags == 19
                 )  # make sure it is a directory; evtl wrong permissions?
@@ -212,23 +213,23 @@ class XrootDTarget(FileSystemTarget):
         super().__init__(path)
 
     @property
-    def base_name(self):
+    def base_name(self) -> str:
         return os.path.basename(self.path)
 
     @property
-    def fs(self):
+    def fs(self) -> XrootDSystem:
         return self._file_system
 
-    def makedirs(self):
+    def makedirs(self) -> None:
         """
         Function to create the targets directory on the remote file system.
         """
         self.fs.mkdir(self.path)
 
-    def move(self):
+    def move(self) -> None:
         self.fs.move(self.path)
 
-    def get(self, path: str = "~"):
+    def get(self, path: str = "~") -> str:
         """
         A function to copy the file from the remote file system to the local file system.
         Args:
@@ -240,7 +241,7 @@ class XrootDTarget(FileSystemTarget):
         return f"{path}/{self.base_name}"
 
     @contextmanager
-    def temporary_path(self):
+    def temporary_path(self) -> Generator[str, None, None]:
         """
         Context manager to create a temporary file on the local file system.
 
@@ -251,5 +252,5 @@ class XrootDTarget(FileSystemTarget):
         yield tmp_path
         self.fs.copy_file_to_remote(tmp_path, self.path, force=True)
 
-    def open(self, mode):
+    def open(self, mode: str) -> None:
         raise NotImplementedError("XrootDTarget does not support open yet")
