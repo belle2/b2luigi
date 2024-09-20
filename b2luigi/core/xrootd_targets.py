@@ -139,7 +139,7 @@ class XrootDSystem(FileSystem):
             logging.warning(status.message)
         assert status.ok
 
-    def listdir(self, path: str) -> Tuple[Dict[str, int], client.resonses.DirectoryList]:
+    def listdir(self, path: str) -> Tuple[Dict[str, int], client.responses.DirectoryList]:
         """
         A function to list the content of a directory on the remote file system.
         In case the listing fails, a warning will be printed and a assertion will fail.
