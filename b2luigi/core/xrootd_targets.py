@@ -2,7 +2,7 @@ from luigi.target import FileSystemTarget, FileSystem
 import os
 from contextlib import contextmanager
 import logging
-from typing import Tuple, Dict, List, Generator
+from typing import Tuple, Dict, Generator
 
 from XRootD import client
 from XRootD.client.flags import DirListFlags, OpenFlags, MkDirFlags
@@ -139,7 +139,7 @@ class XrootDSystem(FileSystem):
             logging.warning(status.message)
         assert status.ok
 
-    def listdir(self, path: str) -> Tuple[Dict[str, int], List[client.DirListEntry]]:
+    def listdir(self, path: str) -> Tuple[Dict[str, int], client.resonses.DirectoryList]:
         """
         A function to list the content of a directory on the remote file system.
         In case the listing fails, a warning will be printed and a assertion will fail.
