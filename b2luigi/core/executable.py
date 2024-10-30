@@ -54,6 +54,8 @@ def create_executable_wrapper(task):
 
     # 4. Forth part is to create the correct execution command
     # (a) If a valid apptainer image is provided, build an apptainer command
+    executable_wrapper_content.append("echo 'Will now execute the program'")
+
     apptainer_image = get_setting("apptainer_image", task=task, default="")
     if apptainer_image:
         if not is_valid_apptainer_image(apptainer_image):
@@ -71,12 +73,11 @@ def create_executable_wrapper(task):
             # Other mounts
             exec_command += f" {apptainer_image} "
             exec_command += "/bin/bash -c"
-    else:
-        exec_command = "exec"
+            executable_wrapper_content.append(f"{exec_command} 'source {env_setup_script} && {command}'")
 
-    executable_wrapper_content.append("echo 'Will now execute the program'")
-    executable_wrapper_content.append(f"{exec_command} '{command}'")
-    print(executable_wrapper_content)
+    # (b) Otherwise, just execute the command
+    else:
+        executable_wrapper_content.append(f"exec {command}")
 
     # Now we can write the file
     executable_file_dir = get_task_file_dir(task)
