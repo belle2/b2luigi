@@ -71,6 +71,8 @@ def create_executable_wrapper(task):
             mounts = get_setting("apptainer_mounts", task=task, default=[])
             exec_command += " --bind " + " --bind ".join(mounts) if mounts else ""
             # Other mounts
+            additional_params = get_setting("apptainer_additional_params", default="", task=task)
+            exec_command += f" {additional_params}" if additional_params else ""
             exec_command += f" {apptainer_image} "
             exec_command += "/bin/bash -c"
             executable_wrapper_content.append(f"{exec_command} 'source {env_setup_script} && {command}'")
