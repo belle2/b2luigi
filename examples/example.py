@@ -6,6 +6,14 @@ class MyTask(b2luigi.Task):
     apptainer_image = "/cvmfs/belle.cern.ch/images/belle2-base-el9"
     apptainer_mount = ["/cvmfs"]
 
+    @property
+    def executable(self):
+        return ["python3"]
+
+    @property
+    def env_script(self):
+        return "setup.sh"
+
     def run(self):
         with open(self.get_output_file_name("output.txt"), "w") as f:
             f.write(f"{self.parameter}")
