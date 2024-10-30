@@ -10,6 +10,7 @@ from b2luigi.core.utils import (
     get_log_file_dir,
     get_task_file_dir,
     map_folder,
+    is_valid_apptainer_image,
 )
 
 
@@ -48,10 +49,34 @@ def create_executable_wrapper(task):
 
     executable_wrapper_content.append("echo 'Current environment:'; env")
 
-    # 3. Third part is to call the actual program
+    # 3. Third part is to build the actual program
     command = " ".join(create_cmd_from_task(task))
+
+    # 4. Forth part is to create the correct execution command
+    # (a) If a valid apptainer image is provided, build an apptainer command
+    apptainer_image = get_setting("apptainer_image", task=task, default="")
+    if apptainer_image:
+        if not is_valid_apptainer_image(apptainer_image):
+            raise ValueError(f"Invalid apptainer image: {apptainer_image}")
+
+        # If the batch system is gbasf2, we cannot use apptainer
+        elif get_setting("batch_system", default="lsf", task=task) == "gbasf2":
+            raise ValueError("Invalid batch system for apptainer usage. Apptainer is not supported for gbasf2.")
+
+        else:
+            exec_command = "apptainer exec"
+            # Add apptainer mount points if given
+            mounts = get_setting("apptainer_mounts", task=task, default=[])
+            exec_command += " --bind ".join(mounts) if mounts else ""
+            # Other mounts
+            exec_command += f" {apptainer_image} "
+            exec_command += "/bin/bash -c"
+    else:
+        exec_command = "exec"
+
     executable_wrapper_content.append("echo 'Will now execute the program'")
-    executable_wrapper_content.append(f"exec {command}")
+    executable_wrapper_content.append(f"{exec_command} {command}")
+    print(executable_wrapper_content)
 
     # Now we can write the file
     executable_file_dir = get_task_file_dir(task)
