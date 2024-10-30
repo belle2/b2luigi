@@ -67,7 +67,7 @@ def create_executable_wrapper(task):
             exec_command = "apptainer exec"
             # Add apptainer mount points if given
             mounts = get_setting("apptainer_mounts", task=task, default=[])
-            exec_command += " --bind ".join(mounts) if mounts else ""
+            exec_command += " --bind " + " --bind ".join(mounts) if mounts else ""
             # Other mounts
             exec_command += f" {apptainer_image} "
             exec_command += "/bin/bash -c"
@@ -75,7 +75,7 @@ def create_executable_wrapper(task):
         exec_command = "exec"
 
     executable_wrapper_content.append("echo 'Will now execute the program'")
-    executable_wrapper_content.append(f"{exec_command} {command}")
+    executable_wrapper_content.append(f"{exec_command} '{command}'")
     print(executable_wrapper_content)
 
     # Now we can write the file
