@@ -7,7 +7,6 @@ import os
 import collections
 import sys
 import types
-import subprocess
 from typing import Any, Dict, List, Optional
 
 import luigi
@@ -380,13 +379,3 @@ def create_output_dirs(task):
 def get_filled_params(task):
     """Helper function for getting the parameter list with each parameter set to its current value"""
     return {key: getattr(task, key) for key, _ in task.get_params()}
-
-
-def is_valid_apptainer_image(image_path):
-    try:
-        subprocess.run(["apptainer", "inspect", image_path], check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-        # use apptainer inspect to check if the image is valid
-        return True
-    except subprocess.CalledProcessError as e:
-        print(f"Invalid Apptainer image: {e.stderr.decode()}")
-        return False

@@ -10,7 +10,6 @@ from b2luigi.core.utils import (
     get_log_file_dir,
     get_task_file_dir,
     map_folder,
-    is_valid_apptainer_image,
 )
 
 
@@ -58,11 +57,8 @@ def create_executable_wrapper(task):
 
     apptainer_image = get_setting("apptainer_image", task=task, default="")
     if apptainer_image:
-        if not is_valid_apptainer_image(apptainer_image):
-            raise ValueError(f"Invalid apptainer image: {apptainer_image}")
-
         # If the batch system is gbasf2, we cannot use apptainer
-        elif get_setting("batch_system", default="lsf", task=task) == "gbasf2":
+        if get_setting("batch_system", default="lsf", task=task) == "gbasf2":
             raise ValueError("Invalid batch system for apptainer usage. Apptainer is not supported for gbasf2.")
 
         else:
