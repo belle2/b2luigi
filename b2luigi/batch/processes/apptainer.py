@@ -50,6 +50,9 @@ class ApptainerProcess(BatchProcess):
         exec_command = ["apptainer", "exec"]
         # Add apptainer mount points if given
         mounts = get_setting("apptainer_mounts", task=self.task, default=[])
+
+        if get_setting("apptainer_mount_defaults", task=self.task, default=True):
+            mounts += [get_setting("res_dir", task=self.task),get_setting("log_dir", task=self.task)]
         for mount in mounts:
             exec_command += ["--bind", mount]
         # Other mounts
