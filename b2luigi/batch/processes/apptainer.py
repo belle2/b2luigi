@@ -26,7 +26,9 @@ class ApptainerProcess(BatchProcess):
 
         try:
             # Check if the job is still running
-            process = subprocess.run(["ps", "-p", str(self._job_id)], capture_output=True)
+            process = subprocess.run(
+                ["ps", "-p", str(self._job_id)], capture_output=True
+            )
             if process.returncode == 0:
                 return JobStatus.running  # Process is still running
             else:
@@ -45,14 +47,19 @@ class ApptainerProcess(BatchProcess):
 
         # If the batch system is gbasf2, we cannot use apptainer
         if get_setting("batch_system", default="lsf", task=self.task) == "gbasf2":
-            raise ValueError("Invalid batch system for apptainer usage. Apptainer is not supported for gbasf2.")
+            raise ValueError(
+                "Invalid batch system for apptainer usage. Apptainer is not supported for gbasf2."
+            )
 
         exec_command = ["apptainer", "exec"]
         # Add apptainer mount points if given
         mounts = get_setting("apptainer_mounts", task=self.task, default=[])
 
         if get_setting("apptainer_mount_defaults", task=self.task, default=True):
-            mounts += [get_setting("res_dir", task=self.task),get_setting("log_dir", task=self.task)]
+            mounts += [
+                get_setting("res_dir", task=self.task),
+                get_setting("log_dir", task=self.task),
+            ]
         for mount in mounts:
             exec_command += ["--bind", mount]
         # Other mounts
