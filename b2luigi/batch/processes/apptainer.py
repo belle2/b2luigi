@@ -63,8 +63,8 @@ class ApptainerProcess(BatchProcess):
         for mount in mounts:
             exec_command += ["--bind", mount]
         # Other mounts
-        # additional_params = get_setting("apptainer_additional_params", default="", task=self.task)
-        # exec_command += [f" {additional_params}" if additional_params else ""]
+        additional_params = get_setting("apptainer_additional_params", default="", task=self.task)
+        exec_command += [f" {additional_params}"]
         exec_command += [apptainer_image]
         exec_command += ["/bin/bash", "-c"]
         exec_command += [f"'source {env_setup_script} && {command}'"]
