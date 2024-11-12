@@ -12,38 +12,33 @@ class ApptainerProcess(BatchProcess):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self._job_id = None
+        self._process = None
         self._sdtout = None
         self._stderr = None
 
     def get_job_status(self):
-        if self._job_id is None:
+        if self._process is None:
             return JobStatus.aborted
 
-        try:
-            # Check if the job is still running
-            process = subprocess.run(["ps", "-p", str(self._job_id)], capture_output=True)
-            if process.returncode == 0:
-                return JobStatus.running
-            else:
-                self._write_output()
-                return JobStatus.successful
-        except Exception:
+        # Poll the process to check if it is still running
+        if self._process.poll() is None:
+            return JobStatus.running
+        else:
+            # If the process has finished, write output and return the appropriate status
+            self._stdout, self._stderr = self._process.communicate()
             self._write_output()
-            return JobStatus.aborted
+            return JobStatus.successful if self._process.returncode == 0 else JobStatus.aborted
 
     def start_job(self):
         command = " ".join(create_cmd_from_task(self.task))
         exec_command = create_apptainer_command(command, task=self.task)
 
         # Start the job and capture the job ID
-        process = subprocess.Popen(exec_command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-        self._stdout, self._stderr = process.communicate()
-        self._job_id = process.pid
+        self._process = subprocess.Popen(exec_command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 
     def terminate_job(self):
-        if self._job_id is not None:
-            subprocess.run(["kill", str(self._job_id)], stdout=subprocess.DEVNULL)
+        if self._process is not None:
+            self._process.terminate()
 
     def _write_output(self):
         log_file_dir = get_log_file_dir(self.task)
