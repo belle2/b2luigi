@@ -10,6 +10,7 @@ from b2luigi.core.utils import (
     get_log_file_dir,
     get_task_file_dir,
     map_folder,
+    create_apptainer_command,
 )
 
 
@@ -57,30 +58,7 @@ def create_executable_wrapper(task):
 
     apptainer_image = get_setting("apptainer_image", task=task, default="")
     if apptainer_image:
-        # If the batch system is gbasf2, we cannot use apptainer
-        if get_setting("batch_system", default="lsf", task=task) == "gbasf2":
-            raise ValueError("Invalid batch system for apptainer usage. Apptainer is not supported for gbasf2.")
-
-        else:
-            exec_command = "apptainer exec"
-            # Add apptainer mount points if given
-            mounts = get_setting("apptainer_mounts", task=task, default=[])
-            mounts += (
-                ["result_dir", "log_dir"] if get_setting("apptainer_default_mounts", task=task, default=True) else []
-            )
-
-            for mount in mounts:
-                if mount in ["result_dir", "log_dir"]:
-                    mnt_point = get_setting(mount, task=task)
-                else:
-                    mnt_point = mount
-                exec_command += f" --bind {mnt_point}"
-
-            additional_params = get_setting("apptainer_additional_params", default="", task=task)
-            exec_command += f" {additional_params}" if additional_params else ""
-            exec_command += f" {apptainer_image} "
-            exec_command += "/bin/bash -c"
-            executable_wrapper_content.append(f"{exec_command} 'source {env_setup_script} && {command}'")
+        executable_wrapper_content.append(" ".join(create_apptainer_command(command, task=task)))
 
     # (b) Otherwise, just execute the command
     else:
