@@ -32,7 +32,7 @@ You want to help developing ``b2luigi``? Great! Here are some first steps to hel
 
         git clone git@gitlab.desy.de:belle2/software/b2luigi.git
 
-3.  ``b2luigi`` is not using ``setuptools`` but the newer (and better) flit_ as a a builder.
+3.  ``b2luigi`` is not using ``setuptools`` but the newer (and better) `flit`_ as a a builder.
     Install it via
 
     .. code-block:: bash
@@ -53,19 +53,23 @@ You want to help developing ``b2luigi``? Great! Here are some first steps to hel
 
         python -m pip [ --user ] install pre-commit
         pre-commit install  # install the pre-commit hooks
-        pre-commit  # run pre-commit manually, checks all staged ("added") changes
+        pre-commit run --all-files  # run pre-commit manually
 
-    In particular, the python files are checked with `flake8`_ for syntax and
-    `PEP 8`_ style errors. I recommend using an IDE or editor which
-    automatically highlights errors with flake8 or a similar python linter (e.g.
-    pylint).
+    In particular, the python files are checked with `ruff`_ for syntax and
+    `PEP 8`_ style errors. We recommend using an IDE or editor which
+    automatically highlights errors with ruff or a similar python linter (e.g. pylint or flake8).
 
-5.  We use the unittest_ package for testing some parts of the code. All tests reside in the
-    ``tests/`` sub-directory. To run all tests, run the command
+5.  We use the `pytest`_ package for testing some parts of the code. Install it via
 
     .. code-block:: bash
 
-        python -m unittest
+        python -m pip install -U [ --user ] pytest pytest-cov python-coveralls
+
+    All tests reside in the ``tests/`` sub-directory. To run all tests, run the command
+
+    .. code-block:: bash
+
+        pytest -v b2luigi tests
 
     in the root of ``b2luigi`` repository. If you add some functionality, try to add some tests for it.
 
@@ -111,7 +115,13 @@ You want to help developing ``b2luigi``? Great! Here are some first steps to hel
 	and on `GitHub <https://github.com/belle2/b2luigi/releases>`_ with an appropriate description.
 
     e.  Check that the new release had been published to PyPi, which should happen automatically via
-        GitLab `pipeline`_. Alternatively, you can also manually publish a release via
+        GitLab `pipeline`_. Alternatively, you can also manually publish a release. Install the dependencies with
+
+        .. code-block:: bash
+
+            python -m pip install -U [ --user ] setuptools wheel twine
+
+        and publish via
 
         .. code-block:: bash
 
@@ -127,10 +137,10 @@ For the Belle II collaborators: for a list of potential features, improvements a
 
 .. _flit: https://pypi.org/project/flit/
 .. _gitlab issues: https://gitlab.desy.de/belle2/software/b2luigi/-/issues
-.. _unittest: https://docs.python.org/3/library/unittest.html
+.. _pytest: https://docs.pytest.org/
 .. _b2luigi.belle2.org: https://b2luigi.belle2.org
 .. _pre-commit: https://pre-commit.com
-.. _flake8: https://flake8.pycqa.org
+.. _ruff: https://docs.astral.sh/ruff/
 .. _PEP 8: https://www.python.org/dev/peps/pep-0008/
 .. _bump-my-version: https://github.com/callowayproject/bump-my-version
 .. _release: https://github.com/belle2/b2luigi/releases

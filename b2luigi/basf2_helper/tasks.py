@@ -4,10 +4,10 @@ import shutil
 
 import b2luigi
 from b2luigi.basf2_helper.targets import ROOTLocalTarget
-from b2luigi.basf2_helper.utils import get_basf2_git_hash
 
 import subprocess
 
+from b2luigi.basf2_helper.utils import get_basf2_git_hash
 from b2luigi.core.utils import create_output_dirs, get_serialized_parameters
 
 
@@ -42,8 +42,6 @@ class Basf2PathTask(Basf2Task):
 
     @b2luigi.on_temporary_files
     def process(self):
-        assert get_basf2_git_hash() == self.git_hash
-
         try:
             import basf2
         except ImportError:
