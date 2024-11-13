@@ -38,13 +38,13 @@ default:
 pre_commit:
   stage: pre_commit
   script:
-    - pip install -U --user pre-commit
+    - pip install pre-commit
     - pre-commit run --all-files
 
 test:
   stage: test
   script:
-    - pip install -U --user pytest pytest-cov python-coveralls flit
+    - pip install pytest pytest-cov python-coveralls flit
     - flit install -s
     - pytest -v --cov b2luigi --junitxml=$ARTIFACTS_TEST_PATH --cov-report=xml --cov-report=html --cov-report=term tests
     - mv htmlcov $ARTIFACTS_COV_PATH
@@ -66,7 +66,7 @@ docs:
     - job: test
       artifacts: false
   script:
-    - pip install -U --user flit
+    - pip install flit
     - flit install -s
     - sphinx-build docs/ $ARTIFACTS_DOCS_PATH
   artifacts:
@@ -84,7 +84,7 @@ publish:
     - job: docs
       artifacts: false
   script:
-    - pip install -U --user setuptools wheel twine flit
+    - pip install setuptools wheel twine flit
     - flit publish
   only:
     - tags
