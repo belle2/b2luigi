@@ -58,7 +58,11 @@ def create_executable_wrapper(task):
 
     apptainer_image = get_setting("apptainer_image", task=task, default="")
     if apptainer_image:
-        executable_wrapper_content.append(" ".join(create_apptainer_command(command, task=task)))
+        apptainer_command_list = create_apptainer_command(command, task=task)
+        apptainer_command = " ".join(apptainer_command_list[:-1])
+        apptainer_command += f"'{apptainer_command_list[-1]}'"
+
+        executable_wrapper_content.append(apptainer_command)
 
     # (b) Otherwise, just execute the command
     else:
