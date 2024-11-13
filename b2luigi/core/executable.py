@@ -60,7 +60,7 @@ def create_executable_wrapper(task):
     if apptainer_image:
         apptainer_command_list = create_apptainer_command(command, task=task)
         apptainer_command = " ".join(apptainer_command_list[:-1])
-        apptainer_command += f"'{apptainer_command_list[-1]}'"
+        apptainer_command += f" '{apptainer_command_list[-1]}'"
 
         executable_wrapper_content.append(apptainer_command)
 
