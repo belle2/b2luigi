@@ -19,8 +19,7 @@ class ApptainerProcess(BatchProcess):
     tasks, an ``apptainer exec`` command is build within this class and executed in a subprocess. To stear the
     execution, one can steer the following settings:
 
-    * ``apptainer_image``: The image to use for the Apptainer container.
-
+    * ``apptainer_image``: The image to use for the Apptainer container.s
         This parameter is mandatory and needs to be set if the task should be executed in an Apptainer container.
         The image needs to be accessible from the machine where the task is executed. There are no further checks
         if the image is available or valid. When using custom images, it may be helpfull to fisrt check the image
@@ -30,7 +29,6 @@ class ApptainerProcess(BatchProcess):
         can be found in https://gitlab.desy.de/belle2/software/docker-images.
 
     * ``apptainer_mounts``: A list of directories to mount into the Apptainer container.
-
         This parameter is optional and can be used to mount directories into the Apptainer container. The directories
         need to be accessible from the machine where the task is executed. The directories are mounted under the exact
         same path as they are provided/on the host machine. For most usecases mounts need to be provided to access software
@@ -38,13 +36,11 @@ class ApptainerProcess(BatchProcess):
         directory needs to be mounted. Caution is required when system specific directories are mounted.
 
     * ``apptainer_mount_defaults``: Boolean parameter to mount ``log_dir`` and ``result_dir`` by default.
-
         The default value is ``True`` meaning the ``result_dir`` and ``log_dir`` are automacially created and mounted if
         they are not accessible from the execution location. When using custom targets with non local output directories,
         this parameter should be set to ``False`` to avoid mounting unexisting directories.
 
     * ``apptainer_additional_params``: Additional parameters to pass to the ``apptainer exec`` command.
-
         This parameter should be a string and will be directly appended to the ``apptainer exec`` command. It can be used to
         pass additional parameters to the ``apptainer exec`` command as they would be added in the CLI. A very
         usefull parameter is the ``--cleanenv`` parameter which will clean the environment before executing the task in the
@@ -52,8 +48,10 @@ class ApptainerProcess(BatchProcess):
         A prominent usecase is the usage of software which dependes on the operating system.
 
 
-        A simple example of how an Apptainer based task can be defined is shown below:
-        ```
+    A simple example of how an Apptainer based task can be defined is shown below:
+
+    .. code-block:: python
+
         class MyApptainerTask(luigi.Task):
             apptainer_image = "/cvmfs/belle.cern.ch/images/belle2-base-el9"
             apptainer_mounts = ["/cvmfs"]
@@ -61,7 +59,7 @@ class ApptainerProcess(BatchProcess):
             apptainer_additional_params = "--cleanenv"
 
             <rest of the task definition>
-        ```
+
 
     """
 

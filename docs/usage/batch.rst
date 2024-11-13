@@ -129,6 +129,12 @@ GBasf2 Wrapper for LCG
 .. autoclass:: b2luigi.batch.processes.gbasf2.Gbasf2Process
     :show-inheritance:
 
+Apptainer
+.........
+
+.. autoclass:: b2luigi.batch.processes.apptainer.ApptainerProcess
+    :show-inheritance:
+
 Add your own batch system
 -------------------------
 
