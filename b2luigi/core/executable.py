@@ -54,10 +54,9 @@ def create_executable_wrapper(task):
 
     # 4. Forth part is to create the correct execution command
     # (a) If a valid apptainer image is provided, build an apptainer command
-    executable_wrapper_content.append("echo 'Will now execute the program'")
-
     apptainer_image = get_setting("apptainer_image", task=task, default="")
     if apptainer_image:
+        executable_wrapper_content.append(f"echo 'Will now execute the program with the image {apptainer_image}'")
         apptainer_command_list = create_apptainer_command(command, task=task)
         apptainer_command = " ".join(apptainer_command_list[:-1])
         apptainer_command += f" '{apptainer_command_list[-1]}'"
@@ -66,6 +65,7 @@ def create_executable_wrapper(task):
 
     # (b) Otherwise, just execute the command
     else:
+        executable_wrapper_content.append("echo 'Will now execute the program'")
         executable_wrapper_content.append(f"exec {command}")
 
     # Now we can write the file
