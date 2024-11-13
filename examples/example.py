@@ -10,20 +10,18 @@
 # ----------------------------------------------------------------------------
 
 import b2luigi
-import time
 
 
 class MyTask(b2luigi.Task):
     parameter = b2luigi.IntParameter()
     apptainer_image = "/cvmfs/belle.cern.ch/images/belle2-base-el9"
-    apptainer_mounts = ["/cvmfs", "/work", "/usr"]
+    apptainer_mounts = ["/cvmfs", "/work"]
 
     @property
     def env_script(self):
         return "setup.sh"
 
     def run(self):
-        time.sleep(60)
         with open(self.get_output_file_name("output.txt"), "w") as f:
             f.write(f"{self.parameter}")
 
