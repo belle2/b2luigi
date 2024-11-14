@@ -31,6 +31,7 @@ default:
     - git config user.name "someone"
     - git config --global --add safe.directory $(dirname ${GITLAB_BELLE2_TOOLS_B2SETUP})
     # Install apptainer
+    - dnf install -y epel-release
     - dnf install -y apptainer
     # Setup of basf2
     - source ${GITLAB_BELLE2_TOOLS_B2SETUP}
