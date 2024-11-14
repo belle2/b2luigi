@@ -38,24 +38,24 @@ class LSFProcess(BatchProcess):
 
     For example:
 
-      .. code-block:: python
+    .. code-block:: python
 
         class MyLongTask(b2luigi.Task):
             queue = "l"
             job_name = "my_long_task"
 
-      The default queue is the short queue ``"s"``. If no ``job_name`` is set the task
-      will appear as ::
+    The default queue is the short queue ``"s"``. If no ``job_name`` is set the task
+    will appear as ::
 
         <result_dir>/parameter1=value/.../executable_wrapper.sh"
 
-      when running ``bjobs``.
+    when running ``bjobs``.
 
-    * By default, the environment variables from the scheduler are copied to
-      the workers.
-      This also applies we start in the same working directory and can reuse
-      the same executable etc.
-      Normally, you do not need to supply ``env_script`` or alike.
+    By default, the environment variables from the scheduler are copied to
+    the workers.
+    This also implies we start in the same working directory, can reuse
+    the same executable, etc.
+    Normally, you do not need to supply ``env_script`` or alike.
     """
 
     def __init__(self, *args, **kwargs):

@@ -151,6 +151,24 @@ nTuple Generation
         luigi.process(AnalysisWrapperTask(), workers=500)
 
 
+Ensuring the basf2 version
+--------------------------
+
+One can also use the the parameters and automatically generated directory structure to ensure that the same basf2 version is used across Tasks.
+For that, you can simply add this parameter to your Task:
+
+.. code-block:: python
+
+    from b2luigi.basf2_helper import Basf2PathTask,
+    from b2luigi.basf2_helper.utils import get_basf2_git_hash
+
+    class MyBasf2PathTask():
+
+        git_hash = b2luigi.Parameter(default=get_basf2_git_hash())
+
+The `get_basf2_git_hash` function will automatically detect your basf2 version.
+
+
 Standard Simulation, Reconstruction and some nTuple Generation
 --------------------------------------------------------------
 

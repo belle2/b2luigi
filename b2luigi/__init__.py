@@ -4,7 +4,7 @@ from luigi.util import copies
 
 # version must be defined after importing the luigi namespace,
 # otherwise the b2luigi.__version__ gets overwritten by the one from luigi
-__version__ = "0.11.1"
+__version__ = "1.0.2"
 
 from b2luigi.core.parameter import wrap_parameter, BoolParameter
 from typing import Optional, Union, Collection
@@ -15,6 +15,7 @@ from b2luigi.core.task import Task, ExternalTask, WrapperTask
 from b2luigi.core.temporary_wrapper import on_temporary_files
 from b2luigi.core.dispatchable_task import DispatchableTask, dispatch
 from b2luigi.core.settings import get_setting, set_setting, clear_setting
+from b2luigi.core.xrootd_targets import XrootDSystem, XrootDTarget
 from b2luigi.cli.process import process
 
 

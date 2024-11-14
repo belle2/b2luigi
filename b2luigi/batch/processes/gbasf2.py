@@ -10,17 +10,19 @@ import sys
 import tempfile
 import warnings
 from collections import Counter
-from datetime import datetime
+from datetime import datetime, timedelta
 from functools import lru_cache
 from getpass import getpass
 from glob import glob
 from itertools import groupby
 from typing import Iterable, List, Optional, Set, Tuple
 
+
 from b2luigi.basf2_helper.utils import get_basf2_git_hash
 from b2luigi.batch.processes import BatchProcess, JobStatus
 from b2luigi.core.settings import get_setting
 from b2luigi.core.utils import flatten_to_dict, get_log_file_dir, get_task_file_dir
+from b2luigi.batch.processes.gbasf2_utils.gbasf2_download_utils import search_pattern_in_folder
 from jinja2 import Template
 from luigi.target import Target
 from retry import retry
@@ -105,7 +107,7 @@ class Gbasf2Process(BatchProcess):
 
 
 
-    Settings for gbasf2 tasks
+    Settings for gbasf2 tasks:
         To submit a task with the gbasf2 wrapper, you first you have to add the property
         ``batch_system = "gbasf2"``, which sets the ``batch_system`` setting.
         It is not recommended to set that setting globally, as not all tasks can be submitted to the grid,
@@ -190,11 +192,11 @@ class Gbasf2Process(BatchProcess):
         ``gbasf2_jobtype``,
         ``gbasf2_basf2opt``
 
-       It is further possible to append arbitrary command line arguments to the ``gbasf2`` submission command
-       with the ``gbasf2_additional_params`` setting.
-       If you want to blacklist a grid site, you can e.g. add
+        It is further possible to append arbitrary command line arguments to the ``gbasf2`` submission command
+        with the ``gbasf2_additional_params`` setting.
+        If you want to blacklist a grid site, you can e.g. add
 
-       .. code-block:: python
+        .. code-block:: python
 
           b2luigi.set_setting("gbasf2_additional_params",  "--banned_site LCG.KEK.jp")
 
@@ -295,6 +297,16 @@ class Gbasf2Process(BatchProcess):
         # ``get_job_status`` returns a success.
         self._project_had_been_successful = False
 
+        # Store job status got from gbasf2
+        self._job_status_dict = None
+
+        # Minutes to cache the job status got from gbasf2
+        # default is 5 minutes
+        self._job_status_max_age = 5 * 60
+
+        # last successful update of the job status got from gbasf2
+        self._last_job_status_update = datetime.fromtimestamp(0)
+
     def get_job_status(self):
         """
         Get overall status of the gbasf2 project.
@@ -303,12 +315,19 @@ class Gbasf2Process(BatchProcess):
         to ``gb2_job_status``, and return an overall project status, e.g. when
         all jobs are done, return ``JobStatus.successful`` to show that the
         gbasf2 project succeeded.
+        The output of `gb2_job_status` get cached for 5 minutes.
         """
-        job_status_dict = get_gbasf2_project_job_status_dict(
-            self.gbasf2_project_name,
-            dirac_user=self.dirac_user,
-            gbasf2_setup_path=self.gbasf2_setup_path,
-        )
+        update_needed = (datetime.now() - self._last_job_status_update) > timedelta(seconds=self._job_status_max_age)
+        job_status_dict = self._job_status_dict
+        if self._job_status_dict is None or update_needed:
+            job_status_dict = get_gbasf2_project_job_status_dict(
+                self.gbasf2_project_name,
+                dirac_user=self.dirac_user,
+                gbasf2_setup_path=self.gbasf2_setup_path,
+            )
+            self._last_job_status_update = datetime.now()
+            self._job_status_dict = job_status_dict
+
         n_jobs_by_status = Counter()
         for _, job_info in job_status_dict.items():
             n_jobs_by_status[job_info["Status"]] += 1
@@ -671,6 +690,19 @@ class Gbasf2Process(BatchProcess):
             output_lpn_dir = get_setting("gbasf2_project_lpn_path")
         return f"{output_lpn_dir}/{self.gbasf2_project_name}/sub*/{output_file_stem}_*{output_file_extensions}"
 
+    @staticmethod
+    def _get_project_download_path(base_output_dir: str):
+        """
+        Get the location of the .root files of the downloaded project
+        Args:
+            base_output_dir: base directory for the gbasf2 download
+
+        Returns:
+            str
+        """
+        project_download_path = search_pattern_in_folder(path=base_output_dir, pattern="sub*")
+        return project_download_path
+
     def _local_gb2_dataset_is_complete(self, output_file_name: str, check_temp_dir: bool = False) -> bool:
         """
         Helper method that returns ``True`` if the download of the gbasf2
@@ -688,9 +720,11 @@ class Gbasf2Process(BatchProcess):
         task_output_dict = flatten_to_dict(self.task.output())
         output_target = task_output_dict[output_file_name]
         output_dir_path = output_target.path
+        tmp_output_dir_path = f"{output_dir_path}.partial"
+        project_download_path = self._get_project_download_path(base_output_dir=tmp_output_dir_path)
         if check_temp_dir:
             # files in the temporary download directory
-            glob_expression = os.path.join(f"{output_dir_path}.partial", self.gbasf2_project_name, "sub*", "*.root")
+            glob_expression = os.path.join(project_download_path, "sub*", "*.root")
             downloaded_dataset_basenames = [os.path.basename(fpath) for fpath in glob(glob_expression)]
         else:
             # file in the final output directory
@@ -770,17 +804,10 @@ class Gbasf2Process(BatchProcess):
             ) = os.path.splitext(monitoring_failed_downloads_file)
             old_monitoring_failed_downloads_file = f"{monitoring_download_file_stem}_old{monitoring_downloads_file_ext}"
 
-            # gbasf2 uses a different folder structure when using the `--new` flag with a
-            # proxy_group other than `belle`. Therefore don't use the flag in this case for now.
-            new_flag = "--new" if group_name == "belle" else ""
-
-            # TODO: always use downloads with --new to avoid having to support
-            # two download types and because --new might become the default
-
             # In case of first download, the file 'monitoring_failed_downloads_file' does not exist
             if not os.path.isfile(monitoring_failed_downloads_file):
                 ds_get_command = shlex.split(
-                    f"gb2_ds_get {new_flag} --force {dataset_query_string} "
+                    f"gb2_ds_get --new --force {dataset_query_string} "
                     f"--failed_lfns {monitoring_failed_downloads_file}"
                 )
                 print(
@@ -796,7 +823,7 @@ class Gbasf2Process(BatchProcess):
                     old_monitoring_failed_downloads_file,
                 )
                 ds_get_command = shlex.split(
-                    f"gb2_ds_get {new_flag} --force {dataset_query_string} "
+                    f"gb2_ds_get --new --force {dataset_query_string} "
                     f"--input_dslist {old_monitoring_failed_downloads_file} "
                     f"--failed_lfns {monitoring_failed_downloads_file}"
                 )
@@ -840,7 +867,10 @@ class Gbasf2Process(BatchProcess):
                 f"Moving output files to directory: {output_dir_path}"
             )
             # sub00 and other sub<xy> directories in case of other datasets
-            _move_downloaded_dataset_to_output_dir(project_download_path=tmp_project_dir, output_path=output_dir_path)
+            project_download_path = self._get_project_download_path(base_output_dir=tmp_output_dir_path)
+            _move_downloaded_dataset_to_output_dir(
+                project_download_path=project_download_path, output_path=output_dir_path
+            )
 
     def _download_logs(self):
         """
