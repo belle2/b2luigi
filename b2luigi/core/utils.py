@@ -90,10 +90,12 @@ def flatten_to_file_paths(inputs: collections.abc.Iterable[luigi.target.FileSyst
     :param inputs: A dict of lists of luigi targets
     :return: A dict with the keys replaced by the basename of the targets and the values by the full path
     """
-    input_dict: Dict[str, List[luigi.target.FileSystemTarget]] = flatten_to_dict_of_lists(inputs)
+    input_dict: Dict[Any, List[luigi.target.FileSystemTarget]] = flatten_to_dict_of_lists(inputs)
 
     return {
-        os.path.basename(key): [val.path if hasattr(val, "path") else val for val in value]
+        os.path.basename(key.path if hasattr(key, "path") else key): [
+            val.path if hasattr(val, "path") else val for val in value
+        ]
         for key, value in input_dict.items()
     }
 
@@ -124,7 +126,7 @@ def flatten_to_dict(inputs: collections.abc.Iterable[Any]) -> Dict[Any, Any]:
     return joined_dict
 
 
-def flatten_to_dict_of_lists(inputs: collections.abc.Iterable[Any]) -> Dict[str, List]:
+def flatten_to_dict_of_lists(inputs: collections.abc.Iterable[Any]) -> Dict[Any, List]:
     inputs: List = _flatten(inputs)
     inputs: Dict[List] = map(_to_dict, inputs)
 

@@ -104,16 +104,20 @@ def clear_setting(key):
 
 
 def _setting_file_iterator():
-    path = os.getcwd()
+    # first, check if B2LUIGI_SETTINGS_JSON is set in the enviroment
+    if "B2LUIGI_SETTINGS_JSON" in os.environ:
+        yield os.environ["B2LUIGI_SETTINGS_JSON"]
+    # if it is not set, search in the durrent working dir (old behaviour)
+    else:
+        path = os.getcwd()
+        while True:
+            json_file = os.path.join(path, "settings.json")
+            if os.path.exists(json_file):
+                yield json_file
 
-    while True:
-        json_file = os.path.join(path, "settings.json")
-        if os.path.exists(json_file):
-            yield json_file
-
-        path = os.path.split(path)[0]
-        if path == "/":
-            break
+            path = os.path.split(path)[0]
+            if path == "/":
+                break
 
 
 @contextlib.contextmanager
