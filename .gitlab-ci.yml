@@ -1,7 +1,6 @@
 stages:
   - pre_commit
   - test
-  - publish
   - docs
   - publish
 
