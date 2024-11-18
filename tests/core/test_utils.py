@@ -100,7 +100,7 @@ class FlattenTestCase(TestCase):
     def test_list_of_list_input(self):
         inputs = [{"key1": "value1"}, {"key2": "value2"}]
 
-        outputs = utils.flatten_to_list_of_dicts(inputs)
+        outputs = utils.flatten_to_dict_of_lists(inputs)
 
         self.assertIn("key1", outputs)
         self.assertEqual(outputs["key1"], ["value1"])
@@ -109,7 +109,7 @@ class FlattenTestCase(TestCase):
 
         inputs = [{"key1": "value1"}, {"key2": "value2"}, {"key1": "repeated"}]
 
-        outputs = utils.flatten_to_list_of_dicts(inputs)
+        outputs = utils.flatten_to_dict_of_lists(inputs)
 
         self.assertIn("key1", outputs)
         self.assertEqual(outputs["key1"], ["value1", "repeated"])
@@ -118,13 +118,13 @@ class FlattenTestCase(TestCase):
 
         inputs = []
 
-        outputs = utils.flatten_to_list_of_dicts(inputs)
+        outputs = utils.flatten_to_dict_of_lists(inputs)
 
         self.assertFalse(outputs)
 
         inputs = [{"key1": "value1"}, "value2"]
 
-        outputs = utils.flatten_to_list_of_dicts(inputs)
+        outputs = utils.flatten_to_dict_of_lists(inputs)
 
         self.assertIn("key1", outputs)
         self.assertEqual(outputs["key1"], ["value1"])
@@ -133,7 +133,7 @@ class FlattenTestCase(TestCase):
 
         inputs = ["value1", "value2"]
 
-        outputs = utils.flatten_to_list_of_dicts(inputs)
+        outputs = utils.flatten_to_dict_of_lists(inputs)
 
         self.assertIn("value1", outputs)
         self.assertEqual(outputs["value1"], ["value1"])
@@ -142,7 +142,7 @@ class FlattenTestCase(TestCase):
 
         inputs = [[{"key1": "value1"}, {"key2": "value2"}], [{"key1": "repeated"}]]
 
-        outputs = utils.flatten_to_list_of_dicts(inputs)
+        outputs = utils.flatten_to_dict_of_lists(inputs)
 
         self.assertIn("key1", outputs)
         self.assertEqual(outputs["key1"], ["value1", "repeated"])
