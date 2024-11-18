@@ -62,17 +62,6 @@ test:
       - coverage/
     expose_as: 'test result and coverage'
 
-publish:
-  stage: publish
-  needs: [test]
-  script:
-    - git clean -df
-    - pip install -U --user setuptools wheel twine flit
-    - export PATH=$PATH:~/.local/bin
-    - flit publish
-  only:
-    - tags
-
 docs:
   stage: docs
   needs:
