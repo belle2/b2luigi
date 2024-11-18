@@ -1,7 +1,7 @@
 import json
 import os
 import warnings
-
+from unittest.mock import patch
 from ..helpers import B2LuigiTestCase
 
 import b2luigi
@@ -10,18 +10,9 @@ from b2luigi.core.settings import DeprecatedSettingsWarning
 
 class TaskTestCase(B2LuigiTestCase):
     def setUp(self):
-        # Create a dummy settings.json file
-        with open("settings.json", "w") as f:
-            json.dump({}, f)
         super().setUp()
 
         b2luigi.clear_setting("my_setting")
-
-    def tearDown(self):
-        super().tearDown()
-
-        # Delete the dummy settings.json file
-        os.remove("settings.json")
 
     def test_set_by_function(self):
         self.assertRaises(ValueError, b2luigi.get_setting, "my_setting")
@@ -92,5 +83,5 @@ class TaskTestCase(B2LuigiTestCase):
             self.assertEqual(len(w), 0)
 
     def test_b2luigi_settings_json(self):
-        os.environ["B2LUIGI_SETTINGS_JSON"] = "settings.json"
-        self.assertEqual("settings.json", next(b2luigi._setting_file_iterator()))
+        with patch.dict("os.environ", {"B2LUIGI_SETTINGS_JSON": "settings.json"}):
+            self.assertEqual("settings.json", next(b2luigi._setting_file_iterator()))
