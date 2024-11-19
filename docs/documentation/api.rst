@@ -13,7 +13,7 @@ for steering the batch execution.
 If you are not yet familiar with ``luigi`` itself, we recommend you to read its current documentation: `Luigi Documentation <https://luigi.readthedocs.io/en/stable/index.html>`_
 
 
-Other important features from luigi
+Important features from luigi:
 -----------------------------------
 
 ``luigi`` itself already boasts a number of nice features. Check out some highlights:
