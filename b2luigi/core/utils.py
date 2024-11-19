@@ -1,4 +1,3 @@
-import collections.abc
 import contextlib
 import importlib
 

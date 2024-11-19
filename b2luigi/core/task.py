@@ -1,4 +1,4 @@
-from collections.abc import Iterable, Iterator
+from typing import Iterable, Iterator
 from b2luigi.core import utils
 from typing import Any, Union, List, Dict, Optional
 
