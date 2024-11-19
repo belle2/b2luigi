@@ -23,8 +23,7 @@ Other important features from luigi
 
 
 .. toctree::
-    :maxdepth: 2
-    :caption: Contents:
+    :maxdepth: 1
     top_level_functions
     tasks
     parameters
