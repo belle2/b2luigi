@@ -7,7 +7,7 @@ import os
 import collections
 import sys
 import types
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Iterator, Iterable
 import shlex
 
 import luigi
@@ -27,7 +27,7 @@ def remember_cwd():
         os.chdir(old_cwd)
 
 
-def product_dict(**kwargs: Any) -> collections.abc.Iterator[Dict[str, Any]]:
+def product_dict(**kwargs: Any) -> Iterator[Dict[str, Any]]:
     """
     Cross-product the given parameters and return a list of dictionaries.
 
@@ -82,7 +82,7 @@ def fill_kwargs_with_lists(**kwargs: Any) -> Dict[str, List[Any]]:
     return return_kwargs
 
 
-def flatten_to_file_paths(inputs: collections.abc.Iterable[luigi.target.FileSystemTarget]) -> Dict[str, List[str]]:
+def flatten_to_file_paths(inputs: Iterable[luigi.target.FileSystemTarget]) -> Dict[str, List[str]]:
     """
     Take in a dict of lists of luigi targets and replace each luigi target by its corresponding path.
     For dicts, it will replace the value as well as the key. The key will however only by the basename of the path.
@@ -100,7 +100,7 @@ def flatten_to_file_paths(inputs: collections.abc.Iterable[luigi.target.FileSyst
     }
 
 
-def flatten_to_dict(inputs: collections.abc.Iterable[Any]) -> Dict[Any, Any]:
+def flatten_to_dict(inputs: Iterable[Any]) -> Dict[Any, Any]:
     """
     Return a whatever input structure into a dictionary.
     If it is a dict already, return this.
@@ -126,7 +126,7 @@ def flatten_to_dict(inputs: collections.abc.Iterable[Any]) -> Dict[Any, Any]:
     return joined_dict
 
 
-def flatten_to_dict_of_lists(inputs: collections.abc.Iterable[Any]) -> Dict[Any, List]:
+def flatten_to_dict_of_lists(inputs: Iterable[Any]) -> Dict[Any, List]:
     inputs: List = _flatten(inputs)
     inputs: Dict[List] = map(_to_dict, inputs)
 
@@ -316,7 +316,7 @@ def _to_dict(d) -> Dict:
     return {d: d}
 
 
-def _flatten(struct: collections.abc.Iterable) -> List:
+def _flatten(struct: Iterable) -> List:
     if isinstance(struct, dict) or isinstance(struct, str):
         return [struct]
 
