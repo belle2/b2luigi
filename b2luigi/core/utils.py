@@ -8,6 +8,7 @@ import collections
 import sys
 import types
 from typing import Any, Dict, List, Optional
+import shlex
 
 import luigi
 
@@ -381,3 +382,48 @@ def create_output_dirs(task):
 def get_filled_params(task):
     """Helper function for getting the parameter list with each parameter set to its current value"""
     return {key: getattr(task, key) for key, _ in task.get_params()}
+
+
+def is_subdir(path, parent_dir):
+    path = os.path.abspath(path)
+    parent_dir = os.path.abspath(parent_dir)
+    return os.path.commonpath([path, parent_dir]) == parent_dir
+
+
+def create_apptainer_command(command, task=None):
+    env_setup_script = get_setting("env_script", task=task, default="")
+    if not env_setup_script:
+        raise ValueError("Apptainer execution requires an environment setup script.")
+
+    apptainer_image = get_setting("apptainer_image", task=task, default="")
+
+    # If the batch system is gbasf2, we cannot use apptainer
+    if get_setting("batch_system", default="lsf", task=task) == "gbasf2":
+        raise ValueError("Invalid batch system for apptainer usage. Apptainer is not supported for gbasf2.")
+
+    exec_command = ["apptainer", "exec"]
+    additional_params = get_setting("apptainer_additional_params", default="", task=task)
+    exec_command += [f" {additional_params}"] if additional_params else []
+
+    # Add apptainer mount points if given
+    mounts = get_setting("apptainer_mounts", task=task, default=[])
+
+    if get_setting("apptainer_mount_defaults", task=task, default=True):
+        local_mounts = [
+            map_folder(get_setting("result_dir", task=task, default=".", deprecated_keys=["result_path"])),
+            get_log_file_dir(task=task),
+        ]
+        for mount in local_mounts:
+            os.makedirs(mount, exist_ok=True)
+            if not is_subdir(mount, os.getcwd()):
+                mounts.append(mount)
+
+    for mount in mounts:
+        exec_command += ["--bind", mount]
+
+    exec_command += [apptainer_image]
+    exec_command += ["/bin/bash", "-c"]
+    exec_command += [f"'source {env_setup_script} && {command}'"]
+
+    # Do the shlex split for correct string interpretation
+    return shlex.split(" ".join(exec_command))
