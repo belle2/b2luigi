@@ -2,10 +2,7 @@ from luigi.target import FileSystemTarget, FileSystem
 import os
 from contextlib import contextmanager
 import logging
-from typing import Tuple, Dict, Generator
-
-from XRootD import client
-from XRootD.client.flags import DirListFlags, OpenFlags, MkDirFlags
+from typing import Any, Tuple, Dict, Generator
 
 
 class XrootDSystem(FileSystem):
@@ -20,6 +17,13 @@ class XrootDSystem(FileSystem):
         Args:
             server_path: Path to the server, e.g. root://eosuser.cern.ch/
         """
+        from XRootD import client
+        from XRootD.client.flags import DirListFlags, OpenFlags, MkDirFlags
+
+        self.dir_list_flags = DirListFlags
+        self.open_flags = OpenFlags
+        self.mk_dir_flags = MkDirFlags
+
         self.server_path = server_path
         self.client = client.FileSystem(self.server_path)
 
@@ -32,7 +36,7 @@ class XrootDSystem(FileSystem):
             path: Path to the file or directory to check.
         """
 
-        status, _ = self.client.stat(path, DirListFlags.STAT)
+        status, _ = self.client.stat(path, self.dir_list_flags.STAT)
         if not status.ok:
             return False
         else:
@@ -111,7 +115,7 @@ class XrootDSystem(FileSystem):
         if self.exists(dir_path):
             logging.warning(f"dir already exists: {dir_path}")
             return
-        status, _ = self.client.mkdir(dir_path, MkDirFlags.MAKEPATH)
+        status, _ = self.client.mkdir(dir_path, self.mk_dir_flags.MAKEPATH)
         if not status.ok:
             logging.warning(status.message, path)
             if "File exists" in status.message:
@@ -119,7 +123,7 @@ class XrootDSystem(FileSystem):
         assert status.ok
 
     def locate(self, path: str) -> bool:
-        status, locations = self.client.locate(path, OpenFlags.REFRESH)
+        status, locations = self.client.locate(path, self.open_flags.REFRESH)
         if not status.ok:
             logging.warning(status.message)
         assert status.ok
@@ -139,7 +143,7 @@ class XrootDSystem(FileSystem):
             logging.warning(status.message)
         assert status.ok
 
-    def listdir(self, path: str) -> Tuple[Dict[str, int], client.responses.DirectoryList]:
+    def listdir(self, path: str) -> Tuple[Dict[str, int], Any]:
         """
         A function to list the content of a directory on the remote file system.
         In case the listing fails, a warning will be printed and a assertion will fail.
@@ -147,7 +151,7 @@ class XrootDSystem(FileSystem):
             path: Path to the directory on the remote file system.
         """
         dir_dict = {}
-        status, listing = self.client.dirlist(path, DirListFlags.STAT)
+        status, listing = self.client.dirlist(path, self.dir_list_flags.STAT)
         if not status.ok:
             logging.warning(f"[get_directory_listing] Status: {status.message}")
         assert status.ok  # directory or redirector faulty
@@ -173,7 +177,7 @@ class XrootDSystem(FileSystem):
         Args:
             path: Path to the directory on the remote file system.
         """
-        status, listing = self.client.dirlist(path, DirListFlags.STAT)
+        status, listing = self.client.dirlist(path, self.dir_list_flags.STAT)
         if not status.ok:
             logging.warning(f"Status: {status.message}")
         assert status.ok  # directory does not exists
