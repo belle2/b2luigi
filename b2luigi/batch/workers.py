@@ -1,4 +1,5 @@
 import enum
+import shutil
 
 import luigi.interface
 import luigi.worker
@@ -6,6 +7,7 @@ import luigi.worker
 from b2luigi.batch.processes.lsf import LSFProcess
 from b2luigi.batch.processes.htcondor import HTCondorProcess
 from b2luigi.batch.processes.gbasf2 import Gbasf2Process
+from b2luigi.batch.processes.apptainer import ApptainerProcess
 from b2luigi.batch.processes.test import TestProcess
 from b2luigi.core.settings import get_setting
 from b2luigi.core.utils import create_output_dirs
@@ -20,9 +22,20 @@ class BatchSystems(enum.Enum):
 
 
 class SendJobWorker(luigi.worker.Worker):
-    def _create_task_process(self, task):
-        batch_system = BatchSystems(get_setting("batch_system", default=BatchSystems.lsf, task=task))
+    def detect_batch_system(self, task):
+        batch_system_setting = get_setting("batch_system", default=BatchSystems.lsf, task=task)
+        if batch_system_setting == "auto":
+            if shutil.which("bsub"):
+                batch_system_setting = "lsf"
+            elif shutil.which("condor_submit"):
+                batch_system_setting = "htcondor"
+            else:
+                batch_system_setting = "local"
 
+        return BatchSystems(batch_system_setting)
+
+    def _create_task_process(self, task):
+        batch_system = self.detect_batch_system(task)
         if batch_system == BatchSystems.lsf:
             process_class = LSFProcess
         elif batch_system == BatchSystems.htcondor:
@@ -32,8 +45,11 @@ class SendJobWorker(luigi.worker.Worker):
         elif batch_system == BatchSystems.test:
             process_class = TestProcess
         elif batch_system == BatchSystems.local:
-            create_output_dirs(task)
-            return super()._create_task_process(task)
+            if get_setting("apptainer_image", default="", task=task):
+                process_class = ApptainerProcess
+            else:
+                create_output_dirs(task)
+                return super()._create_task_process(task)
         else:
             raise NotImplementedError
 

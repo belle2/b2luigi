@@ -12,10 +12,11 @@ Choosing the batch system
 
 Using ``b2luigi``'s settings mechanism (described here :meth:`b2luigi.get_setting`) you can choose which
 batch system should be used.
-Currently, ``htcondor`` and ``lsf`` are supported.
-There is also an experimental wrapper for ``gbasf2``, the Belle II
+Currently, ``htcondor`` and ``lsf`` are supported, with ``lsf``beeing the default setting.
+There is also an wrapper for ``gbasf2``, the Belle II
 submission tool for the LHC Worlwide Computing Grid, which works for ``Basf2PathTask`` tasks.
-More will come soon (PR welcome!).
+
+In addition, it is possible to set the ``batch_system`` setting to ``auto`` which tries to detect which batchsystem is available on your system. The automated discovery checks for the submission tools present on the system and sets the :meth:`BatchProcess` accordingly. This functionality works for ``lsf`` and ``htcondor`` systems. ``gbasf2`` will not be detected by ``auto`` but needs to be set explicitly.
 
 
 Choosing the Environment
@@ -127,6 +128,12 @@ GBasf2 Wrapper for LCG
 ......................
 
 .. autoclass:: b2luigi.batch.processes.gbasf2.Gbasf2Process
+    :show-inheritance:
+
+Apptainer
+.........
+
+.. autoclass:: b2luigi.batch.processes.apptainer.ApptainerProcess
     :show-inheritance:
 
 Add your own batch system

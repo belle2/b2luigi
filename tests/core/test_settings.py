@@ -1,7 +1,7 @@
 import json
 import os
 import warnings
-
+from unittest.mock import patch
 from ..helpers import B2LuigiTestCase
 
 import b2luigi
@@ -81,3 +81,7 @@ class TaskTestCase(B2LuigiTestCase):
             )
 
             self.assertEqual(len(w), 0)
+
+    def test_b2luigi_settings_json(self):
+        with patch.dict("os.environ", {"B2LUIGI_SETTINGS_JSON": "settings.json"}):
+            self.assertEqual("settings.json", next(b2luigi._setting_file_iterator()))

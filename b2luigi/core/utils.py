@@ -1,4 +1,3 @@
-import collections.abc
 import contextlib
 import importlib
 
@@ -7,7 +6,8 @@ import os
 import collections
 import sys
 import types
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Iterator, Iterable
+import shlex
 
 import luigi
 
@@ -26,7 +26,7 @@ def remember_cwd():
         os.chdir(old_cwd)
 
 
-def product_dict(**kwargs: Any) -> collections.abc.Iterator[Dict[str, Any]]:
+def product_dict(**kwargs: Any) -> Iterator[Dict[str, Any]]:
     """
     Cross-product the given parameters and return a list of dictionaries.
 
@@ -81,7 +81,7 @@ def fill_kwargs_with_lists(**kwargs: Any) -> Dict[str, List[Any]]:
     return return_kwargs
 
 
-def flatten_to_file_paths(inputs: collections.abc.Iterable[luigi.target.FileSystemTarget]) -> Dict[str, List[str]]:
+def flatten_to_file_paths(inputs: Iterable[luigi.target.FileSystemTarget]) -> Dict[str, List[str]]:
     """
     Take in a dict of lists of luigi targets and replace each luigi target by its corresponding path.
     For dicts, it will replace the value as well as the key. The key will however only by the basename of the path.
@@ -89,15 +89,17 @@ def flatten_to_file_paths(inputs: collections.abc.Iterable[luigi.target.FileSyst
     :param inputs: A dict of lists of luigi targets
     :return: A dict with the keys replaced by the basename of the targets and the values by the full path
     """
-    input_dict: Dict[str, List[luigi.target.FileSystemTarget]] = flatten_to_dict_of_lists(inputs)
+    input_dict: Dict[Any, List[luigi.target.FileSystemTarget]] = flatten_to_dict_of_lists(inputs)
 
     return {
-        os.path.basename(key): [val.path if hasattr(val, "path") else val for val in value]
+        os.path.basename(key.path if hasattr(key, "path") else key): [
+            val.path if hasattr(val, "path") else val for val in value
+        ]
         for key, value in input_dict.items()
     }
 
 
-def flatten_to_dict(inputs: collections.abc.Iterable[Any]) -> Dict[Any, Any]:
+def flatten_to_dict(inputs: Iterable[Any]) -> Dict[Any, Any]:
     """
     Return a whatever input structure into a dictionary.
     If it is a dict already, return this.
@@ -123,7 +125,7 @@ def flatten_to_dict(inputs: collections.abc.Iterable[Any]) -> Dict[Any, Any]:
     return joined_dict
 
 
-def flatten_to_dict_of_lists(inputs: collections.abc.Iterable[Any]) -> Dict[str, List]:
+def flatten_to_dict_of_lists(inputs: Iterable[Any]) -> Dict[Any, List]:
     inputs: List = _flatten(inputs)
     inputs: Dict[List] = map(_to_dict, inputs)
 
@@ -313,7 +315,7 @@ def _to_dict(d) -> Dict:
     return {d: d}
 
 
-def _flatten(struct: collections.abc.Iterable) -> List:
+def _flatten(struct: Iterable) -> List:
     if isinstance(struct, dict) or isinstance(struct, str):
         return [struct]
 
@@ -379,3 +381,48 @@ def create_output_dirs(task):
 def get_filled_params(task):
     """Helper function for getting the parameter list with each parameter set to its current value"""
     return {key: getattr(task, key) for key, _ in task.get_params()}
+
+
+def is_subdir(path, parent_dir):
+    path = os.path.abspath(path)
+    parent_dir = os.path.abspath(parent_dir)
+    return os.path.commonpath([path, parent_dir]) == parent_dir
+
+
+def create_apptainer_command(command, task=None):
+    env_setup_script = get_setting("env_script", task=task, default="")
+    if not env_setup_script:
+        raise ValueError("Apptainer execution requires an environment setup script.")
+
+    apptainer_image = get_setting("apptainer_image", task=task, default="")
+
+    # If the batch system is gbasf2, we cannot use apptainer
+    if get_setting("batch_system", default="lsf", task=task) == "gbasf2":
+        raise ValueError("Invalid batch system for apptainer usage. Apptainer is not supported for gbasf2.")
+
+    exec_command = ["apptainer", "exec"]
+    additional_params = get_setting("apptainer_additional_params", default="", task=task)
+    exec_command += [f" {additional_params}"] if additional_params else []
+
+    # Add apptainer mount points if given
+    mounts = get_setting("apptainer_mounts", task=task, default=[])
+
+    if get_setting("apptainer_mount_defaults", task=task, default=True):
+        local_mounts = [
+            map_folder(get_setting("result_dir", task=task, default=".", deprecated_keys=["result_path"])),
+            get_log_file_dir(task=task),
+        ]
+        for mount in local_mounts:
+            os.makedirs(mount, exist_ok=True)
+            if not is_subdir(mount, os.getcwd()):
+                mounts.append(mount)
+
+    for mount in mounts:
+        exec_command += ["--bind", mount]
+
+    exec_command += [apptainer_image]
+    exec_command += ["/bin/bash", "-c"]
+    exec_command += [f"'source {env_setup_script} && {command}'"]
+
+    # Do the shlex split for correct string interpretation
+    return shlex.split(" ".join(exec_command))

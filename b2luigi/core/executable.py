@@ -10,6 +10,7 @@ from b2luigi.core.utils import (
     get_log_file_dir,
     get_task_file_dir,
     map_folder,
+    create_apptainer_command,
 )
 
 
@@ -48,10 +49,24 @@ def create_executable_wrapper(task):
 
     executable_wrapper_content.append("echo 'Current environment:'; env")
 
-    # 3. Third part is to call the actual program
+    # 3. Third part is to build the actual program
     command = " ".join(create_cmd_from_task(task))
-    executable_wrapper_content.append("echo 'Will now execute the program'")
-    executable_wrapper_content.append(f"exec {command}")
+
+    # 4. Forth part is to create the correct execution command
+    # (a) If a valid apptainer image is provided, build an apptainer command
+    apptainer_image = get_setting("apptainer_image", task=task, default="")
+    if apptainer_image:
+        executable_wrapper_content.append(f"echo 'Will now execute the program with the image {apptainer_image}'")
+        apptainer_command_list = create_apptainer_command(command, task=task)
+        apptainer_command = " ".join(apptainer_command_list[:-1])
+        apptainer_command += f" '{apptainer_command_list[-1]}'"
+
+        executable_wrapper_content.append(apptainer_command)
+
+    # (b) Otherwise, just execute the command
+    else:
+        executable_wrapper_content.append("echo 'Will now execute the program'")
+        executable_wrapper_content.append(f"exec {command}")
 
     # Now we can write the file
     executable_file_dir = get_task_file_dir(task)
