@@ -38,7 +38,7 @@ default:
 pre_commit:
   stage: pre_commit
   script:
-    - b2venv ${BASF2_PYTHON311_RELEASE}
+    - b2venv ${BASF2_PYTHON38_RELEASE}
     - source venv/bin/activate
     - pip install pre-commit
     - pre-commit run --all-files
