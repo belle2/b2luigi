@@ -52,7 +52,7 @@ test:
   coverage: '/(?i)total.*? (100(?:\.0+)?\%|[1-9]?\d(?:\.\d+)?\%)$/'
   parallel:
     matrix:
-      - BASF2_VERSION: ["light-2409-toyger", "release-08-02-03"]
+      - BASF2_VERSION: [$BASF2_PYTHON38_RELEASE, $BASF2_PYTHON311_RELEASE]
   artifacts:
     reports:
       junit: $ARTIFACTS_TEST_PATH
