@@ -95,3 +95,11 @@ graph reproduced by the batch worker. This means that the task graph produced by
 ``b2luigi.process`` call and the one reproduced in the batch job differ from each other.
 This can be caused by a non-deterministic behavior of your dependency graph generation, such
 as a random task parameter.
+
+
+I do not like to have "=" in my output file names. Is there a way to not have them in the generated output paths?
+-------------------------------------------------------------------------------------------------------------------
+
+Yes, you can use the setting `use_parameter_name_in_output` to control this behaviour.
+If you set it to `False` the paths for your outputs and logs will be generated using only the parameter values.
+It is then up to you to remember which parameter value belongs to which parameter name.
