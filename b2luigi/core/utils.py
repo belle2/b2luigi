@@ -257,9 +257,9 @@ def create_output_file_name(task, base_filename: str, result_dir: Optional[str] 
 
     use_parameter_name = get_setting("use_parameter_name_in_output", task=task, default=True)
     if use_parameter_name:
-        param_list: List[str] = [f"{value}" for value in serialized_parameters.values()]
-    else:
         param_list: List[str] = [f"{key}={value}" for key, value in serialized_parameters.items()]
+    else:
+        param_list: List[str] = [f"{value}" for value in serialized_parameters.values()]
     output_path: str = os.path.join(result_dir, *param_list)
 
     return os.path.join(output_path, base_filename)
