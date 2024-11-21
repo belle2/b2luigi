@@ -25,10 +25,10 @@ Important features from luigi:
 .. toctree::
     :maxdepth: 2
 
-    top_level_functions
-    tasks
-    parameters
-    xrootdtargets
-    settings
-    other_functions
-    b2luigi.basf2_helper
+    api/top_level_functions
+    api/tasks
+    api/parameters
+    api/xrootdtargets
+    api/settings
+    api/other_functions
+    api/b2luigi.basf2_helper
