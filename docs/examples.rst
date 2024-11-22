@@ -1,3 +1,8 @@
+.. _`examples-label`:
+
+Examples
+--------
+
 .. toctree::
     :maxdepth: 2
 
