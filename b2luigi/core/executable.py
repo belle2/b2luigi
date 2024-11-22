@@ -31,7 +31,6 @@ def create_executable_wrapper(task):
     executable_wrapper_content.append("echo 'Working in the folder:'; pwd")
 
     # 2. Second part of the executable wrapper, the environment.
-    executable_wrapper_content.append("echo 'Setting up the environment'")
     # (a) If given, use the environment script
     env_setup_script = get_setting("env_script", task=task, default="")
     if env_setup_script:
@@ -41,6 +40,7 @@ def create_executable_wrapper(task):
             raise FileNotFoundError(f"Environment setup script {env_setup_script} does not exist.")
 
         if not apptainer_image:
+            executable_wrapper_content.append("echo 'Setting up the environment'")
             executable_wrapper_content.append(f"source {env_setup_script}")
 
     # (b) Now override with any environment from the task or settings
