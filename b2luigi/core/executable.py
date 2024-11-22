@@ -22,6 +22,7 @@ def create_executable_wrapper(task):
     """
     shell = get_setting("shell", task=task, default="bash")
     executable_wrapper_content = [f"#!/bin/{shell}", "set -e"]
+    apptainer_image = get_setting("apptainer_image", task=task, default="")
 
     # 1. First part is the folder we need to change if given
     working_dir = get_setting("working_dir", task=task, default=os.path.abspath(os.path.dirname(get_filename())))
@@ -38,7 +39,9 @@ def create_executable_wrapper(task):
         # env_script is reachable from there (not from where we are currently)
         if not os.path.isfile(map_folder(env_setup_script)):
             raise FileNotFoundError(f"Environment setup script {env_setup_script} does not exist.")
-        executable_wrapper_content.append(f"source {env_setup_script}")
+
+        if not apptainer_image:
+            executable_wrapper_content.append(f"source {env_setup_script}")
 
     # (b) Now override with any environment from the task or settings
     env_overrides = get_setting("env", task=task, default={})
@@ -54,7 +57,6 @@ def create_executable_wrapper(task):
 
     # 4. Forth part is to create the correct execution command
     # (a) If a valid apptainer image is provided, build an apptainer command
-    apptainer_image = get_setting("apptainer_image", task=task, default="")
     if apptainer_image:
         executable_wrapper_content.append(f"echo 'Will now execute the program with the image {apptainer_image}'")
         apptainer_command_list = create_apptainer_command(command, task=task)
