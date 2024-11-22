@@ -37,12 +37,13 @@ Now you can go on with the :ref:`quick-start-label`.
 b2luigi and Belle II
 ---------------------
 
-1.  Setup your local environment. You can use a local environment (installed on your machine) or a release on cvmfs.
-    For example, run:
+1.  Setup your local environment. You can use a local environment (installed on your machine) or a basf2 release on cvmfs.
+    For example, you can setup the latest basf2 release on cvmfs:
 
     .. code-block:: bash
 
-        source /cvmfs/belle.cern.ch/tools/b2setup prerelease-02-00-00c
+        source /cvmfs/belle.cern.ch/tools/b2setup
+        b2setup $(b2help-releases)
 
     Or you setup your local installation
 

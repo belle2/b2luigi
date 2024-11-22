@@ -144,6 +144,7 @@ Later, we will build the average of those numbers.
             :language: json
 
         The ``settings.json`` will be used by all tasks in this folder and in each sub-folder.
+        Alternatively, you can also set the enviroment variable `B2LUIGI_SETTINGS_JSON`, to set the path of your settings file.
         You can use it to define project settings (like result folders) and specific settings for your
         local sub project. Read the documentation on :meth:`b2luigi.get_setting` for
         more information on how to use it.

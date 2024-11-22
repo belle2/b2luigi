@@ -1,18 +1,18 @@
-import collections
 import os
 import shutil
+from warnings import warn
 
 import b2luigi
 from b2luigi.basf2_helper.targets import ROOTLocalTarget
-from b2luigi.basf2_helper.utils import get_basf2_git_hash
 
 import subprocess
 
+from b2luigi.basf2_helper.utils import get_basf2_git_hash
 from b2luigi.core.utils import create_output_dirs, get_serialized_parameters
 
 
 class Basf2Task(b2luigi.DispatchableTask):
-    git_hash = b2luigi.Parameter(default=get_basf2_git_hash())
+    git_hash = b2luigi.Parameter(default=get_basf2_git_hash(), significant=False)
 
     def get_output_file_target(self, *args, **kwargs):
         file_name = self.get_output_file_name(*args, **kwargs)
@@ -21,16 +21,14 @@ class Basf2Task(b2luigi.DispatchableTask):
         return super().get_output_file_target(*args, **kwargs)
 
     def get_serialized_parameters(self):
-        serialized_parameters = get_serialized_parameters(self)
-
-        # Git hash should go to the front
-        return_dict = collections.OrderedDict()
-        return_dict["git_hash"] = serialized_parameters["git_hash"]
-
-        for key, value in serialized_parameters.items():
-            return_dict[key] = value
-
-        return return_dict
+        warn(
+            "The `git_hash` parameter is removed from the serialized parameters and hence the Task ID. "
+            "This is to avoid the task ID changing every time the basf2 git hash changes. "
+            "If you need the git hash in the serialized parameters, please use the `git_hash` attribute directly for checks.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        return get_serialized_parameters(self)
 
 
 class Basf2PathTask(Basf2Task):
@@ -42,8 +40,6 @@ class Basf2PathTask(Basf2Task):
 
     @b2luigi.on_temporary_files
     def process(self):
-        assert get_basf2_git_hash() == self.git_hash
-
         try:
             import basf2
         except ImportError:

@@ -2,6 +2,7 @@ import os
 from unittest import TestCase, mock
 
 import b2luigi
+import shlex
 from b2luigi.core import utils
 from ..helpers import B2LuigiTestCase
 
@@ -100,7 +101,7 @@ class FlattenTestCase(TestCase):
     def test_list_of_list_input(self):
         inputs = [{"key1": "value1"}, {"key2": "value2"}]
 
-        outputs = utils.flatten_to_list_of_dicts(inputs)
+        outputs = utils.flatten_to_dict_of_lists(inputs)
 
         self.assertIn("key1", outputs)
         self.assertEqual(outputs["key1"], ["value1"])
@@ -109,7 +110,7 @@ class FlattenTestCase(TestCase):
 
         inputs = [{"key1": "value1"}, {"key2": "value2"}, {"key1": "repeated"}]
 
-        outputs = utils.flatten_to_list_of_dicts(inputs)
+        outputs = utils.flatten_to_dict_of_lists(inputs)
 
         self.assertIn("key1", outputs)
         self.assertEqual(outputs["key1"], ["value1", "repeated"])
@@ -118,13 +119,13 @@ class FlattenTestCase(TestCase):
 
         inputs = []
 
-        outputs = utils.flatten_to_list_of_dicts(inputs)
+        outputs = utils.flatten_to_dict_of_lists(inputs)
 
         self.assertFalse(outputs)
 
         inputs = [{"key1": "value1"}, "value2"]
 
-        outputs = utils.flatten_to_list_of_dicts(inputs)
+        outputs = utils.flatten_to_dict_of_lists(inputs)
 
         self.assertIn("key1", outputs)
         self.assertEqual(outputs["key1"], ["value1"])
@@ -133,7 +134,7 @@ class FlattenTestCase(TestCase):
 
         inputs = ["value1", "value2"]
 
-        outputs = utils.flatten_to_list_of_dicts(inputs)
+        outputs = utils.flatten_to_dict_of_lists(inputs)
 
         self.assertIn("value1", outputs)
         self.assertEqual(outputs["value1"], ["value1"])
@@ -142,7 +143,7 @@ class FlattenTestCase(TestCase):
 
         inputs = [[{"key1": "value1"}, {"key2": "value2"}], [{"key1": "repeated"}]]
 
-        outputs = utils.flatten_to_list_of_dicts(inputs)
+        outputs = utils.flatten_to_dict_of_lists(inputs)
 
         self.assertIn("key1", outputs)
         self.assertEqual(outputs["key1"], ["value1", "repeated"])
@@ -297,3 +298,147 @@ class TaskIteratorTestCase(TestCase):
         ]
         resulting_task_str_order = [str(t) for t in utils.task_iterator(AggregatorTask())]
         self.assertListEqual(expected_task_str_order, resulting_task_str_order)
+
+
+class IsSubdirTestCase(TestCase):
+    def test_is_subdir_true(self):
+        self.assertTrue(utils.is_subdir("/path/to/child", "/path/to"))
+        self.assertTrue(utils.is_subdir("/path/to/child/grandchild", "/path/to"))
+        self.assertTrue(utils.is_subdir("/path/to/child", "/path/to/child"))
+        self.assertTrue(utils.is_subdir("/path/to/child/", "/path/to"))
+        self.assertTrue(utils.is_subdir("/path/to/child", "/path/to/"))
+
+    def test_is_subdir_false(self):
+        self.assertFalse(utils.is_subdir("/path/to/child", "/path/to/other"))
+        self.assertFalse(utils.is_subdir("/path/to/child", "/path/to/child/grandchild"))
+        self.assertFalse(utils.is_subdir("/path/to", "/path/to/child"))
+        self.assertFalse(utils.is_subdir("/path/to/child", "/other/path/to"))
+
+    def test_is_subdir_relative_paths(self):
+        self.assertTrue(utils.is_subdir("child", "."))
+        self.assertTrue(utils.is_subdir("child/grandchild", "."))
+        self.assertFalse(utils.is_subdir(".", "child"))
+        self.assertFalse(utils.is_subdir("child", "other"))
+
+
+class CreateApptainerCommandTestCase(TestCase):
+    def setUp(self):
+        self.command = "echo Hello World"
+        self.task = mock.Mock()
+        self.env_setup_script = "/path/to/env_setup.sh"
+        self.apptainer_image = "/path/to/apptainer_image.sif"
+        self.result_dir = "/path/to/results"
+        self.log_dir = "/path/to/logs"
+        self.additional_params = "--nv"
+        self.mounts = ["/mnt/data"]
+
+        self.settings = {
+            "env_script": self.env_setup_script,
+            "apptainer_image": self.apptainer_image,
+            "result_dir": self.result_dir,
+            "log_dir": self.log_dir,
+            "apptainer_additional_params": self.additional_params,
+            "apptainer_mounts": self.mounts,
+            "apptainer_mount_defaults": True,
+            "batch_system": "lsf",
+        }
+
+    def test_create_apptainer_command(self):
+        with mock.patch(
+            "b2luigi.core.utils.get_setting",
+            side_effect=lambda key, **kwargs: self.settings.get(key, kwargs.get("default")),
+        ):
+            with mock.patch("b2luigi.core.utils.map_folder", side_effect=lambda x: x):
+                with mock.patch("b2luigi.core.utils.get_log_file_dir", return_value=self.log_dir):
+                    with mock.patch("os.makedirs"):
+                        expected_command = [
+                            "apptainer",
+                            "exec",
+                            f" {self.additional_params}",
+                            "--bind",
+                            self.mounts[0],
+                            "--bind",
+                            self.result_dir,
+                            "--bind",
+                            self.log_dir,
+                            self.apptainer_image,
+                            "/bin/bash",
+                            "-c",
+                            f"'source {self.env_setup_script} && {self.command}'",
+                        ]
+                        result = utils.create_apptainer_command(self.command, task=self.task)
+                        self.assertEqual(result, shlex.split(" ".join(expected_command)))
+
+    def test_create_apptainer_command_no_env_script(self):
+        self.settings["env_script"] = ""
+        with mock.patch(
+            "b2luigi.core.utils.get_setting",
+            side_effect=lambda key, **kwargs: self.settings.get(key, kwargs.get("default")),
+        ):
+            with self.assertRaises(ValueError) as context:
+                utils.create_apptainer_command(self.command, task=self.task)
+            self.assertEqual(str(context.exception), "Apptainer execution requires an environment setup script.")
+
+    def test_create_apptainer_command_invalid_batch_system(self):
+        self.settings["batch_system"] = "gbasf2"
+        with mock.patch(
+            "b2luigi.core.utils.get_setting",
+            side_effect=lambda key, **kwargs: self.settings.get(key, kwargs.get("default")),
+        ):
+            with self.assertRaises(ValueError) as context:
+                utils.create_apptainer_command(self.command, task=self.task)
+            self.assertEqual(
+                str(context.exception),
+                "Invalid batch system for apptainer usage. Apptainer is not supported for gbasf2.",
+            )
+
+    def test_create_apptainer_command_no_additional_params(self):
+        self.settings["apptainer_additional_params"] = ""
+        with mock.patch(
+            "b2luigi.core.utils.get_setting",
+            side_effect=lambda key, **kwargs: self.settings.get(key, kwargs.get("default")),
+        ):
+            with mock.patch("b2luigi.core.utils.map_folder", side_effect=lambda x: x):
+                with mock.patch("b2luigi.core.utils.get_log_file_dir", return_value=self.log_dir):
+                    with mock.patch("os.makedirs"):
+                        expected_command = [
+                            "apptainer",
+                            "exec",
+                            "--bind",
+                            self.mounts[0],
+                            "--bind",
+                            self.result_dir,
+                            "--bind",
+                            self.log_dir,
+                            self.apptainer_image,
+                            "/bin/bash",
+                            "-c",
+                            f"'source {self.env_setup_script} && {self.command}'",
+                        ]
+                        result = utils.create_apptainer_command(self.command, task=self.task)
+                        self.assertEqual(result, shlex.split(" ".join(expected_command)))
+
+    def test_create_apptainer_command_no_mounts(self):
+        self.settings["apptainer_mounts"] = []
+        with mock.patch(
+            "b2luigi.core.utils.get_setting",
+            side_effect=lambda key, **kwargs: self.settings.get(key, kwargs.get("default")),
+        ):
+            with mock.patch("b2luigi.core.utils.map_folder", side_effect=lambda x: x):
+                with mock.patch("b2luigi.core.utils.get_log_file_dir", return_value=self.log_dir):
+                    with mock.patch("os.makedirs"):
+                        expected_command = [
+                            "apptainer",
+                            "exec",
+                            f" {self.additional_params}",
+                            "--bind",
+                            self.result_dir,
+                            "--bind",
+                            self.log_dir,
+                            self.apptainer_image,
+                            "/bin/bash",
+                            "-c",
+                            f"'source {self.env_setup_script} && {self.command}'",
+                        ]
+                        result = utils.create_apptainer_command(self.command, task=self.task)
+                        self.assertEqual(result, shlex.split(" ".join(expected_command)))
