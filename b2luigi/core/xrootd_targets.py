@@ -7,7 +7,8 @@ from typing import Any, Tuple, Dict, Generator
 
 class XRootDSystem(FileSystem):
     """
-    XRootDFileSystem for b2luigi Targets. Inspiration taken from rhofsaess https://github.com/RHofsaess/xrd-interactive/blob/main/XRootD_utils.py
+    XRootDFileSystem for b2luigi Targets. Inspiration taken from rhofsaess
+    https://github.com/RHofsaess/xrd-interactive/blob/main/XRootD_utils.py
     It implements some standard file system operations, which can be used by the XRootDTarget.
     The error handling is done by assertions, since XRootD does not raise exceptions.
     """
