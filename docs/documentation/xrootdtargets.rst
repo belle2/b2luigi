@@ -1,4 +1,4 @@
-XrootDTargets
+XRootDTargets
 -------------
 
 To ease the work with files stored on the grid, b2luigi provides an Target implementation using XRootD.
@@ -17,7 +17,7 @@ For that you need to provide the server address like so: ``root://<server_addres
 Optionally, one can also set a `scratch_dir` which will be used to store temporary files when using the `temporary_path` context. (https://luigi.readthedocs.io/en/stable/api/luigi.target.html)
 When entering this context, a temporary path will be created in the scratch_directory.
 At leaving the context, the file will then be copied to the final location on the XRootD storage.
-A full task using XrootDTargets could look like this:
+A full task using XRootDTargets could look like this:
 
 .. code-block:: python
 
@@ -27,9 +27,9 @@ A full task using XrootDTargets could look like this:
 
         class MyTask(b2luigi.Task):
             def _get_output_file_target(self, base_filename: str, **kwargs) -> b2luigi.Target:
-                filename = create_output_filename(self, base_filename,  result_dir="<path on your xrootd storage>")
-                fs = XrootDSystem("root://eospublic.cern.ch")
-                return XrootDTarget(filename, fs, scratch_dir)
+                filename = create_output_filename(self, base_filename,  result_dir="<path on your XRootD storage>")
+                fs = XRootDSystem("root://eospublic.cern.ch")
+                return XRootDTarget(filename, fs, scratch_dir)
 
             def run(self):
                 file_name = "Hello_world.txt"
@@ -42,7 +42,7 @@ A full task using XrootDTargets could look like this:
             def output(self):
                 yield self.add_to_output("Hello_world.txt")
 
-.. autoclass:: b2luigi.XrootDSystem
+.. autoclass:: b2luigi.XRootDSystem
     :members:
     :undoc-members:
     :show-inheritance:

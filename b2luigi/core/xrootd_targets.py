@@ -2,16 +2,14 @@ from luigi.target import FileSystemTarget, FileSystem
 import os
 from contextlib import contextmanager
 import logging
-from typing import Tuple, Dict, Generator
-
-from XRootD import client
-from XRootD.client.flags import DirListFlags, OpenFlags, MkDirFlags
+from typing import Any, Tuple, Dict, Generator
 
 
-class XrootDSystem(FileSystem):
+class XRootDSystem(FileSystem):
     """
-    XrootDFileSystem for b2luigi Targets. Inspiration taken from rhofsaess https://github.com/RHofsaess/xrd-interactive/blob/main/xrootd_utils.py
-    It implements some standard file system operations, which can be used by the XrootDTarget.
+    XRootDFileSystem for b2luigi Targets. Inspiration taken from rhofsaess
+    https://github.com/RHofsaess/xrd-interactive/blob/main/XRootD_utils.py
+    It implements some standard file system operations, which can be used by the XRootDTarget.
     The error handling is done by assertions, since XRootD does not raise exceptions.
     """
 
@@ -20,19 +18,31 @@ class XrootDSystem(FileSystem):
         Args:
             server_path: Path to the server, e.g. root://eosuser.cern.ch/
         """
+        try:
+            from XRootD import client
+            from XRootD.client.flags import DirListFlags, OpenFlags, MkDirFlags
+
+        except ModuleNotFoundError as err:
+            logging.error("The XRootD python package is not imported.")
+            raise err
+
+        self.dir_list_flags = DirListFlags
+        self.open_flags = OpenFlags
+        self.mk_dir_flags = MkDirFlags
+
         self.server_path = server_path
         self.client = client.FileSystem(self.server_path)
 
     def exists(self, path: str) -> bool:
         """
-        Implementation of the exists function for the XrootDSystem.
+        Implementation of the exists function for the XRootDSystem.
         Will return True if the file or directory exists and Fals if it can not be found. This might also include cases, where the server is not reachable.
 
         Args:
             path: Path to the file or directory to check.
         """
 
-        status, _ = self.client.stat(path, DirListFlags.STAT)
+        status, _ = self.client.stat(path, self.dir_list_flags.STAT)
         if not status.ok:
             return False
         else:
@@ -90,7 +100,7 @@ class XrootDSystem(FileSystem):
 
     def move(self, source_path: str, dest_path: str) -> None:
         """
-        A function to move a file from one location to another on the XrootD server.
+        A function to move a file from one location to another on the XRootD server.
         In case the move fails, a warning will be printed and a assertion will fail.
         Args:
             source_path: Path to the file on the remote file system.
@@ -111,7 +121,7 @@ class XrootDSystem(FileSystem):
         if self.exists(dir_path):
             logging.warning(f"dir already exists: {dir_path}")
             return
-        status, _ = self.client.mkdir(dir_path, MkDirFlags.MAKEPATH)
+        status, _ = self.client.mkdir(dir_path, self.mk_dir_flags.MAKEPATH)
         if not status.ok:
             logging.warning(status.message, path)
             if "File exists" in status.message:
@@ -119,7 +129,7 @@ class XrootDSystem(FileSystem):
         assert status.ok
 
     def locate(self, path: str) -> bool:
-        status, locations = self.client.locate(path, OpenFlags.REFRESH)
+        status, locations = self.client.locate(path, self.open_flags.REFRESH)
         if not status.ok:
             logging.warning(status.message)
         assert status.ok
@@ -139,7 +149,7 @@ class XrootDSystem(FileSystem):
             logging.warning(status.message)
         assert status.ok
 
-    def listdir(self, path: str) -> Tuple[Dict[str, int], client.responses.DirectoryList]:
+    def listdir(self, path: str) -> Tuple[Dict[str, int], Any]:
         """
         A function to list the content of a directory on the remote file system.
         In case the listing fails, a warning will be printed and a assertion will fail.
@@ -147,7 +157,7 @@ class XrootDSystem(FileSystem):
             path: Path to the directory on the remote file system.
         """
         dir_dict = {}
-        status, listing = self.client.dirlist(path, DirListFlags.STAT)
+        status, listing = self.client.dirlist(path, self.dir_list_flags.STAT)
         if not status.ok:
             logging.warning(f"[get_directory_listing] Status: {status.message}")
         assert status.ok  # directory or redirector faulty
@@ -173,7 +183,7 @@ class XrootDSystem(FileSystem):
         Args:
             path: Path to the directory on the remote file system.
         """
-        status, listing = self.client.dirlist(path, DirListFlags.STAT)
+        status, listing = self.client.dirlist(path, self.dir_list_flags.STAT)
         if not status.ok:
             logging.warning(f"Status: {status.message}")
         assert status.ok  # directory does not exists
@@ -196,16 +206,16 @@ class XrootDSystem(FileSystem):
         self.copy_file_to_remote(path, dest, force=True)
 
 
-class XrootDTarget(FileSystemTarget):
+class XRootDTarget(FileSystemTarget):
     """
     Implementation of luigi targets based on the XRootD file system.
     """
 
-    def __init__(self, path: str, file_system: XrootDSystem, scratch_dir: str = "/tmp"):
+    def __init__(self, path: str, file_system: XRootDSystem, scratch_dir: str = "/tmp"):
         """
         Args:
             path: Path to the file on the remote file system.
-            file_system: Instance of the XrootDSystem.
+            file_system: Instance of the XRootDSystem.
             scratch_dir: Directory to store temporary files.
         """
         self._scratch_dir = scratch_dir
@@ -217,7 +227,7 @@ class XrootDTarget(FileSystemTarget):
         return os.path.basename(self.path)
 
     @property
-    def fs(self) -> XrootDSystem:
+    def fs(self) -> XRootDSystem:
         return self._file_system
 
     def makedirs(self) -> None:
@@ -253,4 +263,4 @@ class XrootDTarget(FileSystemTarget):
         self.fs.copy_file_to_remote(tmp_path, self.path, force=True)
 
     def open(self, mode: str) -> None:
-        raise NotImplementedError("XrootDTarget does not support open yet")
+        raise NotImplementedError("XRootDTarget does not support open yet")

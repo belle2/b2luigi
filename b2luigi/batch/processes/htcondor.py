@@ -223,10 +223,7 @@ class HTCondorProcess(BatchProcess):
 
         # Specify additional settings
         general_settings = get_setting("htcondor_settings", dict())
-        try:
-            general_settings.update(self.task.htcondor_settings)
-        except AttributeError:
-            pass
+        general_settings.update(get_setting("htcondor_settings", task=self.task, default=dict()))
 
         transfer_files = get_setting("transfer_files", task=self.task, default=[])
         if transfer_files:
