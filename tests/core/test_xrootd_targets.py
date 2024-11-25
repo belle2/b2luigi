@@ -1,16 +1,16 @@
 import unittest
 from unittest.mock import MagicMock
-from b2luigi.core.xrootd_targets import XrootDSystem, XrootDTarget
+from b2luigi.core.xrootd_targets import XRootDSystem, XRootDTarget
 
 
 class TestXrootDSystem(unittest.TestCase):
     def setUp(self) -> None:
         self.mock_server_path: str = "root://mockserver.cern.ch/"
-        self.xrootd_system: XrootDSystem = XrootDSystem(self.mock_server_path)
+        self.xrootd_system: XRootDSystem = XRootDSystem(self.mock_server_path)
         self.xrootd_system.client = MagicMock()
         self.xrootd_system.copy_file_to_remote = MagicMock()
 
-        self.xrootd_target: XrootDTarget = XrootDTarget(self.mock_server_path, self.xrootd_system, "/scratch")
+        self.xrootd_target: XRootDTarget = XRootDTarget(self.mock_server_path, self.xrootd_system, "/scratch")
 
     def test_exists_true(self) -> None:
         # Simulate a successful stat call

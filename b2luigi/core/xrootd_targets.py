@@ -5,7 +5,7 @@ import logging
 from typing import Any, Tuple, Dict, Generator
 
 
-class XrootDSystem(FileSystem):
+class XRootDSystem(FileSystem):
     """
     XrootDFileSystem for b2luigi Targets. Inspiration taken from rhofsaess https://github.com/RHofsaess/xrd-interactive/blob/main/xrootd_utils.py
     It implements some standard file system operations, which can be used by the XrootDTarget.
@@ -200,12 +200,12 @@ class XrootDSystem(FileSystem):
         self.copy_file_to_remote(path, dest, force=True)
 
 
-class XrootDTarget(FileSystemTarget):
+class XRootDTarget(FileSystemTarget):
     """
     Implementation of luigi targets based on the XRootD file system.
     """
 
-    def __init__(self, path: str, file_system: XrootDSystem, scratch_dir: str = "/tmp"):
+    def __init__(self, path: str, file_system: XRootDSystem, scratch_dir: str = "/tmp"):
         """
         Args:
             path: Path to the file on the remote file system.
@@ -221,7 +221,7 @@ class XrootDTarget(FileSystemTarget):
         return os.path.basename(self.path)
 
     @property
-    def fs(self) -> XrootDSystem:
+    def fs(self) -> XRootDSystem:
         return self._file_system
 
     def makedirs(self) -> None:
