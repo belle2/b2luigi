@@ -18,8 +18,13 @@ class XRootDSystem(FileSystem):
         Args:
             server_path: Path to the server, e.g. root://eosuser.cern.ch/
         """
-        from XRootD import client
-        from XRootD.client.flags import DirListFlags, OpenFlags, MkDirFlags
+        try:
+            from XRootD import client
+            from XRootD.client.flags import DirListFlags, OpenFlags, MkDirFlags
+
+        except ModuleNotFoundError as err:
+            logging.error("The XRootD python package is not imported.")
+            raise err
 
         self.dir_list_flags = DirListFlags
         self.open_flags = OpenFlags
