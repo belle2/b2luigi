@@ -1,6 +1,6 @@
 import unittest
 from unittest.mock import MagicMock
-from b2luigi.core.XRootD_targets import XRootDSystem, XRootDTarget
+from b2luigi.core.xrootD_targets import XRootDSystem, XRootDTarget
 
 
 class TestXRootDSystem(unittest.TestCase):
