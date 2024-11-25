@@ -5,7 +5,7 @@ from luigi.util import copies
 
 # version must be defined after importing the luigi namespace,
 # otherwise the b2luigi.__version__ gets overwritten by the one from luigi
-__version__ = "1.1.0"
+__version__ = "1.1.1"
 
 from b2luigi.core.parameter import wrap_parameter, BoolParameter
 from typing import Optional, Union, Collection
