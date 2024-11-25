@@ -7,8 +7,8 @@ from typing import Any, Tuple, Dict, Generator
 
 class XRootDSystem(FileSystem):
     """
-    XrootDFileSystem for b2luigi Targets. Inspiration taken from rhofsaess https://github.com/RHofsaess/xrd-interactive/blob/main/xrootd_utils.py
-    It implements some standard file system operations, which can be used by the XrootDTarget.
+    XRootDFileSystem for b2luigi Targets. Inspiration taken from rhofsaess https://github.com/RHofsaess/xrd-interactive/blob/main/XRootD_utils.py
+    It implements some standard file system operations, which can be used by the XRootDTarget.
     The error handling is done by assertions, since XRootD does not raise exceptions.
     """
 
@@ -29,7 +29,7 @@ class XRootDSystem(FileSystem):
 
     def exists(self, path: str) -> bool:
         """
-        Implementation of the exists function for the XrootDSystem.
+        Implementation of the exists function for the XRootDSystem.
         Will return True if the file or directory exists and Fals if it can not be found. This might also include cases, where the server is not reachable.
 
         Args:
@@ -94,7 +94,7 @@ class XRootDSystem(FileSystem):
 
     def move(self, source_path: str, dest_path: str) -> None:
         """
-        A function to move a file from one location to another on the XrootD server.
+        A function to move a file from one location to another on the XRootD server.
         In case the move fails, a warning will be printed and a assertion will fail.
         Args:
             source_path: Path to the file on the remote file system.
@@ -209,7 +209,7 @@ class XRootDTarget(FileSystemTarget):
         """
         Args:
             path: Path to the file on the remote file system.
-            file_system: Instance of the XrootDSystem.
+            file_system: Instance of the XRootDSystem.
             scratch_dir: Directory to store temporary files.
         """
         self._scratch_dir = scratch_dir
@@ -257,4 +257,4 @@ class XRootDTarget(FileSystemTarget):
         self.fs.copy_file_to_remote(tmp_path, self.path, force=True)
 
     def open(self, mode: str) -> None:
-        raise NotImplementedError("XrootDTarget does not support open yet")
+        raise NotImplementedError("XRootDTarget does not support open yet")
