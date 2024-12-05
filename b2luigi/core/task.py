@@ -41,7 +41,7 @@ class Task(luigi.Task):
                       f.write(f"{average}\\n")
     """
 
-    def add_to_output(self, output_file_name: str, target_class: Class = luigi.LocalTarget) -> Dict[str, luigi.LocalTarget]:
+    def add_to_output(self, output_file_name: str, target_class: Class = luigi.LocalTarget, **kwargs) -> Dict[str, luigi.LocalTarget]:
         """
         Call this in your ``output()`` function to add a target to the list of files,
         this task will output.
@@ -68,7 +68,7 @@ class Task(luigi.Task):
                 Refer to this file name as a key when using :obj:`get_input_file_names`,
                 :obj:`get_output_file_names` or :obj:`get_output_file`.
         """
-        return {output_file_name: self._get_output_file_target(output_file_name, target_class)}
+        return {output_file_name: self._get_output_file_target(output_file_name, target_class, **kwargs)}
 
     @staticmethod
     def _transform_io(input_generator: Iterable[luigi.target.FileSystemTarget]) -> Dict[str, List[str]]:
