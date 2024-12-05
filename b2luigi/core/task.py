@@ -67,6 +67,9 @@ class Task(luigi.Task):
             output_file_name (:obj:`str`): the file name of the output file.
                 Refer to this file name as a key when using :obj:`get_input_file_names`,
                 :obj:`get_output_file_names` or :obj:`get_output_file`.
+            target_class: which class of luigi.FileSystemTarget to instatiate for this target. 
+                defaults to LocalTarget
+            **kwargs: kwargs to be passed to :obj:create_output_file_name via the :obj:`_get_output_file_target` function
         """
         return {output_file_name: self._get_output_file_target(output_file_name, target_class, **kwargs)}
 
