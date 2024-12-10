@@ -21,7 +21,7 @@ A full task using XRootDTargets could look like this:
 
 .. code-block:: python
 
-        from b2luigi.targets import XRootDTarget
+        from b2luigi import XRootDSystem, XrootDTarget
         from b2luigi.core.utils import create_output_filename
         import b2luigi
 
