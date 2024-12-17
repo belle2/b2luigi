@@ -3,6 +3,7 @@ import os
 import pickle
 
 import basf2
+import pdg
 from basf2 import pickle_path as b2pp
 from variables import variables as vm
 
@@ -57,7 +58,15 @@ if not os.path.isfile(pickle_file_path):
 
 apply_alias_dict_from_file(pickle_file_path)
 get_global_tags_from_file(pickle_file_path)
-set_log_level_from_file(pickle_file_path)
+# set_log_level_from_file(pickle_file_path)
+
+basf2.set_log_level(basf2.LogLevel.ERROR)
+basf2.conditions.expert_settings(connection_timeout=300, stalled_timeout=300)
++
+pdg.add_particle("chi1", 51, 0, 0, 0, 0)
+pdg.add_particle("chi2", 52, 0, 0, 0, 0)
+pdg.add_particle("ap", 53, 0, 0, 0, 0)
+pdg.add_particle("beam", 9999, 0, 0, 0, 0)
 
 path = b2pp.get_path_from_file(pickle_file_path)
 
