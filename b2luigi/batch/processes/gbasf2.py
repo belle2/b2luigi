@@ -157,6 +157,8 @@ class Gbasf2Process(BatchProcess):
           If specified, one has to provide ``gbasf2_project_lpn_path`` parameter.
         - ``gbasf2_project_lpn_path``: Path to the LPN folder for a specified gbasf2 group.
           The parameter has no effect unless the ``gbasf2_proxy_group`` is used with non-default value.
+        - ``gbasf2_jinja_template_path``: This paramter sets a custom basf2 steering template where the user can adapt the
+          default template (e.g. for altering the pdg database, ...). Note that this is an expert option that should be treated with care.
         - ``gbasf2_download_dataset``: Defaults to ``True``. Disable this setting if you don't want to download the
           output dataset from the grid on job success. As you can't use the downloaded dataset as an output target for luigi,
           you should then use the provided ``Gbasf2GridProjectTarget``, as shown in the following example:
@@ -662,8 +664,8 @@ class Gbasf2Process(BatchProcess):
         Create a steering file to send to the grid that executes the pickled
         basf2 path from ``self.task.create_path()``.
         """
-        # read a jinja2 template for the steerinfile that should execute the pickled path
-        template_file_path = os.path.join(self._file_dir, "templates/gbasf2_steering_file_wrapper.jinja2")
+        # read a jinja2 template for the steeringfile that should execute the pickled path
+        template_file_path = get_setting("gbasf2_jinja_template_path", default=os.path.join(self._file_dir, "templates/gbasf2_steering_file_wrapper.jinja2"), task=self.task)
         with open(template_file_path, "r") as template_file:
             template = Template(template_file.read())
             # replace some variable values in the templates
