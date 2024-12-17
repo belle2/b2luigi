@@ -411,7 +411,7 @@ def create_apptainer_command(command, task=None):
 
     # Add apptainer mount points if given
     apptainer_mounts = get_setting("apptainer_mounts", task=task, default=None)
-    if apptainer_mounts = None:
+    if apptainer_mounts is None:
         mounts = []
     else:
         mounts = copy.copy(apptainer_mounts)
