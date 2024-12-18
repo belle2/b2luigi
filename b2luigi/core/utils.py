@@ -8,6 +8,7 @@ import sys
 import types
 from typing import Any, Dict, List, Optional, Iterator, Iterable
 import shlex
+import copy
 
 import luigi
 
@@ -409,7 +410,11 @@ def create_apptainer_command(command, task=None):
     exec_command += [f" {additional_params}"] if additional_params else []
 
     # Add apptainer mount points if given
-    mounts = get_setting("apptainer_mounts", task=task, default=[])
+    apptainer_mounts = get_setting("apptainer_mounts", task=task, default=None)
+    if apptainer_mounts is None:
+        mounts = []
+    else:
+        mounts = copy.copy(apptainer_mounts)
 
     if get_setting("apptainer_mount_defaults", task=task, default=True):
         local_mounts = [
