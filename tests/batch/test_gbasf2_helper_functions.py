@@ -172,7 +172,7 @@ class TestSetupDiracProxy(unittest.TestCase):
     @mock.patch("b2luigi.batch.processes.gbasf2.run_with_gbasf2")
     @mock.patch("b2luigi.batch.processes.gbasf2.get_proxy_info")
     def test_setup_proxy_when_no_proxy_info(self, mock_get_proxy_info, mock_run_with_gbasf2, mock_getpass):
-        # pretend proxy is not initalized yet, then get_proxy_info raises CalledProcessError
+        # pretend proxy is not initialized yet, then get_proxy_info raises CalledProcessError
         mock_get_proxy_info.side_effect = CalledProcessError(1, ["gb2_proxy_info", "-g", "belle"])
         mock_run_with_gbasf2.return_value = MockProcess(self.success_msg, "")
         setup_dirac_proxy()

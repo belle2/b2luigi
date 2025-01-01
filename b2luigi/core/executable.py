@@ -89,7 +89,7 @@ def create_executable_wrapper(task):
 def run_task_remote(task):
     """
     Run a given task "remotely", which means
-    create an exectable script and call it via a subprocess
+    create an executable script and call it via a subprocess
     call.
     """
     log_file_dir = get_log_file_dir(task)
