@@ -82,11 +82,11 @@ class Gbasf2Process(BatchProcess):
           inheriting from ``Basf2PathTask`` or other tasks with a
           ``create_path()`` method that returns a basf2 path.
 
-        - It can be used **only for pickable basf2 paths**, with only some limited global basf2 state
+        - It can be used **only for picklable basf2 paths**, with only some limited global basf2 state
           saved (currently aliases and global tags). The batch process stores
           the path created by ``create_path`` in a python pickle file and runs that on the grid.
           Therefore, **python basf2 modules are not yet supported**.
-          To see if the path produced by a steering file is pickable, you can try to dump it with
+          To see if the path produced by a steering file is picklable, you can try to dump it with
           ``basf2 --dump-path`` and execute it again with ``basf2 --execute-path``.
 
         - Output format: Changing the batch to gbasf2 means you also have to
@@ -265,7 +265,7 @@ class Gbasf2Process(BatchProcess):
             )
 
         #: Output file directory of the task to wrap with gbasf2, where we will
-        # store the pickled basf2 path and the created steerinfile to execute
+        # store the pickled basf2 path and the created steering file to execute
         # that path.
         task_file_dir = get_task_file_dir(self.task)
         os.makedirs(task_file_dir, exist_ok=True)
@@ -364,8 +364,8 @@ class Gbasf2Process(BatchProcess):
         n_in_final_state = n_done + n_failed
 
         # The gbasf2 project is considered as failed if any of the jobs in it failed.
-        # However, we first try to reschedule thos jobs and only declare it as failed if the maximum number of retries
-        # for reschedulinhas been reached
+        # However, we first try to reschedule those jobs and only declare it as failed if the maximum number of retries
+        # for rescheduling has been reached
         if n_failed > 0:
             self._on_failure_action()
             if self.max_retries > 0 and self._reschedule_failed_jobs():
@@ -1300,7 +1300,7 @@ def get_unique_project_name(task):
             "Task can only be used with the gbasf2 batch process if it has ``gbasf2_project_name_prefix`` "
             + "as a luigi parameter, attribute or setting."
         ) from err
-    # luigi interally assigns a hash to a task by calling the builtin ``hash(task.task_id)``,
+    # luigi internally assigns a hash to a task by calling the builtin ``hash(task.task_id)``,
     # but that returns a signed integer. I prefer a hex string to get more information per character,
     # which is why I decided to use ``hashlib.md5``.
     task_id_hash = hashlib.md5(task.task_id.encode()).hexdigest()[0:10]
@@ -1387,13 +1387,13 @@ def _move_downloaded_dataset_to_output_dir(project_download_path: str, output_pa
         ├── …
 
     This function moves those files to their final ``output_path`` directory which has
-    the same name as the original root file (e.g. ``B.root``) to fullfill the luigi
+    the same name as the original root file (e.g. ``B.root``) to fulfill the luigi
     output definition. This output directory has the structure
 
         <result_dir>/B.root/job_name*B.root
 
     :param project_download_path: Directory into which ``gb2_ds_get`` downloaded the
-        grid dataset. The contents should be ``sub<xy>`` datablocks containing root files.
+        grid dataset. The contents should be ``sub<xy>`` data blocks containing root files.
     :param output_path: Final output directory into which the ROOT files should be copied.
     """
     # the download shouldn't happen if the output already exists, but assert that's the case just to be sure
