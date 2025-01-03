@@ -3,7 +3,7 @@
 Luigi Features
 ==============
 
-``luigi`` already has many nice and helpful features. 
+``luigi`` already has many nice and helpful features.
 All of them can be used with ``b2luigi`` as well.
 In the following is a collection of the most important features.
 Please note, that the following list is not exhaustive and check the `luigi documentation <https://luigi.readthedocs.io/en/stable/index.html>`_ for more information.

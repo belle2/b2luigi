@@ -11,7 +11,7 @@ These settings can be set in the following ways, where each way overwrites the p
 
     1. Via a settings file (e.g. ``settings.json``). This file can be given via the environment variable ``B2LUIGI_SETTINGS_JSON``.
         If this variable is not set, b2luigi will look for a file named ``settings.json`` in the current working directory.
-    
+
     2. You can set a setting in your script via the function ``b2luigi.set_setting("setting_name", value)``.
 
     3. You can use give a task the setting as a property.
@@ -26,7 +26,7 @@ Here is a list of available settings already implemented in b2luigi:
     ----------------
 
     - ``result_dir``: String
-        The directory where the results of the tasks are stored. 
+        The directory where the results of the tasks are stored.
         This will be used as the base path when the unique target path is created.
         If not set, the current working directory is used.
         It is recommended to set this path per project via the settings file.
@@ -35,7 +35,7 @@ Here is a list of available settings already implemented in b2luigi:
         The directory where the logs of the tasks are stored.
         If not set, a folder named ``logs`` in the current working directory is used.
         It is recommended to set this path per project via the settings file.
-    
+
     - ``batch_system``: String
         The batch system to use when executed in batch mode. Currently, ``htcondor``, ``lsf``, ``gbasf2``, ``auto`` and ``local`` are supported.
         In case of ``auto``, b2luigi will try to detect the batch system automatically by checking for the executables of ``htcondor`` and ``lsf``.
@@ -44,7 +44,7 @@ Here is a list of available settings already implemented in b2luigi:
         Default setting is ``lsf``.
 
     - ``_dispatch_local_execution``: Boolean
-        Whether to use batch submission for ``local`` batch mode. 
+        Whether to use batch submission for ``local`` batch mode.
         Never touch this, since it is set automatically.
         Use the ``--batch`` flag when calling your script to activate batch mode.
         For more information, see :function:`b2luigi.dispatch`.
@@ -68,7 +68,7 @@ Here is a list of available settings already implemented in b2luigi:
     - ``apptainer_mount_defaults``: Boolean
         If set to ``True``, the ``result_dir`` and ``log_dir`` are mounted into the apptainer container by default.
         Default is ``True``.
-        
+
     - ``apptainer_additional_params``: List[String]
         A list of additional parameters to pass to the apptainer container.
         If not set, no additional parameters are passed.
@@ -85,7 +85,7 @@ Here is a list of available settings already implemented in b2luigi:
         By default it is not set.
 
     - ``shell``:
-        Which shell to to start the executable wrapper with. 
+        Which shell to to start the executable wrapper with.
         Defaults to ``bash`` and only this shell is tested.
 
     - ``working_dir``: String
@@ -140,5 +140,5 @@ Here is a list of available settings already implemented in b2luigi:
 
 Custom settings
 ---------------
-You can use the settings mechanism to handle your own settings. 
+You can use the settings mechanism to handle your own settings.
 For that, set your settings, like you would normally do and access them via :function:`b2luigi.get_setting`.

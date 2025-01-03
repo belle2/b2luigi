@@ -6,7 +6,7 @@ Examples
 Some examples of b2luigi in Belle II
 ------------------------------------
 
-These are some examples of how to use b2luigi in Belle II. 
+These are some examples of how to use b2luigi in Belle II.
 Please keep in mind, that some of these examples are based on older versions of b2luigi.
 Some functionalities did not yet exist or were created in these projects and later adapted to b2luigi.
 If you know a project that should be listed here, please feel free to open a merge request.

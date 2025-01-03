@@ -40,11 +40,11 @@ Now you can go on with the :ref:`quick-start-label`.
 Install b2luigi with the Belle II software
 ------------------------------------------
 
-In the current versions of the Belle II software externals, b2luigi is not included. 
+In the current versions of the Belle II software externals, b2luigi is not included.
 The main reason is to have a faster release cycle for b2luigi.
 It is very highly recommended to create a `b2venv <https://software.belle2.org/development/sphinx/build/tools_doc/b2venv.html>`_ and install b2luigi there.
 
-Some older releases of the Belle II software externals might include old b2luigi versions. 
+Some older releases of the Belle II software externals might include old b2luigi versions.
 In these cases, using b2venv to install the latest version of b2luigi might have unintentional side effects.
 
 .. attention::
