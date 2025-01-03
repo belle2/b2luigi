@@ -9,8 +9,9 @@ Also checkout our :ref:`examples-label` for some working examples.
 .. toctree::
     :maxdepth: 2
 
-    features/settings
-    features/batch
+    features/luigi_features
     features/run_modes
+    features/batch
     features/parameters
     features/input_output
+    features/settings
