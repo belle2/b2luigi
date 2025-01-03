@@ -229,7 +229,7 @@ class HTCondorProcess(BatchProcess):
         if transfer_files:
             working_dir = get_setting("working_dir", task=self.task, default="")
             if not working_dir or working_dir != ".":
-                raise ValueError("If using transfer_files, the working_dir must be explicitely set to '.'")
+                raise ValueError("If using transfer_files, the working_dir must be explicitly set to '.'")
 
             general_settings.setdefault("should_transfer_files", "YES")
             general_settings.setdefault("when_to_transfer_output", "ON_EXIT")
