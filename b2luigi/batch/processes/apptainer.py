@@ -22,7 +22,7 @@ class ApptainerProcess(BatchProcess):
     * ``apptainer_image``: The image to use for the Apptainer container.s
         This parameter is mandatory and needs to be set if the task should be executed in an Apptainer container.
         The image needs to be accessible from the machine where the task is executed. There are no further checks
-        if the image is available or valid. When using custom images, it may be helpfull to fisrt check the image
+        if the image is available or valid. When using custom images, it may be helpful to first check the image
         with ``apptainer inspect``. For people with access to the Belle II own ``/cvmfs`` directory, images are
         provided in the ``/cvmfs/belle.cern.ch/images`` directory. The description of the images (the repository
         contains the docker images which are transformed to Apptainer images) and instructions on how to create them
@@ -43,8 +43,8 @@ class ApptainerProcess(BatchProcess):
     * ``apptainer_additional_params``: Additional parameters to pass to the ``apptainer exec`` command.
         This parameter should be a string and will be directly appended to the ``apptainer exec`` command. It can be used to
         pass additional parameters to the ``apptainer exec`` command as they would be added in the CLI. A very
-        usefull parameter is the ``--cleanenv`` parameter which will clean the environment before executing the task in the
-        Apptainer container. This can be usefull to avoid conflicts with the environment in the container.
+        useful parameter is the ``--cleanenv`` parameter which will clean the environment before executing the task in the
+        Apptainer container. This can be useful to avoid conflicts with the environment in the container.
         A prominent usecase is the usage of software which dependes on the operating system.
 
 

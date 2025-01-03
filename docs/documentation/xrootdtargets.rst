@@ -5,7 +5,7 @@ To ease the work with files stored on the grid, b2luigi provides an Target imple
 In the background, this relies on the Python bindings of the XRootD client and of course requires a working XRootD client installation.
 
 .. hint::
-    The XRootD client is already installed in basf2 enviroments on cvmfs.
+    The XRootD client is already installed in basf2 environments on cvmfs.
 
 .. hint::
     To access XRootD storage you will need a valid VOMS proxy.

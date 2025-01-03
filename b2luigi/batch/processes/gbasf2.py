@@ -79,7 +79,7 @@ class Gbasf2Process(BatchProcess):
 
     Caveats
         - The gbasf2 batch process for luigi can only be used for tasks
-          inhereting from ``Basf2PathTask`` or other tasks with a
+          inheriting from ``Basf2PathTask`` or other tasks with a
           ``create_path()`` method that returns a basf2 path.
 
         - It can be used **only for pickable basf2 paths**, with only some limited global basf2 state
@@ -1108,7 +1108,7 @@ def run_with_gbasf2(
     """
     Call ``cmd`` in a subprocess with the gbasf2 environment.
 
-    :param ensure_proxy_initialized: If this is True, check if the dirac proxy is initalized and alive and if not,
+    :param ensure_proxy_initialized: If this is True, check if the dirac proxy is initialized and alive and if not,
                                      initialize it.
     :param check: Whether to raise a ``CalledProcessError`` when the command returns with an error code.
                   The default value ``True`` is the same as in ``subprocess.check_call()`` and different as in the
@@ -1196,7 +1196,7 @@ def get_dirac_user(gbasf2_setup_path="/cvmfs/belle.kek.jp/grid/gbasf2/pro/bashrc
 
 def setup_dirac_proxy(gbasf2_setup_path="/cvmfs/belle.kek.jp/grid/gbasf2/pro/bashrc", task=None):
     """Run ``gb2_proxy_init -g belle`` if there's no active dirac proxy. If there is, do nothing."""
-    # first run script to check if proxy is already alive or needs to be initalized
+    # first run script to check if proxy is already alive or needs to be initialized
     try:
         if get_proxy_info(gbasf2_setup_path, task=task)["secondsLeft"] > 3600 * get_setting(
             "gbasf2_min_proxy_lifetime", default=0
@@ -1300,7 +1300,7 @@ def get_unique_project_name(task):
             "Task can only be used with the gbasf2 batch process if it has ``gbasf2_project_name_prefix`` "
             + "as a luigi parameter, attribute or setting."
         ) from err
-    # luigi interally assings a hash to a task by calling the builtin ``hash(task.task_id)``,
+    # luigi interally assigns a hash to a task by calling the builtin ``hash(task.task_id)``,
     # but that returns a signed integer. I prefer a hex string to get more information per character,
     # which is why I decided to use ``hashlib.md5``.
     task_id_hash = hashlib.md5(task.task_id.encode()).hexdigest()[0:10]
