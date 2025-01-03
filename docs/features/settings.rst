@@ -49,6 +49,11 @@ Here is a list of available settings already implemented in b2luigi:
         Use the ``--batch`` flag when calling your script to activate batch mode.
         For more information, see :function:`b2luigi.dispatch`.
 
+    - ``use_parameter_name_in_output``: Boolean
+        If set to ``True``, the parameter name is used in the output file name. E.g.: ``/result_dir/parameter1_name=value1/parameter2_name=value2/output.txt``.
+        If set to ``False``, only the parameter value is used in the output file name: ``/result_dir/value1/value2/output.txt``.
+        Default is ``True``.
+
     Apptainer settings
     ------------------
 
