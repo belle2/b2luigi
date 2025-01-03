@@ -220,7 +220,9 @@ class XRootDSystem(FileSystem):
 
     def rename_dont_move(self, path: str, dest: str) -> None:
         """
-        Alias for ``copy_file_to_remote`` with ``force=True``.
+        Overwriting a the luigi function used to handle the atomic write problem.
+        (See https://github.com/spotify/luigi/blob/master/luigi/target.py#L303)
+        In this case it is just an alias for ``copy_file_to_remote`` with ``force=True``.
 
         Args:
             local_path: Path to the file on the local file system.
