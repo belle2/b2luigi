@@ -163,13 +163,14 @@ class XRootDSystem(FileSystem):
             logging.warning(status.message)
         assert status.ok
 
-    def listdir(self, path: str) -> Tuple[Dict[str, int], Any]:
+    def listdir(self, path: str, print_entries: bool = False) -> Tuple[Dict[str, int], Any]:
         """
         A function to list the content of a directory on the remote file system.
         In case the listing fails, a warning will be printed and a assertion will fail.
 
         Args:
             path: Path to the directory on the remote file system.
+            print_entries: If True, the entries of the directory will be printed. Default is False.
         """
         dir_dict = {}
         status, listing = self.client.dirlist(path, self.dir_list_flags.STAT)
@@ -188,7 +189,8 @@ class XRootDSystem(FileSystem):
             else:
                 logging.warning(f"[get_directory_listing] Info: {entry}")
                 exit("Unknown flags. RO files, strange permissions?")
-            print(entry.name, f"{entry.statinfo.size/1024/1024} MB")
+            if print_entries:
+                print(entry.name, f"{entry.statinfo.size/1024/1024} MB")
         return dir_dict, listing
 
     def remove_dir(self, path: str) -> None:

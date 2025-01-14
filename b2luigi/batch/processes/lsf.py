@@ -2,6 +2,7 @@ import json
 import re
 import subprocess
 import os
+from retry import retry
 
 from b2luigi.batch.processes import BatchProcess, JobStatus
 from b2luigi.batch.cache import BatchJobStatusCache
@@ -11,6 +12,7 @@ from b2luigi.core.settings import get_setting
 
 
 class LSFJobStatusCache(BatchJobStatusCache):
+    @retry(subprocess.CalledProcessError, tries=3, delay=2, backoff=3)  # retry after 2,6,18 seconds
     def _ask_for_job_status(self, job_id=None):
         if job_id:
             output = subprocess.check_output(["bjobs", "-json", "-o", "jobid stat", str(job_id)])
