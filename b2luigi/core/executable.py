@@ -9,7 +9,6 @@ from b2luigi.core.utils import (
     get_filename,
     get_log_file_dir,
     get_task_file_dir,
-    map_folder,
     create_apptainer_command,
 )
 
@@ -34,11 +33,6 @@ def create_executable_wrapper(task):
     # (a) If given, use the environment script
     env_setup_script = get_setting("env_script", task=task, default="")
     if env_setup_script:
-        # The script will be called from the directory of the script. So we have to make sure the
-        # env_script is reachable from there (not from where we are currently)
-        if not os.path.isfile(map_folder(env_setup_script)):
-            raise FileNotFoundError(f"Environment setup script {env_setup_script} does not exist.")
-
         if not apptainer_image:
             executable_wrapper_content.append("echo 'Setting up the environment'")
             executable_wrapper_content.append(f"source {env_setup_script}")
