@@ -185,6 +185,7 @@ class Gbasf2Process(BatchProcess):
 
         - ``gbasf2_download_logs``: Whether to automatically download the log output of gbasf2 projects when the
           task succeeds or fails. Having the logs is important for reproducibility, but k
+        - ``gbasf2_custom_steering_file``: Optional path to submit a custom steering file to gbasf2. This does not pickle the ``basf2.Path`` instance and allows the utilization of python-based basf2 modules.
 
         The following optional settings correspond to the equally named ``gbasf`` command line options
         (without the ``gbasf_`` prefix) that you can set to customize your gbasf2 project:
