@@ -336,17 +336,20 @@ def _flatten(struct: Iterable) -> List:
     return result
 
 
-def on_failure(self, exception):
-    log_file_dir = os.path.abspath(get_log_file_dir(self))
-
-    print(colorama.Fore.RED)
-    print("Task", self.task_family, "failed!")
-    print("Parameters")
+def on_failure(self, _):
+    explanation = "Parameters\n"
     for key, value in get_filled_params(self).items():
-        print("\t", key, "=", value)
-    print("Please have a look into the log files in")
-    print(log_file_dir)
+        explanation += f"\t{key}={value}\n"
+    explanation += "Please have a look into the log files in\n"
+    explanation += os.path.abspath(get_log_file_dir(self))
+
+    # First print the explanation on stdout
+    print(colorama.Fore.RED)
+    print(explanation)
     print(colorama.Style.RESET_ALL)
+
+    # Then return it: it will be sent back to the scheduler
+    return explanation
 
 
 def add_on_failure_function(task):
