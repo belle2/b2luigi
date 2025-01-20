@@ -1,14 +1,13 @@
 import enum
-import logging
 import time
 
 import luigi
 import luigi.scheduler
 
-from b2luigi.core.utils import on_failure
+from b2luigi.core.utils import on_failure, get_luigi_logger
 
 
-logger = logging.getLogger('luigi-interface')
+logger = get_luigi_logger()
 
 
 class JobStatus(enum.Enum):
@@ -130,7 +129,7 @@ class BatchProcess:
         raise NotImplementedError
 
     def run(self):
-        logger.info('Batch process %s running  %s', self.__class__.__name__, self.task)
+        logger.info("Batch process %s running  %s", self.__class__.__name__, self.task)
         self.start_job()
 
     def terminate(self):
