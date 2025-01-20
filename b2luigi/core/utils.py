@@ -9,6 +9,7 @@ import types
 from typing import Any, Dict, List, Optional, Iterator, Iterable
 import shlex
 import copy
+import logging
 
 import luigi
 
@@ -336,12 +337,13 @@ def _flatten(struct: Iterable) -> List:
     return result
 
 
-def on_failure(self, _):
-    explanation = "Parameters\n"
-    for key, value in get_filled_params(self).items():
+def on_failure(task, _):
+    explanation = f"Failed task {task} with task_id and parameters:\n"
+    explanation += f"\ttask_id={task.task_id}\n"
+    for key, value in get_filled_params(task).items():
         explanation += f"\t{key}={value}\n"
-    explanation += "Please have a look into the log files in\n"
-    explanation += os.path.abspath(get_log_file_dir(self))
+    explanation += "Please have a look into the log files in:\n"
+    explanation += os.path.abspath(get_log_file_dir(task))
 
     # First print the explanation on stdout
     print(colorama.Fore.RED)
@@ -438,3 +440,9 @@ def create_apptainer_command(command, task=None):
 
     # Do the shlex split for correct string interpretation
     return shlex.split(" ".join(exec_command))
+
+
+def get_luigi_logger():
+    """Helper function for getting the logger used by luigi."""
+    logger = logging.getLogger("luigi-interface")
+    return logger
