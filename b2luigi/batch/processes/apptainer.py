@@ -15,14 +15,14 @@ class ApptainerProcess(BatchProcess):
     ``lsf`` and the ``htcondor`` batch systems. Although, for the latter batch system it is not recommended
     to use apptainer images since HTCondor is already running in a container environment.
 
-    The core pinciple of this process is to run the task in an Apptainer container. To achive the execution of
-    tasks, an ``apptainer exec`` command is build within this class and executed in a subprocess. To stear the
-    execution, one can steer the following settings:
+    The core principle of this process is to run the task in an Apptainer container. To achieve the execution of
+    tasks, an ``apptainer exec`` command is build within this class and executed in a subprocess. To steer the
+    execution, one can use the following settings:
 
     * ``apptainer_image``: The image to use for the Apptainer container.s
         This parameter is mandatory and needs to be set if the task should be executed in an Apptainer container.
         The image needs to be accessible from the machine where the task is executed. There are no further checks
-        if the image is available or valid. When using custom images, it may be helpfull to fisrt check the image
+        if the image is available or valid. When using custom images, it may be helpful to first check the image
         with ``apptainer inspect``. For people with access to the Belle II own ``/cvmfs`` directory, images are
         provided in the ``/cvmfs/belle.cern.ch/images`` directory. The description of the images (the repository
         contains the docker images which are transformed to Apptainer images) and instructions on how to create them
@@ -36,16 +36,16 @@ class ApptainerProcess(BatchProcess):
         directory needs to be mounted. Caution is required when system specific directories are mounted.
 
     * ``apptainer_mount_defaults``: Boolean parameter to mount ``log_dir`` and ``result_dir`` by default.
-        The default value is ``True`` meaning the ``result_dir`` and ``log_dir`` are automacially created and mounted if
+        The default value is ``True`` meaning the ``result_dir`` and ``log_dir`` are automatically created and mounted if
         they are not accessible from the execution location. When using custom targets with non local output directories,
-        this parameter should be set to ``False`` to avoid mounting unexisting directories.
+        this parameter should be set to ``False`` to avoid mounting non-existing directories.
 
     * ``apptainer_additional_params``: Additional parameters to pass to the ``apptainer exec`` command.
         This parameter should be a string and will be directly appended to the ``apptainer exec`` command. It can be used to
         pass additional parameters to the ``apptainer exec`` command as they would be added in the CLI. A very
-        usefull parameter is the ``--cleanenv`` parameter which will clean the environment before executing the task in the
-        Apptainer container. This can be usefull to avoid conflicts with the environment in the container.
-        A prominent usecase is the usage of software which dependes on the operating system.
+        useful parameter is the ``--cleanenv`` parameter which will clean the environment before executing the task in the
+        Apptainer container. This can be useful to avoid conflicts with the environment in the container.
+        A prominent usecase is the usage of software which depends on the operating system.
 
 
     A simple example of how an Apptainer based task can be defined is shown below:

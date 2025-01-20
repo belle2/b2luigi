@@ -21,7 +21,7 @@ def process(
 
     Example:
         This example defines a simple task and tells ``b2luigi`` to execute it 100 times
-        with different parametes:
+        with different parameters:
 
         .. code-block:: python
 

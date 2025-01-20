@@ -104,7 +104,7 @@ def clear_setting(key):
 
 
 def _setting_file_iterator():
-    # first, check if B2LUIGI_SETTINGS_JSON is set in the enviroment
+    # first, check if B2LUIGI_SETTINGS_JSON is set in the environment
     if "B2LUIGI_SETTINGS_JSON" in os.environ:
         yield os.environ["B2LUIGI_SETTINGS_JSON"]
     # if it is not set, search in the durrent working dir (old behaviour)
@@ -146,7 +146,7 @@ def _get_setting_implementation(key, task):
         except AttributeError:
             pass
 
-    # Then check if the setting was set explicitely
+    # Then check if the setting was set explicitly
     try:
         return _current_global_settings[key]
     except KeyError:

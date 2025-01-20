@@ -11,7 +11,7 @@ def dispatch(run_function):
     In cases you have a run function calling external, probably insecure functionalities,
     use this function wrapper around your run function.
     It basically `emulates` a batch submission on your local computer (without any
-    batch system) with the benefit of having a totally separete execution path.
+    batch system) with the benefit of having a totally separate execution path.
     If your called task fails miserably (e.g. segfaults), it does not crash your main application.
 
     Example:

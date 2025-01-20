@@ -24,7 +24,7 @@ sys.path.insert(0, pathlib.Path(__file__).parents[1].resolve().as_posix())
 
 def get_latest_tag():
     """
-    Helper function thar returns the name of the tag if the latest commit is tagged,
+    Helper function that returns the name of the tag if the latest commit is tagged,
     otherwise it simply returns "latest"
     """
 
