@@ -16,6 +16,8 @@ class BatchProcessTestCase(B2LuigiTestCase):
         self.assertFalse(os.path.exists("some_parameter=bla_blub/combined.txt"))
 
         self.assertIn(b"INFO: Batch process TestProcess running  MyTask(some_parameter=bla_blub)", out.splitlines())
-        self.assertIn(b"Failed task MyAdditionalTask(some_parameter=bla_blub) with task_id and parameters:", out.splitlines())
+        self.assertIn(
+            b"Failed task MyAdditionalTask(some_parameter=bla_blub) with task_id and parameters:", out.splitlines()
+        )
         self.assertIn(b"Please have a look into the log files in:", out.splitlines())
         self.assertIn(b"This progress looks :( because there were failed tasks", out.splitlines())
