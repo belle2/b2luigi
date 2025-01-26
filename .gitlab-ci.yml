@@ -25,7 +25,7 @@ workflow:
 default:
   image: belle2/belle2-base-el9:latest
   tags:
-    - extagent48
+    - gitlab-runner12
   before_script:
     # Preliminary operations with Git
     - git config user.email "something@something.com"
