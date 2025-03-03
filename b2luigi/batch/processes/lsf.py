@@ -88,6 +88,10 @@ class LSFProcess(BatchProcess):
         if queue is not False:
             command += ["-q", queue]
 
+        job_slots = get_setting("job_slots", task=self.task, default=False)
+        if job_slots is not False:
+            command += ["-n", job_slots]
+
         job_name = get_setting("job_name", task=self.task, default=False)
         if job_name is not False:
             command += ["-J", job_name]
