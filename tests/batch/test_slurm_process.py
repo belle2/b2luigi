@@ -3,7 +3,6 @@ Test helper functions for :py:class:`SlurmProcess`.
 """
 
 import json
-import os
 import pathlib
 
 import subprocess
@@ -44,7 +43,9 @@ class TestSlurmCreateSubmitFile(B2LuigiTestCase):
         self.assertIn("#!/usr/bin/bash", submit_file_lines[0])
         self.assertIn("#SBATCH --output=", submit_file_lines[1])
         self.assertIn("#SBATCH --error=", submit_file_lines[2])
-        self.assertEqual(f"exec {(pathlib.Path(self.test_dir)/'executable_wrapper.sh').resolve()}", submit_file_lines[3])
+        self.assertEqual(
+            f"exec {(pathlib.Path(self.test_dir)/'executable_wrapper.sh').resolve()}", submit_file_lines[3]
+        )
 
     def test_not_setting_job_name(self):
         submit_file_string = self._get_slurm_submit_file_string(MyTask("some_parameter"))
@@ -78,24 +79,24 @@ class TestSlurmCreateSubmitFile(B2LuigiTestCase):
 
 class TestSlurmJobStatusCache(unittest.TestCase):
     def setUp(self):
-        mock_status_dicts = { 'jobs' :
-            [
-            {
-                "job_state": ["COMPLETED"],  # completed
-                "job_id": 42,
-            },
-            {
-                "job_state": ["RUNNING", "RESIZING"],  # running
-                "job_id": 43,
-            },
-            {
-                "job_state": ["FAILED"],  # failed - squeue output
-                "job_id": 44,
-            },
-            {
-                "state": {'current' : ["FAILED"]},  # failed - sacct output
-                "job_id": 45,
-            },
+        mock_status_dicts = {
+            "jobs": [
+                {
+                    "job_state": ["COMPLETED"],  # completed
+                    "job_id": 42,
+                },
+                {
+                    "job_state": ["RUNNING", "RESIZING"],  # running
+                    "job_id": 43,
+                },
+                {
+                    "job_state": ["FAILED"],  # failed - squeue output
+                    "job_id": 44,
+                },
+                {
+                    "state": {"current": ["FAILED"]},  # failed - sacct output
+                    "job_id": 45,
+                },
             ]
         }
         self.mock_status_json = json.dumps(mock_status_dicts).encode()

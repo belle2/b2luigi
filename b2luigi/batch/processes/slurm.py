@@ -12,6 +12,7 @@ import getpass
 import json
 import enum
 
+
 class SlurmJobStatusCache(BatchJobStatusCache):
     @retry(subprocess.CalledProcessError, tries=3, delay=2, backoff=3)  # retry after 2,6,18 seconds
     def _ask_for_job_status(self, job_id: int = None):
@@ -19,19 +20,24 @@ class SlurmJobStatusCache(BatchJobStatusCache):
         With Slurm, you can check the progress of your jobs using the `squeue` command.
         If no `jobID` is given as argument, this command shows you the status of all queued jobs.
 
-        With the `--json` option, a detailed `squeue` output is returned in the JSON format. Using the default data_parser it is not possible to ask for only the pertinent information. 
+        With the `--json` option, a detailed `squeue` output is returned in the JSON format. Using the default data_parser it is not possible to ask for only the pertinent information.
 
-        NOTE: If this is a large performance issue it should be possible to implement a custom data_parser to only get the information we need. 
-        
+        NOTE: If this is a large performance issue it should be possible to implement a custom data_parser to only get the information we need.
+
         Sometimes it might happen that a job is completed in between the status checks. Then its final status
         can be found using `sacct` (works mostly in the same way as `squeue` but requires specifying a starting date and time if we don't specify a particular jobID).
         Both commands are used in order to find out the `JobStatus`.
         """
         # https://slurm.schedmd.com/squeue.html
         user = getpass.getuser()
-        q_cmd = ["squeue", "--user", user, "--json",]
+        q_cmd = [
+            "squeue",
+            "--user",
+            user,
+            "--json",
+        ]
         if job_id:
-            output = subprocess.check_output(q_cmd + ['--job', str(job_id)])
+            output = subprocess.check_output(q_cmd + ["--job", str(job_id)])
         else:
             output = subprocess.check_output(q_cmd)
 
@@ -59,31 +65,32 @@ class SlurmJobStatusCache(BatchJobStatusCache):
 
         if not output:
             return seen_ids
-        
-        for status_dict in json.loads(output)['jobs']:
-            jobID = status_dict['job_id'] # int
+
+        for status_dict in json.loads(output)["jobs"]:
+            jobID = status_dict["job_id"]  # int
 
             # the format of the output is different for squeue and sacct
-            if 'state' in status_dict.keys():
-                #sacct
-                state = status_dict['state']['current']
-            elif 'job_state' in status_dict.keys():
-                #squeue
-                state = status_dict['job_state']
+            if "state" in status_dict.keys():
+                # sacct
+                state = status_dict["state"]["current"]
+            elif "job_state" in status_dict.keys():
+                # squeue
+                state = status_dict["job_state"]
             else:
-                raise KeyError(f'Could not find the state of the job in the output: {status_dict}')
-        
+                raise KeyError(f"Could not find the state of the job in the output: {status_dict}")
+
             # the state can contain a base state and additional flags. (https://slurm.schedmd.com/job_state_codes.html)
             # We only want the base state.
             if len(state) > 1:
                 state = [x for x in state if x in [e.value for e in SlurmJobStatus]]
-            assert len(state)==1, f'state ({state}) has more than one entry.'
+            assert len(state) == 1, f"state ({state}) has more than one entry."
             state = state[0]
 
             self[jobID] = state
             seen_ids.add(jobID)
 
         return seen_ids
+
 
 class SlurmJobStatus(enum.Enum):
     """
@@ -92,13 +99,14 @@ class SlurmJobStatus(enum.Enum):
 
     The following are the possible states of a job in Slurm:
     """
-    #successful:
-    completed = "COMPLETED" 
+
+    # successful:
+    completed = "COMPLETED"
 
     # running:
     pending = "PENDING"
     running = "RUNNING"
-    suspended = "SUSPENDED" # could be continued or not. Should it be fail?
+    suspended = "SUSPENDED"  # could be continued or not. Should it be fail?
 
     # failed but will automatically be requeued (at least on maxwell):
     preempted = "PREEMPTED"
@@ -109,10 +117,12 @@ class SlurmJobStatus(enum.Enum):
     deadline = "DEADLINE"
     node_fail = "NODE_FAIL"
     out_of_memory = "OUT_OF_MEMORY"
-    failed = "FAILED"   
+    failed = "FAILED"
     timeout = "TIMEOUT"
 
+
 _batch_job_status_cache = SlurmJobStatusCache()
+
 
 class SlurmProcess(BatchProcess):
     """
@@ -158,20 +168,20 @@ class SlurmProcess(BatchProcess):
         if job_status in ["COMPLETED"]:
             return JobStatus.successful
         if job_status in [
-                    "PENDING",
-                    "RUNNING",
-                    "SUSPENDED",
-                    "PREEMPTED" # fail?
+            "PENDING",
+            "RUNNING",
+            "SUSPENDED",
+            "PREEMPTED",  # fail?
         ]:
             return JobStatus.running
         if job_status in [
-                "BOOT_FAIL",
-                "CANCELED",
-                "DEADLINE",
-                "NODE_FAIL",
-                "OUT_OF_MEMORY",
-                "FAILED",
-                "TIMEOUT",
+            "BOOT_FAIL",
+            "CANCELED",
+            "DEADLINE",
+            "NODE_FAIL",
+            "OUT_OF_MEMORY",
+            "FAILED",
+            "TIMEOUT",
         ]:
             return JobStatus.aborted
         raise ValueError(f"Unknown Slurm Job status: {job_status}")
@@ -199,7 +209,7 @@ class SlurmProcess(BatchProcess):
 
         # Specify where to write the log to
         log_file_dir = pathlib.Path(get_log_file_dir(self.task))
-        log_file_dir.mkdir(parents=True,exist_ok=True)
+        log_file_dir.mkdir(parents=True, exist_ok=True)
 
         stdout_log_file = (log_file_dir / "stdout").resolve()
         submit_file_content.append(f"#SBATCH --output={stdout_log_file}")
@@ -226,7 +236,7 @@ class SlurmProcess(BatchProcess):
         output_path = pathlib.Path(get_task_file_dir(self.task))
         submit_file_path = output_path / "submit_job.sh"
 
-        output_path.mkdir(parents=True,exist_ok=True)
+        output_path.mkdir(parents=True, exist_ok=True)
         with open(submit_file_path, "w") as submit_file:
             submit_file.write("\n".join(submit_file_content))
         return submit_file_path

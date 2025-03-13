@@ -19,7 +19,6 @@ class TestSendJobWorker(unittest.TestCase):
         batch_system = self.worker.detect_batch_system(task)
         self.assertEqual(batch_system, BatchSystems.htcondor)
 
-
     def test_create_task_process_slurm(self):
         task = Mock()
         task.batch_system = "slurm"
