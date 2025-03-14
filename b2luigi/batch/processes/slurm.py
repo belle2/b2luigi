@@ -2,15 +2,16 @@ from retry import retry
 import subprocess
 import pathlib
 import re
+import getpass
+import json
+import enum
 
+from luigi.parameter import _no_value
 from b2luigi.core.settings import get_setting
 from b2luigi.batch.processes import BatchProcess, JobStatus
 from b2luigi.batch.cache import BatchJobStatusCache
 from b2luigi.core.utils import get_log_file_dir, get_task_file_dir
 from b2luigi.core.executable import create_executable_wrapper
-import getpass
-import json
-import enum
 
 
 class SlurmJobStatusCache(BatchJobStatusCache):
@@ -43,8 +44,11 @@ class SlurmJobStatusCache(BatchJobStatusCache):
 
         seen_ids = self._fill_from_output(output)
 
+        if not job_id:
+            return
+
         # If the specified job can not be found in the squeue output, we need to request its history from the slurm job accounting log
-        if job_id and job_id not in seen_ids:
+        if job_id not in seen_ids:
             # https://slurm.schedmd.com/sacct.html
             history_cmd = [
                 "sacct",
@@ -57,6 +61,9 @@ class SlurmJobStatusCache(BatchJobStatusCache):
             output = subprocess.check_output(history_cmd)
 
             self._fill_from_output(output)
+        else:
+            # the specified job cannot be found on the slurm system. Return a failed.
+            self[job_id] = SlurmJobStatus.failed.value
 
     def _fill_from_output(self, output):
         output = output.decode()
@@ -216,12 +223,13 @@ class SlurmProcess(BatchProcess):
         submit_file_content.append(f"#SBATCH --error={stderr_log_file}")
 
         # Specify additional settings
-        general_settings = get_setting("slurm_settings", None)
-        if general_settings is None:
+        # A default value of None requires that the user must set the setting. We therefore use luigi.parameters._no_value.
+        general_settings = get_setting("slurm_settings", default=_no_value)
+        if general_settings == _no_value:
             general_settings = {}
 
-        task_slurm_settings = get_setting("slurm_settings", task=self.task, default=None)
-        if task_slurm_settings is not None:
+        task_slurm_settings = get_setting("slurm_settings", task=self.task, default=_no_value)
+        if task_slurm_settings != _no_value:
             general_settings.update(task_slurm_settings)
 
         job_name = get_setting("job_name", task=self.task, default=False)
