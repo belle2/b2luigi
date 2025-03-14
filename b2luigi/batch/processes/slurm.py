@@ -136,8 +136,7 @@ class SlurmProcess(BatchProcess):
     Additional to the basic batch setup (see :ref:`batch-label`), additional
     Slurm-specific things are:
 
-    * Please note that most of the Slurm batch farms by default do not copy the user environment from the submission node to the worker machine. You probably want to give an
-      ``env_script``, an ``env`` :meth:`setting <b2luigi.set_setting>`, and/or a different ``executable``, or enable the environment transfer via the Slurm settings. .
+    * Please note that most of the Slurm batch farms by default copy the user environment from the submission node to the worker machine. As this can lead to different results when running the same tasks depending on your active environment, you probably want to pass the argument `export=NONE`. This ensures that a reproducible environment is used. You can provide an ``env_script``, an ``env`` :meth:`setting <b2luigi.set_setting>`, and/or a different ``executable`` to create the environment necessary for your task.
 
     * Via the ``slurm_settings`` setting you can provide a dict for additional options, such as requested memory etc. Its value has to be a dictionary
       containing Slurm settings as key/value pairs. These options will be written into the job
