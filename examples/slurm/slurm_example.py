@@ -5,6 +5,7 @@ import random
 class MyNumberTask(b2luigi.Task):
     some_parameter = b2luigi.IntParameter()
 
+    batch_system = "slurm"
     slurm_settings = {"ntasks": 1, "mem": "100MB"}
 
     def output(self):
@@ -19,6 +20,7 @@ class MyNumberTask(b2luigi.Task):
 
 
 class MyAverageTask(b2luigi.Task):
+    batch_system = "slurm"
     slurm_settings = {"ntasks": 1, "mem": "100MB"}
 
     def requires(self):
