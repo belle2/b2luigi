@@ -160,7 +160,7 @@ class Gbasf2Process(BatchProcess):
         - ``gbasf2_jinja_template_path``: This parameter sets a custom basf2 steering template where the user can adapt the
           default template (e.g. for altering the pdg database, ...). Note that this is an expert option that should be treated with care.
         - ``gbasf2_additional_download_params``: Defaults to ``"--new"``. This parameter sets additional parameters that
-          are given to gb2_ds_get.
+          are given to gb2_ds_get. Note that in case you override the parameter, the ``--new`` parameter is not automatically set, so you might have to manually add ``--new`` if you want this parameter to be used.
         - ``gbasf2_download_dataset``: Defaults to ``True``. Disable this setting if you don't want to download the
           output dataset from the grid on job success. As you can't use the downloaded dataset as an output target for luigi,
           you should then use the provided ``Gbasf2GridProjectTarget``, as shown in the following example:
