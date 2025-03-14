@@ -159,6 +159,8 @@ class Gbasf2Process(BatchProcess):
           The parameter has no effect unless the ``gbasf2_proxy_group`` is used with non-default value.
         - ``gbasf2_jinja_template_path``: This parameter sets a custom basf2 steering template where the user can adapt the
           default template (e.g. for altering the pdg database, ...). Note that this is an expert option that should be treated with care.
+        - ``gbasf2_additional_download_params``: Defaults to ``"--new"``. This parameter sets additional parameters that
+          are given to gb2_ds_get.
         - ``gbasf2_download_dataset``: Defaults to ``True``. Disable this setting if you don't want to download the
           output dataset from the grid on job success. As you can't use the downloaded dataset as an output target for luigi,
           you should then use the provided ``Gbasf2GridProjectTarget``, as shown in the following example:
@@ -840,10 +842,13 @@ class Gbasf2Process(BatchProcess):
             ) = os.path.splitext(monitoring_failed_downloads_file)
             old_monitoring_failed_downloads_file = f"{monitoring_download_file_stem}_old{monitoring_downloads_file_ext}"
 
+            additional_gb2_ds_get_params = get_setting(
+                "gbasf2_additional_download_params", default="--new", task=self.task
+            )
             # In case of first download, the file 'monitoring_failed_downloads_file' does not exist
             if not os.path.isfile(monitoring_failed_downloads_file):
                 ds_get_command = shlex.split(
-                    f"gb2_ds_get --new --force {dataset_query_string} "
+                    f"gb2_ds_get {additional_gb2_ds_get_params} --force {dataset_query_string} "
                     f"--failed_lfns {monitoring_failed_downloads_file}"
                 )
                 print(
@@ -859,7 +864,7 @@ class Gbasf2Process(BatchProcess):
                     old_monitoring_failed_downloads_file,
                 )
                 ds_get_command = shlex.split(
-                    f"gb2_ds_get --new --force {dataset_query_string} "
+                    f"gb2_ds_get {additional_gb2_ds_get_params} --force {dataset_query_string} "
                     f"--input_dslist {old_monitoring_failed_downloads_file} "
                     f"--failed_lfns {monitoring_failed_downloads_file}"
                 )
