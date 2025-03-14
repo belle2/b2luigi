@@ -106,9 +106,7 @@ class SlurmJobStatus(enum.Enum):
     # running:
     pending = "PENDING"
     running = "RUNNING"
-    suspended = "SUSPENDED"  # could be continued or not. Should it be fail?
-
-    # failed but will automatically be requeued (at least on maxwell):
+    suspended = "SUSPENDED"
     preempted = "PREEMPTED"
 
     # failed:
@@ -165,23 +163,23 @@ class SlurmProcess(BatchProcess):
             return JobStatus.aborted
 
         # See https://slurm.schedmd.com/job_state_codes.html
-        if job_status in ["COMPLETED"]:
+        if job_status in [SlurmJobStatus.completed.value]:
             return JobStatus.successful
         if job_status in [
-            "PENDING",
-            "RUNNING",
-            "SUSPENDED",
-            "PREEMPTED",  # fail?
+            SlurmJobStatus.pending.value,
+            SlurmJobStatus.running.value,
+            SlurmJobStatus.suspended.value,
+            SlurmJobStatus.preempted.value,
         ]:
             return JobStatus.running
         if job_status in [
-            "BOOT_FAIL",
-            "CANCELED",
-            "DEADLINE",
-            "NODE_FAIL",
-            "OUT_OF_MEMORY",
-            "FAILED",
-            "TIMEOUT",
+            SlurmJobStatus.boot_fail.value,
+            SlurmJobStatus.canceled.value,
+            SlurmJobStatus.deadline.value,
+            SlurmJobStatus.node_fail.value,
+            SlurmJobStatus.out_of_memory.value,
+            SlurmJobStatus.failed.value,
+            SlurmJobStatus.timeout.value,
         ]:
             return JobStatus.aborted
         raise ValueError(f"Unknown Slurm Job status: {job_status}")
@@ -218,8 +216,13 @@ class SlurmProcess(BatchProcess):
         submit_file_content.append(f"#SBATCH --error={stderr_log_file}")
 
         # Specify additional settings
-        general_settings = get_setting("slurm_settings", dict())
-        general_settings.update(get_setting("slurm_settings", task=self.task, default=dict()))
+        general_settings = get_setting("slurm_settings", None)
+        if general_settings is None:
+            general_settings = {}
+
+        task_slurm_settings = get_setting("slurm_settings", task=self.task, default=None)
+        if task_slurm_settings is not None:
+            general_settings.update(task_slurm_settings)
 
         job_name = get_setting("job_name", task=self.task, default=False)
         if job_name is not False:
@@ -234,7 +237,7 @@ class SlurmProcess(BatchProcess):
 
         # Now we can write the submit file
         output_path = pathlib.Path(get_task_file_dir(self.task))
-        submit_file_path = output_path / "submit_job.sh"
+        submit_file_path = output_path / "slurm_parameters.sh"
 
         output_path.mkdir(parents=True, exist_ok=True)
         with open(submit_file_path, "w") as submit_file:
