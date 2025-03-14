@@ -142,9 +142,9 @@ class SlurmProcess(BatchProcess):
     * Via the ``slurm_settings`` setting you can provide a dict for additional options, such as requested memory etc. Its value has to be a dictionary
       containing Slurm settings as key/value pairs. These options will be written into the job
       submission file. For an overview of possible settings refer to the `Slurm documentation
-      <https://slurm.schedmd.com/sbatch.html#>` and the documentation of the cluster you are using..
+      <https://slurm.schedmd.com/sbatch.html#>_` and the documentation of the cluster you are using.
 
-    * Same as for the :ref:`lsf` and :ref:`htcondor`, the ``job_name`` setting allows giving a meaningful name to a group of jobs. If you want to be slurm-specific, you can provide the ``job-name`` as an entry in the ``slurm_settings`` dict, which will override the global ``job_name`` setting. This is useful for manually checking the status of specific jobs with
+    * Same as for the :ref:`lsf` and :ref:`htcondor`, the ``job_name`` setting allows giving a meaningful name to a group of jobs. If you want to be task-instance-specific, you can provide the ``job-name`` as an entry in the ``slurm_settings`` dict, which will override the global ``job_name`` setting. This is useful for manually checking the status of specific jobs with
 
       .. code-block:: bash
 
