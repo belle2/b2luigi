@@ -27,7 +27,7 @@ class TestSlurmCreateSubmitFile(B2LuigiTestCase):
         #  create submit file
         SlurmProcess._create_slurm_submit_file(slurm_mock_process)
         # read submit file and return string
-        submit_file_path = pathlib.Path(self.test_dir) / "submit_job.sh"
+        submit_file_path = pathlib.Path(self.test_dir) / "slurm_parameters.sh"
         with open(submit_file_path, "r") as submit_file:
             return submit_file.read()
 
@@ -39,7 +39,8 @@ class TestSlurmCreateSubmitFile(B2LuigiTestCase):
             #SBATCH --error=...
             exec executable_wrapper.sh
         """
-        submit_file_lines = self._get_slurm_submit_file_string(MyTask("some_parameter")).splitlines()
+        task = MyTask("some_parameter_a")
+        submit_file_lines = self._get_slurm_submit_file_string(task).splitlines()
         self.assertIn("#!/usr/bin/bash", submit_file_lines[0])
         self.assertIn("#SBATCH --output=", submit_file_lines[1])
         self.assertIn("#SBATCH --error=", submit_file_lines[2])
@@ -48,17 +49,18 @@ class TestSlurmCreateSubmitFile(B2LuigiTestCase):
         )
 
     def test_not_setting_job_name(self):
-        submit_file_string = self._get_slurm_submit_file_string(MyTask("some_parameter"))
+        task = MyTask("some_parameter_b")
+        submit_file_string = self._get_slurm_submit_file_string(task)
         self.assertNotIn("job-name", submit_file_string)
 
     def test_set_job_name_via_task_attribute(self):
-        task = MyTask("some_parameter")
+        task = MyTask("some_parameter_c")
         task.job_name = "some_job_name"
         submit_file_lines = self._get_slurm_submit_file_string(task).splitlines()
         self.assertIn("#SBATCH --job-name=some_job_name", submit_file_lines)
 
         b2luigi.set_setting("job_name", "some_job_name")
-        submit_file_lines = self._get_slurm_submit_file_string(MyTask("some_parameter")).splitlines()
+        submit_file_lines = self._get_slurm_submit_file_string(task).splitlines()
         b2luigi.clear_setting("job_name")
         self.assertIn("#SBATCH --job-name=some_job_name", submit_file_lines)
 
@@ -67,7 +69,7 @@ class TestSlurmCreateSubmitFile(B2LuigiTestCase):
         ``job_name`` is a global setting, but if the ``job-name`` is set explicitly via the settings, we
         want that to override the global setting
         """
-        task = MyTask("some_parameter")
+        task = MyTask("some_parameter_d")
         task.job_name = "job_name_global"
         slurm_settings = {"job-name": "job_name_slurm"}
         b2luigi.set_setting("slurm_settings", slurm_settings)
