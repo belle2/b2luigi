@@ -3,7 +3,7 @@
 	"env_script": "setup_script.sh",
 	"executable": ["python3"],
         "job_name": "b2luigi_example",
-	"htcondor_settings": {
+	"slurm_settings": {
 		"partition" : "allcpu"
 	}
 }
