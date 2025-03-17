@@ -366,7 +366,8 @@ class CreateApptainerCommandTestCase(TestCase):
                             "-c",
                             f"'source {self.env_setup_script} && {self.command}'",
                         ]
-                        result = utils.create_apptainer_command(self.command, task=self.task)
+                        with mock.patch("b2luigi.core.utils.get_apptainer_or_singularity", return_value="apptainer"):
+                            result = utils.create_apptainer_command(self.command, task=self.task)
                         self.assertEqual(result, shlex.split(" ".join(expected_command)))
 
     def test_create_apptainer_command_no_env_script(self):
@@ -415,7 +416,8 @@ class CreateApptainerCommandTestCase(TestCase):
                             "-c",
                             f"'source {self.env_setup_script} && {self.command}'",
                         ]
-                        result = utils.create_apptainer_command(self.command, task=self.task)
+                        with mock.patch("b2luigi.core.utils.get_apptainer_or_singularity", return_value="apptainer"):
+                            result = utils.create_apptainer_command(self.command, task=self.task)
                         self.assertEqual(result, shlex.split(" ".join(expected_command)))
 
     def test_create_apptainer_command_no_mounts(self):
@@ -440,5 +442,6 @@ class CreateApptainerCommandTestCase(TestCase):
                             "-c",
                             f"'source {self.env_setup_script} && {self.command}'",
                         ]
-                        result = utils.create_apptainer_command(self.command, task=self.task)
+                        with mock.patch("b2luigi.core.utils.get_apptainer_or_singularity", return_value="apptainer"):
+                            result = utils.create_apptainer_command(self.command, task=self.task)
                         self.assertEqual(result, shlex.split(" ".join(expected_command)))
