@@ -455,7 +455,7 @@ class CreateApptainerCommandTestCase(TestCase):
                 with mock.patch("b2luigi.core.utils.get_log_file_dir", return_value=self.log_dir):
                     with mock.patch("os.makedirs"):
                         expected_command = [
-                            "TEST_VALUE",
+                            "test_apptainer_cmd",
                             "exec",
                             f" {self.additional_params}",
                             "--bind",
@@ -469,7 +469,7 @@ class CreateApptainerCommandTestCase(TestCase):
                             "-c",
                             f"'source {self.env_setup_script} && {self.command}'",
                         ]
-                        b2luigi.set_setting("apptainer_cmd", "TEST_VALUE")
+                        self.settings["apptainer_cmd"] = "test_apptainer_cmd"
                         result = utils.create_apptainer_command(self.command, task=self.task)
                         self.assertEqual(result, shlex.split(" ".join(expected_command)))
-                        b2luigi.clear_setting("apptainer_cmd")
+                        del self.settings["apptainer_cmd"]
