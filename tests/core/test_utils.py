@@ -174,6 +174,19 @@ class OutputFileNameTestCase(B2LuigiTestCase):
 
         self.assertEqual(output, f"{self.test_dir}/results/parameter={self.dummy_parameter}/output.txt")
 
+    def test_output_file_name_basename_alternate_separator(self):
+        """
+        Test that utils.create_output_file_name will return the expected output filename path
+        """
+        b2luigi.set_setting("parameter_name_value_separator_in_output", "_EQ_")
+
+        test_task = self._get_dummy_task(self.dummy_parameter)
+        output = utils.create_output_file_name(
+            test_task, base_filename="output.txt", result_dir=f"{self.test_dir}/results"
+        )
+        b2luigi.clear_setting("parameter_name_value_separator_in_output")
+        self.assertEqual(output, f"{self.test_dir}/results/parameter_EQ_{self.dummy_parameter}/output.txt")
+
     def test_output_file_name_basename_error(self):
         """
         Test that utils.create_output_file_name will raise an error if a parameter contains
