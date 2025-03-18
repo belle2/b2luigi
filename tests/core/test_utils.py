@@ -445,3 +445,31 @@ class CreateApptainerCommandTestCase(TestCase):
                         with mock.patch("b2luigi.core.utils.get_apptainer_or_singularity", return_value="apptainer"):
                             result = utils.create_apptainer_command(self.command, task=self.task)
                         self.assertEqual(result, shlex.split(" ".join(expected_command)))
+
+    def test_create_apptainer_command_override_apptainer_name(self):
+        with mock.patch(
+            "b2luigi.core.utils.get_setting",
+            side_effect=lambda key, **kwargs: self.settings.get(key, kwargs.get("default")),
+        ):
+            with mock.patch("b2luigi.core.utils.map_folder", side_effect=lambda x: x):
+                with mock.patch("b2luigi.core.utils.get_log_file_dir", return_value=self.log_dir):
+                    with mock.patch("os.makedirs"):
+                        expected_command = [
+                            "singularity",
+                            "exec",
+                            f" {self.additional_params}",
+                            "--bind",
+                            self.mounts[0],
+                            "--bind",
+                            self.result_dir,
+                            "--bind",
+                            self.log_dir,
+                            self.apptainer_image,
+                            "/bin/bash",
+                            "-c",
+                            f"'source {self.env_setup_script} && {self.command}'",
+                        ]
+                        b2luigi.set_setting("apptainer_cmd", "singularity")
+                        result = utils.create_apptainer_command(self.command, task=self.task)
+                        self.assertEqual(result, shlex.split(" ".join(expected_command)))
+                        b2luigi.clear_setting("apptainer_cmd")
