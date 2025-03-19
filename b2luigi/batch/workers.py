@@ -6,6 +6,7 @@ import luigi.worker
 
 from b2luigi.batch.processes.lsf import LSFProcess
 from b2luigi.batch.processes.htcondor import HTCondorProcess
+from b2luigi.batch.processes.slurm import SlurmProcess
 from b2luigi.batch.processes.gbasf2 import Gbasf2Process
 from b2luigi.batch.processes.apptainer import ApptainerProcess
 from b2luigi.batch.processes.test import TestProcess
@@ -16,6 +17,7 @@ from b2luigi.core.utils import create_output_dirs
 class BatchSystems(enum.Enum):
     lsf = "lsf"
     htcondor = "htcondor"
+    slurm = "slurm"
     gbasf2 = "gbasf2"
     local = "local"
     test = "test"
@@ -29,6 +31,8 @@ class SendJobWorker(luigi.worker.Worker):
                 batch_system_setting = "lsf"
             elif shutil.which("condor_submit"):
                 batch_system_setting = "htcondor"
+            elif shutil.which("sbatch"):
+                batch_system_setting = "slurm"
             else:
                 batch_system_setting = "local"
 
@@ -40,6 +44,8 @@ class SendJobWorker(luigi.worker.Worker):
             process_class = LSFProcess
         elif batch_system == BatchSystems.htcondor:
             process_class = HTCondorProcess
+        elif batch_system == BatchSystems.slurm:
+            process_class = SlurmProcess
         elif batch_system == BatchSystems.gbasf2:
             process_class = Gbasf2Process
         elif batch_system == BatchSystems.test:

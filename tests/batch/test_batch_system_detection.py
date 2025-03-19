@@ -19,6 +19,12 @@ class TestSendJobWorker(unittest.TestCase):
         batch_system = self.worker.detect_batch_system(task)
         self.assertEqual(batch_system, BatchSystems.htcondor)
 
+    def test_create_task_process_slurm(self):
+        task = Mock()
+        task.batch_system = "slurm"
+        batch_system = self.worker.detect_batch_system(task)
+        self.assertEqual(batch_system, BatchSystems.slurm)
+
     def test_create_task_process_gbasf2(self):
         task = Mock()
         task.batch_system = "gbasf2"
@@ -35,7 +41,7 @@ class TestSendJobWorker(unittest.TestCase):
         task = Mock()
         task.batch_system = "auto"
         batch_system = self.worker.detect_batch_system(task)
-        self.assertIn(batch_system, [BatchSystems.lsf, BatchSystems.htcondor, BatchSystems.local])
+        self.assertIn(batch_system, [BatchSystems.lsf, BatchSystems.htcondor, BatchSystems.slurm, BatchSystems.local])
 
     def test_create_task_process_not_implemented(self):
         task = Mock()

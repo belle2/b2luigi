@@ -118,17 +118,31 @@ LSF
 .. autoclass:: b2luigi.batch.processes.lsf.LSFProcess
     :show-inheritance:
 
+.. _htcondor:
+
 HTCondor
 ........
 
 .. autoclass:: b2luigi.batch.processes.htcondor.HTCondorProcess
     :show-inheritance:
 
+.. _slurm:
+
+Slurm
+........
+
+.. autoclass:: b2luigi.batch.processes.slurm.SlurmProcess
+    :show-inheritance:
+
+.. _gbasf2:
+
 GBasf2 Wrapper for LCG
 ......................
 
 .. autoclass:: b2luigi.batch.processes.gbasf2.Gbasf2Process
     :show-inheritance:
+
+.. _apptainer:
 
 Apptainer
 .........
