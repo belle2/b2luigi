@@ -91,7 +91,7 @@ class SlurmJobStatusCache(BatchJobStatusCache):
         for job_info_str in output.split("\n"):
             if not job_info_str:
                 continue  # When splitting by \n, the final entry of the list is likely an empty string
-            job_info = job_info_str.replace("'", "").split()
+            job_info = job_info_str.split()
 
             # We have formatted the squeue and sacct outputs to be '<job id> <state>'
             # hence we expect there to always be two entries in the list
@@ -99,7 +99,9 @@ class SlurmJobStatusCache(BatchJobStatusCache):
                 len(job_info) == 2
             ), f"The retrieved job info is not in the correct format '<job id> <state>' : {job_info}"
             id, state_string = job_info
-            self[id] = self._get_SlurmJobStatus_from_string(state_string.strip("'"))
+            self[id] = self._get_SlurmJobStatus_from_string(
+                state_string.strip("'")
+            )  # Found sometimes a random ' appears
             seen_ids.add(id)
 
         return seen_ids
