@@ -2,7 +2,6 @@
 Test helper functions for :py:class:`SlurmProcess`.
 """
 
-import json
 import pathlib
 
 import subprocess
@@ -81,38 +80,27 @@ class TestSlurmCreateSubmitFile(B2LuigiTestCase):
 
 class TestSlurmJobStatusCache(unittest.TestCase):
     def setUp(self):
-        mock_status_dicts = {
-            "jobs": [
-                {
-                    "job_state": ["COMPLETED"],  # completed
-                    "job_id": 42,
-                },
-                {
-                    "job_state": ["RUNNING", "RESIZING"],  # running
-                    "job_id": 43,
-                },
-                {
-                    "job_state": ["FAILED"],  # failed - squeue output
-                    "job_id": 44,
-                },
-                {
-                    "state": {"current": ["FAILED"]},  # failed - sacct output
-                    "job_id": 45,
-                },
-            ]
-        }
-        self.mock_status_json = json.dumps(mock_status_dicts).encode()
-
+        # Slurm output formatted when using squeue and sacct
+        mock_squeue_sacct_status_string = "12344 COMPLETED\n12356 RUNNING\n13253 FAILED\n"
+        self.mock_status_string = mock_squeue_sacct_status_string.encode()
+        # Slurm output formatted when using scontrol
+        mock_scontrol_status_string = """
+            JobId=142889 JobName=slurm_parameters.sh
+            UserId=test JobState=RUNNING
+        """
+        self.mock_scontrol_status_string = mock_scontrol_status_string.encode()
+        # Empty encoded string for when squeue returns nothing
+        self.mock_empty_squeue_status_string = "".encode()
         self.slurm_job_status_cache = SlurmJobStatusCache()
 
     @mock.patch("subprocess.check_output")
     def test_ask_for_job_status_does_2_retries(self, mock_check_output):
-        """Test the ``_ask_for_job_status`` recovers after two condor_q failures."""
+        """Test the ``_ask_for_job_status`` recovers after two squeue failures."""
 
         # make check_output fail 2 times before  return status dict
         n_fail = 2
         mock_check_output.side_effect = n_fail * [subprocess.CalledProcessError(1, ["mock", "command"])] + [
-            self.mock_status_json
+            self.mock_status_string
         ]
         self.slurm_job_status_cache._ask_for_job_status()
         self.assertEqual(mock_check_output.call_count, 3)
@@ -122,7 +110,7 @@ class TestSlurmJobStatusCache(unittest.TestCase):
         """Test the ``_ask_for_job_status`` is only called once (no retries) when everything works."""
 
         # make check_output fail 2 times before  return status dict
-        mock_check_output.return_value = self.mock_status_json
+        mock_check_output.return_value = self.mock_status_string
         self.slurm_job_status_cache._ask_for_job_status()
         self.assertEqual(mock_check_output.call_count, 1)
 
@@ -133,7 +121,43 @@ class TestSlurmJobStatusCache(unittest.TestCase):
         # make check_output fail 2 times before  return status dict
         n_fail = 4
         mock_check_output.side_effect = n_fail * [subprocess.CalledProcessError(1, ["mock", "command"])] + [
-            self.mock_status_json
+            self.mock_status_string
         ]
         with self.assertRaises(subprocess.CalledProcessError):
             self.slurm_job_status_cache._ask_for_job_status()
+
+    @mock.patch("subprocess.check_output")
+    def test_ask_for_job_with_scontrol_no_retries_on_success(self, mock_check_output):
+        """Test that when a system has no sacct, the scontrol method works on first try"""
+
+        # make _check_sacct_is_active_on_server return False to enable scontrol command
+        self.slurm_job_status_cache._check_sacct_is_active_on_server = lambda: False
+        self.assertEqual(self.slurm_job_status_cache._check_sacct_is_active_on_server(), False)
+        # Make the first subprocess.check_output call return an empty string to signify
+        # there is no output from squeue. Since the _check_sacct_is_active_on_server returns
+        # False the second call of subprocess.check_output will be using scontrol
+        mock_check_output.side_effect = [self.mock_empty_squeue_status_string] + [self.mock_scontrol_status_string]
+        # Run assertion test
+        self.slurm_job_status_cache._ask_for_job_status()
+        self.assertEqual(mock_check_output.call_count, 1)
+
+    @mock.patch("subprocess.check_output")
+    def test_ask_for_job_status_with_scontrol_does_2_retries(self, mock_check_output):
+        """Test that when a system has no sacct, scontrol method works on third try"""
+        # make check_output fail 2 times before  return status dict
+        n_fail = 2
+        # After 2 retries, make the first successful subprocess.check_output call return an
+        # empty string to signify there is no output from squeue. Since the
+        # _check_sacct_is_active_on_server returns False the second call of subprocess.check_output
+        # will be using scontrol
+        mock_check_output.side_effect = (
+            n_fail * [subprocess.CalledProcessError(1, ["mock", "command"])]
+            + [self.mock_empty_squeue_status_string]
+            + [self.mock_scontrol_status_string]
+        )
+        # make _check_sacct_is_active_on_server return False to enable scontrol command
+        self.slurm_job_status_cache._check_sacct_is_active_on_server = lambda: False
+        self.assertEqual(self.slurm_job_status_cache._check_sacct_is_active_on_server(), False)
+        # Run assertion test
+        self.slurm_job_status_cache._ask_for_job_status()
+        self.assertEqual(mock_check_output.call_count, 3)
