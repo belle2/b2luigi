@@ -50,7 +50,7 @@ class SlurmJobStatusCache(BatchJobStatusCache):
             return
         # If the specified job can not be found in the squeue output, we need to request its history from the slurm job accounting log
         # We also check that the working Slurm server has the Slurm accounting storage active
-        if job_id not in seen_ids and self._check_sacct_is_active_on_server():
+        if job_id not in seen_ids and not self._check_if_sacct_is_disabled_on_server():
             # https://slurm.schedmd.com/sacct.html
             history_cmd = [
                 "sacct",
@@ -66,7 +66,7 @@ class SlurmJobStatusCache(BatchJobStatusCache):
             self._fill_from_output(output)
 
         # If the Slurm accounting storage is disabled, we resort to the scontrol command
-        elif job_id not in seen_ids and not self._check_sacct_is_active_on_server():
+        elif job_id not in seen_ids and not self._check_if_sacct_is_disabled_on_server():
             output = subprocess.check_output(["scontrol", "show", "job", str(job_id)])
             output = output.decode()
 
@@ -97,7 +97,7 @@ class SlurmJobStatusCache(BatchJobStatusCache):
             # hence we expect there to always be two entries in the list
             assert (
                 len(job_info) == 2
-            ), f"The retrieved job info is not in the correct format '<job id> <state>' : {job_info}"
+            ), "Unexpected behaviour has occurred whilst retrieving job information. There may be an issue with the sqeue, sacct or scontrol commands."
             id, state_string = job_info
             self[id] = self._get_SlurmJobStatus_from_string(
                 state_string.strip("'")
@@ -113,7 +113,7 @@ class SlurmJobStatusCache(BatchJobStatusCache):
             raise KeyError(f"The state {state_string} could not be found in the SlurmJobStatus states")
         return state.value
 
-    def _check_sacct_is_active_on_server(self) -> bool:
+    def _check_if_sacct_is_disabled_on_server(self) -> bool:
         """
         Returns True if sacct is active. I.e it has not be disabled by admins
         of the server.
@@ -121,7 +121,7 @@ class SlurmJobStatusCache(BatchJobStatusCache):
         output = subprocess.run(["sacct"], capture_output=True)
 
         # If the call to 'sacct' returns an error code 1 and checking the stderr returns 'Slurm accounting storage is disabled'
-        return not (output.returncode == 1 and output.stderr.strip().decode() == "Slurm accounting storage is disabled")
+        return output.returncode == 1 and output.stderr.strip().decode() == "Slurm accounting storage is disabled"
 
 
 class SlurmJobStatus(enum.Enum):

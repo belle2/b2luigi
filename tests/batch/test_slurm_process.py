@@ -83,6 +83,9 @@ class TestSlurmJobStatusCache(unittest.TestCase):
         # Slurm output formatted when using squeue and sacct
         mock_squeue_sacct_status_string = "12344 COMPLETED\n12356 RUNNING\n13253 FAILED\n"
         self.mock_status_string = mock_squeue_sacct_status_string.encode()
+        # Incorrect sqeue status
+        mock_incorrect_squeue_sacct_status_string = "IncorrectString"
+        self.mock_incorrect_sqeue_sacct_status_string = mock_incorrect_squeue_sacct_status_string.encode()
         # Slurm output formatted when using scontrol
         mock_scontrol_status_string = """
             JobId=142889 JobName=slurm_parameters.sh
@@ -131,8 +134,8 @@ class TestSlurmJobStatusCache(unittest.TestCase):
         """Test that when a system has no sacct, the scontrol method works on first try"""
 
         # make _check_sacct_is_active_on_server return False to enable scontrol command
-        self.slurm_job_status_cache._check_sacct_is_active_on_server = lambda: False
-        self.assertEqual(self.slurm_job_status_cache._check_sacct_is_active_on_server(), False)
+        self.slurm_job_status_cache._check_if_sacct_is_disabled_on_server = lambda: True
+        self.assertEqual(self.slurm_job_status_cache._check_if_sacct_is_disabled_on_server(), True)
         # Make the first subprocess.check_output call return an empty string to signify
         # there is no output from squeue. Since the _check_sacct_is_active_on_server returns
         # False the second call of subprocess.check_output will be using scontrol
@@ -156,8 +159,16 @@ class TestSlurmJobStatusCache(unittest.TestCase):
             + [self.mock_scontrol_status_string]
         )
         # make _check_sacct_is_active_on_server return False to enable scontrol command
-        self.slurm_job_status_cache._check_sacct_is_active_on_server = lambda: False
-        self.assertEqual(self.slurm_job_status_cache._check_sacct_is_active_on_server(), False)
+        self.slurm_job_status_cache._check_if_sacct_is_disabled_on_server = lambda: True
+        self.assertEqual(self.slurm_job_status_cache._check_if_sacct_is_disabled_on_server(), True)
         # Run assertion test
         self.slurm_job_status_cache._ask_for_job_status()
         self.assertEqual(mock_check_output.call_count, 3)
+
+    @mock.patch("subprocess.check_output")
+    def test_ask_for_job_with_sqeue_sacct_raises_assertion_for_incorrect_formatted_output(self, mock_check_output):
+        """Test that when a slurm system returns an unexpected return string, an assertion is raised"""
+        mock_check_output.side_effect = [self.mock_incorrect_sqeue_sacct_status_string]
+        # Run assertion test
+        with self.assertRaises(AssertionError):
+            self.slurm_job_status_cache._ask_for_job_status()
