@@ -3,29 +3,76 @@ from functools import wraps
 
 
 class TemporaryFileContextManager(ExitStack):
-    def __init__(self, task):
+    def __init__(self, task: luigi.Task):
         super().__init__()
 
         self._task = task
         self._task_output_function = task.get_output_file_name
+        self._task_input_function = task.get_input_file_names
+        self._task_input_function_from_dict = task.get_input_file_names_from_dict
 
-        self._open_files = {}
+        self._open_output_files = {}
+        self._open_input_files = {}
 
     def __enter__(self):
-        def get_output_file_name(key):
-            if key not in self._open_files:
+        def get_output_file_name(key: str):
+            if key not in self._open_output_files:
                 target = self._task._get_output_target(key)
                 temporary_path = target.temporary_path()
-                self._open_files[key] = self.enter_context(temporary_path)
+                self._open_output_files[key] = self.enter_context(temporary_path)
 
-            return self._open_files[key]
+            return self._open_output_files[key]
 
         self._task.get_output_file_name = get_output_file_name
+
+        def get_input_file_names(key: str):
+            if key not in self._open_input_files:
+                targets = self._task._get_input_targets(key)
+                self._open_input_files[key] = []
+                if hasattr(self._task, "n_download_threads"):
+                    with ThreadPool(self._task.n_download_threads) as pool:
+                        self._open_input_files[key] = pool.map(
+                            lambda target: self.enter_context(target.get_temporary_input()),
+                            targets,
+                        )
+                else: 
+                    for target in targets:  # TODO: This does not work in wrapping tasks
+                        logger.info(target)
+                        temporary_path = target.get_temporary_input()
+                        self._open_input_files[key].append(self.enter_context(temporary_path))
+
+            return self._open_input_files[key]
+
+        self._task.get_input_file_names = get_input_file_names
+
+        def get_input_file_names_from_dict(requirement_key: str, key: str):
+            logger.info(self._task.input())
+            internal_key = f"{requirement_key}_{key}"
+            if internal_key not in self._open_input_files:
+                target_dicts = self._task.input()[requirement_key]
+
+                self._open_input_files[internal_key] = []
+                for target_dict in target_dicts:
+                    logger.info(target_dict)
+                    if key in target_dict.keys():
+                        target = target_dict[key]
+                        logger.info(target)
+                        temporary_path = target.get_temporary_input()
+                        self._open_files[internal_key].append(
+                            self.enter_context(temporary_path)
+                        )
+
+            return self._open_files[internal_key]
+
+        self._task.get_input_file_names_from_dict = get_input_file_names_from_dict
 
     def __exit__(self, *exc_details):
         super().__exit__(*exc_details)
 
         self._task.get_output_file_name = self._task_output_function
+        self._task.get_input_file_names = self._task_input_function
+        self._task.get_input_file_names_from_dict = self._task_input_function_from_dict
+
 
 
 def on_temporary_files(run_function):
