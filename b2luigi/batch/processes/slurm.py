@@ -36,12 +36,10 @@ class SlurmJobStatusCache(BatchJobStatusCache):
         """
         # https://slurm.schedmd.com/squeue.html
         user = getpass.getuser()
-        q_cmd = ["squeue", "--noheader", "--user", user, "--format", "'%i %T'"]
-        if job_id:
-            q_cmd += ["--job", str(job_id)]
-            output = subprocess.check_output(q_cmd)
-        else:
-            output = subprocess.check_output(q_cmd)
+        q_cmd = ["squeue", "--noheader", "--user", user, "--format", "'%i %T'"] + (
+            ["--job", str(job_id)] if job_id else []
+        )
+        output = subprocess.check_output(q_cmd)
 
         output = output.decode()
         seen_ids = self._fill_from_output(output)
