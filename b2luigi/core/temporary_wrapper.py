@@ -1,9 +1,12 @@
 from contextlib import ExitStack
 from functools import wraps
+from multiprocessing.pool import ThreadPool
+
+import b2luigi
 
 
 class TemporaryFileContextManager(ExitStack):
-    def __init__(self, task: luigi.Task):
+    def __init__(self, task: b2luigi.Task):
         super().__init__()
 
         self._task = task
@@ -35,9 +38,8 @@ class TemporaryFileContextManager(ExitStack):
                             lambda target: self.enter_context(target.get_temporary_input()),
                             targets,
                         )
-                else: 
+                else:
                     for target in targets:  # TODO: This does not work in wrapping tasks
-                        logger.info(target)
                         temporary_path = target.get_temporary_input()
                         self._open_input_files[key].append(self.enter_context(temporary_path))
 
@@ -46,21 +48,16 @@ class TemporaryFileContextManager(ExitStack):
         self._task.get_input_file_names = get_input_file_names
 
         def get_input_file_names_from_dict(requirement_key: str, key: str):
-            logger.info(self._task.input())
             internal_key = f"{requirement_key}_{key}"
             if internal_key not in self._open_input_files:
                 target_dicts = self._task.input()[requirement_key]
 
                 self._open_input_files[internal_key] = []
                 for target_dict in target_dicts:
-                    logger.info(target_dict)
                     if key in target_dict.keys():
                         target = target_dict[key]
-                        logger.info(target)
                         temporary_path = target.get_temporary_input()
-                        self._open_files[internal_key].append(
-                            self.enter_context(temporary_path)
-                        )
+                        self._open_files[internal_key].append(self.enter_context(temporary_path))
 
             return self._open_files[internal_key]
 
@@ -72,7 +69,6 @@ class TemporaryFileContextManager(ExitStack):
         self._task.get_output_file_name = self._task_output_function
         self._task.get_input_file_names = self._task_input_function
         self._task.get_input_file_names_from_dict = self._task_input_function_from_dict
-
 
 
 def on_temporary_files(run_function):
@@ -124,8 +120,8 @@ def on_temporary_files(run_function):
     """
 
     @wraps(run_function)
-    def run(self):
+    def run(self, *args, **kwargs):
         with TemporaryFileContextManager(self):
-            run_function(self)
+            run_function(self, *args, **kwargs)
 
     return run
