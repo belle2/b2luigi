@@ -80,7 +80,7 @@ class SlurmJobStatusCache(BatchJobStatusCache):
 
             # the specified job cannot be found on the slurm system. Return a failed.
         else:
-            self[job_id] = SlurmJobStatus.failed.value
+            self[job_id] = SlurmJobStatus.failed
 
     def _fill_from_output(self, output: str) -> set:
         seen_ids = set()
@@ -93,7 +93,7 @@ class SlurmJobStatusCache(BatchJobStatusCache):
         for job_info_str in output.split("\n"):
             if not job_info_str:
                 continue  # When splitting by \n, the final entry of the list is likely an empty string
-            job_info = job_info_str.split()
+            job_info = job_info_str.strip("'").split()
 
             # We have formatted the squeue and sacct outputs to be '<job id> <state>'
             # hence we expect there to always be two entries in the list
@@ -101,8 +101,9 @@ class SlurmJobStatusCache(BatchJobStatusCache):
                 len(job_info) == 2
             ), "Unexpected behaviour has occurred whilst retrieving job information. There may be an issue with the sqeue, sacct or scontrol commands."
             id, state_string = job_info
+            id = int(id)
             self[id] = self._get_SlurmJobStatus_from_string(
-                state_string.strip("'")
+                state_string
             )  # Found sometimes a random ' appears
             seen_ids.add(id)
 
@@ -110,10 +111,10 @@ class SlurmJobStatusCache(BatchJobStatusCache):
 
     def _get_SlurmJobStatus_from_string(self, state_string: str) -> str:
         try:
-            state = SlurmJobStatus[state_string.lower()]
+            state = SlurmJobStatus[state_string]
         except KeyError:
             raise KeyError(f"The state {state_string} could not be found in the SlurmJobStatus states")
-        return state.value
+        return state
 
     def _check_if_sacct_is_disabled_on_server(self) -> bool:
         """
@@ -156,6 +157,13 @@ class SlurmJobStatus(enum.Enum):
     failed = "FAILED"
     timeout = "TIMEOUT"
 
+    def __eq__(self, other):
+        if isinstance(other, str):
+            return self.value == other
+        elif isinstance(other, SlurmJobStatus):
+            return self.value == other.value
+        raise TypeError('The equivalence of a SlurmJobStatus can only be checked with a string or another SlurmJobStatus object.')
+    
 
 _batch_job_status_cache = SlurmJobStatusCache()
 
@@ -200,23 +208,23 @@ class SlurmProcess(BatchProcess):
             return JobStatus.aborted
 
         # See https://slurm.schedmd.com/job_state_codes.html
-        if job_status in [SlurmJobStatus.completed.value]:
+        if job_status in [SlurmJobStatus.completed]:
             return JobStatus.successful
         if job_status in [
-            SlurmJobStatus.pending.value,
-            SlurmJobStatus.running.value,
-            SlurmJobStatus.suspended.value,
-            SlurmJobStatus.preempted.value,
+            SlurmJobStatus.pending,
+            SlurmJobStatus.running,
+            SlurmJobStatus.suspended,
+            SlurmJobStatus.preempted,
         ]:
             return JobStatus.running
         if job_status in [
-            SlurmJobStatus.boot_fail.value,
-            SlurmJobStatus.canceled.value,
-            SlurmJobStatus.deadline.value,
-            SlurmJobStatus.node_fail.value,
-            SlurmJobStatus.out_of_memory.value,
-            SlurmJobStatus.failed.value,
-            SlurmJobStatus.timeout.value,
+            SlurmJobStatus.boot_fail,
+            SlurmJobStatus.canceled,
+            SlurmJobStatus.deadline,
+            SlurmJobStatus.node_fail,
+            SlurmJobStatus.out_of_memory,
+            SlurmJobStatus.failed,
+            SlurmJobStatus.timeout,
         ]:
             return JobStatus.aborted
         raise ValueError(f"Unknown Slurm Job status: {job_status}")
