@@ -5,6 +5,7 @@ import re
 import getpass
 import enum
 
+
 from luigi.parameter import _no_value
 from b2luigi.core.settings import get_setting
 from b2luigi.batch.processes import BatchProcess, JobStatus
@@ -14,6 +15,8 @@ from b2luigi.core.executable import create_executable_wrapper
 
 
 class SlurmJobStatusCache(BatchJobStatusCache):
+    sacct_disabled = None
+
     @retry(subprocess.CalledProcessError, tries=3, delay=2, backoff=3)  # retry after 2,6,18 seconds
     def _ask_for_job_status(self, job_id: int = None):
         """
@@ -65,7 +68,7 @@ class SlurmJobStatusCache(BatchJobStatusCache):
             self._fill_from_output(output)
 
         # If the Slurm accounting storage is disabled, we resort to the scontrol command
-        elif job_id not in seen_ids and not self._check_if_sacct_is_disabled_on_server():
+        elif job_id not in seen_ids and self._check_if_sacct_is_disabled_on_server():
             output = subprocess.check_output(["scontrol", "show", "job", str(job_id)])
             output = output.decode()
 
@@ -105,7 +108,7 @@ class SlurmJobStatusCache(BatchJobStatusCache):
 
         return seen_ids
 
-    def _get_SlurmJobStatus_from_string(self, state_string: str):
+    def _get_SlurmJobStatus_from_string(self, state_string: str) -> str:
         try:
             state = SlurmJobStatus[state_string.lower()]
         except KeyError:
@@ -114,13 +117,17 @@ class SlurmJobStatusCache(BatchJobStatusCache):
 
     def _check_if_sacct_is_disabled_on_server(self) -> bool:
         """
-        Returns True if sacct is active. I.e it has not be disabled by admins
-        of the server.
+        Returns True if sacct is disabled on system
         """
-        output = subprocess.run(["sacct"], capture_output=True)
+        if self.sacct_disabled is None:
+            # Don't continually call the function, instead call it once and set self.sacct_disabled
+            output = subprocess.run(["sacct"], capture_output=True)
 
-        # If the call to 'sacct' returns an error code 1 and checking the stderr returns 'Slurm accounting storage is disabled'
-        return output.returncode == 1 and output.stderr.strip().decode() == "Slurm accounting storage is disabled"
+            # If the call to 'sacct' returns an error code 1 and checking the stderr returns 'Slurm accounting storage is disabled'
+            self.sacct_disabled = (
+                output.returncode == 1 and output.stderr.strip().decode() == "Slurm accounting storage is disabled"
+            )
+        return self.sacct_disabled
 
 
 class SlurmJobStatus(enum.Enum):
