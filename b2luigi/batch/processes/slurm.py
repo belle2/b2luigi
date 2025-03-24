@@ -109,7 +109,7 @@ class SlurmJobStatusCache(BatchJobStatusCache):
 
     def _get_SlurmJobStatus_from_string(self, state_string: str) -> str:
         try:
-            state = SlurmJobStatus[state_string]
+            state = SlurmJobStatus[state_string.lower()]
         except KeyError:
             raise KeyError(f"The state {state_string} could not be found in the SlurmJobStatus states")
         return state
