@@ -102,9 +102,7 @@ class SlurmJobStatusCache(BatchJobStatusCache):
             ), "Unexpected behaviour has occurred whilst retrieving job information. There may be an issue with the sqeue, sacct or scontrol commands."
             id, state_string = job_info
             id = int(id)
-            self[id] = self._get_SlurmJobStatus_from_string(
-                state_string
-            )  # Found sometimes a random ' appears
+            self[id] = self._get_SlurmJobStatus_from_string(state_string)  # Found sometimes a random ' appears
             seen_ids.add(id)
 
         return seen_ids
@@ -162,8 +160,10 @@ class SlurmJobStatus(enum.Enum):
             return self.value == other
         elif isinstance(other, SlurmJobStatus):
             return self.value == other.value
-        raise TypeError('The equivalence of a SlurmJobStatus can only be checked with a string or another SlurmJobStatus object.')
-    
+        raise TypeError(
+            "The equivalence of a SlurmJobStatus can only be checked with a string or another SlurmJobStatus object."
+        )
+
 
 _batch_job_status_cache = SlurmJobStatusCache()
 
