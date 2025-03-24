@@ -53,9 +53,10 @@ class SlurmJobStatusCache(BatchJobStatusCache):
             history_cmd = [
                 "sacct",
                 "--noheader",
+                "-X",
                 "--user",
                 user,
-                "--format=JobID%10,State%10",
+                "--format=JobID,State",
                 "--job",
                 str(job_id),
             ]
