@@ -3,8 +3,8 @@ import subprocess
 import pathlib
 import re
 import getpass
-import json
 import enum
+
 
 from luigi.parameter import _no_value
 from b2luigi.core.settings import get_setting
@@ -15,6 +15,8 @@ from b2luigi.core.executable import create_executable_wrapper
 
 
 class SlurmJobStatusCache(BatchJobStatusCache):
+    sacct_disabled = None
+
     @retry(subprocess.CalledProcessError, tries=3, delay=2, backoff=3)  # retry after 2,6,18 seconds
     def _ask_for_job_status(self, job_id: int = None):
         """
@@ -27,76 +29,104 @@ class SlurmJobStatusCache(BatchJobStatusCache):
 
         Sometimes it might happen that a job is completed in between the status checks. Then its final status
         can be found using `sacct` (works mostly in the same way as `squeue` but requires specifying a starting date and time if we don't specify a particular jobID).
-        Both commands are used in order to find out the `JobStatus`.
+
+        If in the unlikely case the server has the Slurm account disabled, then the `scontrol` command is used as a last
+        resort to access the jobs history. This is the fail safe command as the scontrol by design only holds onto a jobs
+        information for a short period of time after completion. The time between status checks is sufficiently short however
+        so the scontrol command should still have the jobs information on hand.
+
+        All three commands are used in order to find out the `JobStatus`.
         """
         # https://slurm.schedmd.com/squeue.html
         user = getpass.getuser()
-        q_cmd = [
-            "squeue",
-            "--user",
-            user,
-            "--json",
-        ]
-        if job_id:
-            output = subprocess.check_output(q_cmd + ["--job", str(job_id)])
-        else:
-            output = subprocess.check_output(q_cmd)
+        q_cmd = ["squeue", "--noheader", "--user", user, "--format", "'%i %T'"] + (
+            ["--job", str(job_id)] if job_id else []
+        )
+        output = subprocess.check_output(q_cmd)
 
+        output = output.decode()
         seen_ids = self._fill_from_output(output)
-
+        # If no job_id was passed, then exit
         if not job_id:
             return
-
         # If the specified job can not be found in the squeue output, we need to request its history from the slurm job accounting log
-        if job_id not in seen_ids:
+        # We also check that the working Slurm server has the Slurm accounting storage active
+        if job_id not in seen_ids and not self._check_if_sacct_is_disabled_on_server():
             # https://slurm.schedmd.com/sacct.html
             history_cmd = [
                 "sacct",
+                "--noheader",
+                "-X",
                 "--user",
                 user,
-                "--json",
+                "--format=JobID,State",
                 "--job",
                 str(job_id),
             ]
             output = subprocess.check_output(history_cmd)
-
+            output = output.decode()
             self._fill_from_output(output)
-        else:
+
+        # If the Slurm accounting storage is disabled, we resort to the scontrol command
+        elif job_id not in seen_ids and self._check_if_sacct_is_disabled_on_server():
+            output = subprocess.check_output(["scontrol", "show", "job", str(job_id)])
+            output = output.decode()
+
+            # Extract the job state from the output
+            re_output = re.search(r"JobState=([A-Z_]+)", output)
+            if re_output:
+                state_string = re_output.group(1)
+                self[job_id] = self._get_SlurmJobStatus_from_string(state_string)
+
             # the specified job cannot be found on the slurm system. Return a failed.
-            self[job_id] = SlurmJobStatus.failed.value
+        else:
+            self[job_id] = SlurmJobStatus.failed
 
-    def _fill_from_output(self, output):
-        output = output.decode()
-
+    def _fill_from_output(self, output: str) -> set:
         seen_ids = set()
 
+        # If the output is empty return an empty set
         if not output:
             return seen_ids
 
-        for status_dict in json.loads(output)["jobs"]:
-            jobID = status_dict["job_id"]  # int
+        # If no jobs exist then output=='' and this loop does not see any id's
+        for job_info_str in output.split("\n"):
+            if not job_info_str:
+                continue  # When splitting by \n, the final entry of the list is likely an empty string
+            job_info = job_info_str.strip("'").split()
 
-            # the format of the output is different for squeue and sacct
-            if "state" in status_dict.keys():
-                # sacct
-                state = status_dict["state"]["current"]
-            elif "job_state" in status_dict.keys():
-                # squeue
-                state = status_dict["job_state"]
-            else:
-                raise KeyError(f"Could not find the state of the job in the output: {status_dict}")
-
-            # the state can contain a base state and additional flags. (https://slurm.schedmd.com/job_state_codes.html)
-            # We only want the base state.
-            if len(state) > 1:
-                state = [x for x in state if x in [e.value for e in SlurmJobStatus]]
-            assert len(state) == 1, f"state ({state}) has more than one entry."
-            state = state[0]
-
-            self[jobID] = state
-            seen_ids.add(jobID)
+            # We have formatted the squeue and sacct outputs to be '<job id> <state>'
+            # hence we expect there to always be two entries in the list
+            assert (
+                len(job_info) == 2
+            ), "Unexpected behaviour has occurred whilst retrieving job information. There may be an issue with the sqeue, sacct or scontrol commands."
+            id, state_string = job_info
+            id = int(id)
+            self[id] = self._get_SlurmJobStatus_from_string(state_string)  # Found sometimes a random ' appears
+            seen_ids.add(id)
 
         return seen_ids
+
+    def _get_SlurmJobStatus_from_string(self, state_string: str) -> str:
+        try:
+            state = SlurmJobStatus(state_string)
+        except KeyError:
+            raise KeyError(f"The state {state_string} could not be found in the SlurmJobStatus states")
+        return state
+
+    def _check_if_sacct_is_disabled_on_server(self) -> bool:
+        """
+        Returns True if sacct is disabled on system
+        """
+        if self.sacct_disabled is None:
+            # Don't continually call the function, instead call it once and set self.sacct_disabled
+            output = subprocess.run(["sacct"], capture_output=True)
+
+            # If the call to 'sacct' returns an error code 1 and checking the stderr returns 'Slurm accounting storage is disabled'
+            self.sacct_disabled = (
+                output.returncode == 1 and output.stderr.strip().decode() == "Slurm accounting storage is disabled"
+            )
+        return self.sacct_disabled
 
 
 class SlurmJobStatus(enum.Enum):
@@ -124,6 +154,15 @@ class SlurmJobStatus(enum.Enum):
     out_of_memory = "OUT_OF_MEMORY"
     failed = "FAILED"
     timeout = "TIMEOUT"
+
+    def __eq__(self, other):
+        if isinstance(other, str):
+            return self.value == other
+        elif isinstance(other, SlurmJobStatus):
+            return self.value == other.value
+        raise TypeError(
+            "The equivalence of a SlurmJobStatus can only be checked with a string or another SlurmJobStatus object."
+        )
 
 
 _batch_job_status_cache = SlurmJobStatusCache()
@@ -169,23 +208,23 @@ class SlurmProcess(BatchProcess):
             return JobStatus.aborted
 
         # See https://slurm.schedmd.com/job_state_codes.html
-        if job_status in [SlurmJobStatus.completed.value]:
+        if job_status in [SlurmJobStatus.completed]:
             return JobStatus.successful
         if job_status in [
-            SlurmJobStatus.pending.value,
-            SlurmJobStatus.running.value,
-            SlurmJobStatus.suspended.value,
-            SlurmJobStatus.preempted.value,
+            SlurmJobStatus.pending,
+            SlurmJobStatus.running,
+            SlurmJobStatus.suspended,
+            SlurmJobStatus.preempted,
         ]:
             return JobStatus.running
         if job_status in [
-            SlurmJobStatus.boot_fail.value,
-            SlurmJobStatus.canceled.value,
-            SlurmJobStatus.deadline.value,
-            SlurmJobStatus.node_fail.value,
-            SlurmJobStatus.out_of_memory.value,
-            SlurmJobStatus.failed.value,
-            SlurmJobStatus.timeout.value,
+            SlurmJobStatus.boot_fail,
+            SlurmJobStatus.canceled,
+            SlurmJobStatus.deadline,
+            SlurmJobStatus.node_fail,
+            SlurmJobStatus.out_of_memory,
+            SlurmJobStatus.failed,
+            SlurmJobStatus.timeout,
         ]:
             return JobStatus.aborted
         raise ValueError(f"Unknown Slurm Job status: {job_status}")
