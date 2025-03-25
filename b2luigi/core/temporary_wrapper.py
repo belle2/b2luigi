@@ -2,11 +2,12 @@ from contextlib import ExitStack
 from functools import wraps
 from multiprocessing.pool import ThreadPool
 
-import b2luigi
+from b2luigi import Task
+from b2luigi.core.settings import get_setting
 
 
 class TemporaryFileContextManager(ExitStack):
-    def __init__(self, task: b2luigi.Task):
+    def __init__(self, task: Task):
         super().__init__()
 
         self._task = task
@@ -32,8 +33,9 @@ class TemporaryFileContextManager(ExitStack):
             if key not in self._open_input_files:
                 targets = self._task._get_input_targets(key)
                 self._open_input_files[key] = []
-                if hasattr(self._task, "n_download_threads"):
-                    with ThreadPool(self._task.n_download_threads) as pool:
+                n_download_threads = get_setting("n_download_threads", default=None, task=self._task)
+                if n_download_threads is not None:
+                    with ThreadPool(n_download_threads) as pool:
                         self._open_input_files[key] = pool.map(
                             lambda target: self.enter_context(target.get_temporary_input()),
                             targets,
