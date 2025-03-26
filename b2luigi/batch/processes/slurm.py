@@ -98,7 +98,9 @@ class SlurmJobStatusCache(BatchJobStatusCache):
             ), "Unexpected behaviour has occurred whilst retrieving job information. There may be an issue with the sqeue, sacct or scontrol commands."
             id, state_string = job_info
             id = int(id)
-            self[id] = self._get_SlurmJobStatus_from_string(state_string)  # Found sometimes a random ' appears
+            # Manually cancelling jobs gives the state 'CANCELLED+'
+            state_string = state_string.strip("+")  
+            self[id] = self._get_SlurmJobStatus_from_string(state_string) 
             seen_ids.add(id)
 
         return seen_ids
