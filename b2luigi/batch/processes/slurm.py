@@ -23,14 +23,10 @@ class SlurmJobStatusCache(BatchJobStatusCache):
         With Slurm, you can check the progress of your jobs using the `squeue` command.
         If no `jobID` is given as argument, this command shows you the status of all queued jobs.
 
-        With the `--json` option, a detailed `squeue` output is returned in the JSON format. Using the default data_parser it is not possible to ask for only the pertinent information.
-
-        NOTE: If this is a large performance issue it should be possible to implement a custom data_parser to only get the information we need.
-
         Sometimes it might happen that a job is completed in between the status checks. Then its final status
-        can be found using `sacct` (works mostly in the same way as `squeue` but requires specifying a starting date and time if we don't specify a particular jobID).
+        can be found using `sacct` (works mostly in the same way as `squeue`).
 
-        If in the unlikely case the server has the Slurm account disabled, then the `scontrol` command is used as a last
+        If in the unlikely case the server has the Slurm accounting disabled, then the `scontrol` command is used as a last
         resort to access the jobs history. This is the fail safe command as the scontrol by design only holds onto a jobs
         information for a short period of time after completion. The time between status checks is sufficiently short however
         so the scontrol command should still have the jobs information on hand.
