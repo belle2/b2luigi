@@ -145,6 +145,7 @@ class SlurmJobStatus(enum.Enum):
     running = "RUNNING"
     suspended = "SUSPENDED"
     preempted = "PREEMPTED"
+    completing = "COMPLETING"
 
     # failed:
     boot_fail = "BOOT_FAIL"
