@@ -145,7 +145,7 @@ class SlurmJobStatus(enum.Enum):
 
     # failed:
     boot_fail = "BOOT_FAIL"
-    canceled = "CANCELED"
+    cancelled = "CANCELLED"
     deadline = "DEADLINE"
     node_fail = "NODE_FAIL"
     out_of_memory = "OUT_OF_MEMORY"
@@ -217,7 +217,7 @@ class SlurmProcess(BatchProcess):
             return JobStatus.running
         if job_status in [
             SlurmJobStatus.boot_fail,
-            SlurmJobStatus.canceled,
+            SlurmJobStatus.cancelled,
             SlurmJobStatus.deadline,
             SlurmJobStatus.node_fail,
             SlurmJobStatus.out_of_memory,
