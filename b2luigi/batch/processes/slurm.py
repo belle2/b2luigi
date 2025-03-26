@@ -216,6 +216,7 @@ class SlurmProcess(BatchProcess):
             SlurmJobStatus.running,
             SlurmJobStatus.suspended,
             SlurmJobStatus.preempted,
+            SlurmJobStatus.completing,
         ]:
             return JobStatus.running
         if job_status in [
