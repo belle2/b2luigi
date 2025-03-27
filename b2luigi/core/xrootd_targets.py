@@ -215,14 +215,13 @@ class XRootDTarget(FileSystemTarget):
     Implementation of luigi targets based on the XRootD file system.
     """
 
-    def __init__(self, path: str, file_system: XRootDSystem, scratch_dir: str = "/tmp"):
+    def __init__(self, path: str, file_system: XRootDSystem):
         """
         Args:
             path: Path to the file on the remote file system.
             file_system: Instance of the XRootDSystem.
             scratch_dir: Directory to store temporary files.
         """
-        self._scratch_dir = scratch_dir
         self._file_system = file_system
         super().__init__(path)
 

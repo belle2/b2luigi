@@ -10,7 +10,7 @@ class TestXRootDSystem(unittest.TestCase):
         self.XRootD_system.client = MagicMock()
         self.XRootD_system.copy_file_to_remote = MagicMock()
 
-        self.XRootD_target: XRootDTarget = XRootDTarget(self.mock_server_path, self.XRootD_system, "/scratch")
+        self.XRootD_target: XRootDTarget = XRootDTarget(self.mock_server_path, self.XRootD_system)
 
     def test_exists_true(self) -> None:
         # Simulate a successful stat call
