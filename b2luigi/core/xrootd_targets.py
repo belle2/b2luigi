@@ -1,3 +1,4 @@
+from random import random
 import tempfile
 from luigi.target import FileSystemTarget, FileSystem
 import os
@@ -261,9 +262,22 @@ class XRootDTarget(FileSystemTarget):
         """
         # Use a temporary directory
         with tempfile.TemporaryDirectory(dir=self._scratch_dir) as tmp_dir:
-            tmp_path = f"{tmp_dir}/{self.base_name}"
+            tmp_path = os.path.join(tmp_dir, self.base_name)
             yield tmp_path
             self.fs.copy_file_to_remote(tmp_path, self.path, force=True)
 
     def open(self, mode: str) -> None:
         raise NotImplementedError("XRootDTarget does not support open yet")
+
+    @property
+    def tmp_name(self) -> str:
+        num = random.randrange(0, 10_000_000_000)
+        _temp_path = f"{self.path}-luigi-tmp-{num:010}{self._trailing_slash()}"
+        return _temp_path
+
+    @contextmanager
+    def get_temporary_input(self) -> Generator[str, None, None]:
+        with tempfile.TemporaryDirectory(dir=self._scratch_dir) as tmp_path:
+            tmp_path = os.path.join(tmp_path, self.tmp_name)
+            self.fs.copy_file_from_remote(self.path, tmp_path)
+            yield tmp_path
