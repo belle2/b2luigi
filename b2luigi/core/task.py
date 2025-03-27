@@ -5,6 +5,7 @@ from typing import Any, Union, List, Dict, Optional
 import luigi
 
 from b2luigi.core.utils import create_output_file_name
+from b2luigi.core.target import LocalTarget
 
 
 class Task(luigi.Task):
@@ -211,9 +212,9 @@ class Task(luigi.Task):
         output_dict: Dict[str, luigi.target.FileSystemTarget] = utils.flatten_to_dict(self.output())
         return output_dict[key]
 
-    def _get_output_file_target(self, base_filename: str, **kwargs: Any) -> luigi.LocalTarget:
+    def _get_output_file_target(self, base_filename: str, **kwargs: Any) -> LocalTarget:
         file_name: str = create_output_file_name(self, base_filename, **kwargs)
-        return luigi.LocalTarget(file_name)
+        return LocalTarget(file_name)
 
 
 class ExternalTask(Task, luigi.ExternalTask):
