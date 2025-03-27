@@ -1,3 +1,4 @@
+import tempfile
 from luigi.target import FileSystemTarget, FileSystem
 import os
 from contextlib import contextmanager
@@ -258,9 +259,11 @@ class XRootDTarget(FileSystemTarget):
         Returns:
             Path to the temporary file.
         """
-        tmp_path = f"{self._scratch_dir}/{self.base_name}"
-        yield tmp_path
-        self.fs.copy_file_to_remote(tmp_path, self.path, force=True)
+        # Use a temporary directory
+        with tempfile.TemporaryDirectory(dir=self._scratch_dir) as tmp_dir:
+            tmp_path = f"{tmp_dir}/{self.base_name}"
+            yield tmp_path
+            self.fs.copy_file_to_remote(tmp_path, self.path, force=True)
 
     def open(self, mode: str) -> None:
         raise NotImplementedError("XRootDTarget does not support open yet")
