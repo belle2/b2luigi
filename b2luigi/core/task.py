@@ -1,6 +1,6 @@
 from typing import Iterable, Iterator
 from b2luigi.core import utils
-from typing import Any, Union, List, Dict, Optional
+from typing import Any, Union, List, Dict, Optional, Type
 
 import luigi
 
@@ -42,7 +42,7 @@ class Task(luigi.Task):
     """
 
     def add_to_output(
-        self, output_file_name: str, target_class: type[luigi.target.FileSystemTarget] = luigi.LocalTarget, **kwargs
+        self, output_file_name: str, target_class: Type[luigi.target.FileSystemTarget] = luigi.LocalTarget, **kwargs
     ) -> Dict[str, luigi.LocalTarget]:
         """
         Call this in your ``output()`` function to add a target to the list of files,
