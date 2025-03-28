@@ -1,6 +1,5 @@
 from contextlib import contextmanager
 import os
-from pathlib import Path
 import random
 from typing import Generator, Optional
 import luigi
@@ -74,7 +73,7 @@ class FileSystemTarget(luigi.target.FileSystemTarget):
         with tempfile.TemporaryDirectory(
             dir=get_setting("scratch_dir", task=task, default="/tmp"), **tmp_file_kwargs
         ) as tmp_path:
-            tmp_path = str(Path(tmp_path) / self.tmp_name)
+            tmp_path = os.path.join(tmp_path, self.tmp_name)
             self.fs.copy(self.path, tmp_path)
             yield tmp_path
 
@@ -112,7 +111,7 @@ class FileSystemTarget(luigi.target.FileSystemTarget):
             dir=get_setting("scratch_dir", task=task, default="/tmp"), **tmp_file_kwargs
         ) as tmp_path:
             os.makedirs(tmp_path, exist_ok=True)
-            tmp_path = str(Path(tmp_path) / self.tmp_name)
+            tmp_path = os.path.join(tmp_path, self.tmp_name)
             yield tmp_path
             self.fs.rename_dont_move(tmp_path, self.path)
 
