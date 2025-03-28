@@ -107,14 +107,14 @@ class FileSystemTarget(luigi.target.FileSystemTarget):
             ```
         """
         # Use a temporary directory
-        # TODO: add scratch dir to list of parameters in documentation
+        # TODO: add scratch dir to list of settings in documentation
         with tempfile.TemporaryDirectory(
             dir=get_setting("scratch_dir", task=task, default="/tmp"), **tmp_file_kwargs
         ) as tmp_path:
             os.makedirs(tmp_path, exist_ok=True)
             tmp_path = str(Path(tmp_path) / self.tmp_name)
             yield tmp_path
-            self.fs.copy(tmp_path, self.path)
+            self.fs.rename_dont_move(tmp_path, self.path)
 
 
 class LocalTarget(FileSystemTarget, luigi.LocalTarget):
