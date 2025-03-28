@@ -38,7 +38,7 @@ class TemporaryFileContextManager(ExitStack):
                 if n_download_threads is not None:
                     with ThreadPool(n_download_threads) as pool:
                         self._open_input_files[key] = pool.map(
-                            lambda target: self.enter_context(target.get_temporary_input()),
+                            lambda target: self.enter_context(target.get_temporary_input(task=task, **tmp_file_kwargs)),
                             targets,
                         )
                 else:
