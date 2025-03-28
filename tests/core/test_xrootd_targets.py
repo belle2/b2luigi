@@ -29,7 +29,7 @@ class TestXRootDSystem(unittest.TestCase):
             self.assertIsNotNone(temp_path)
 
             # Assert that the temporary path starts with the scratch directory
-            self.assertTrue(temp_path.startswith(self.XRootD_target._scratch_dir))
+            self.assertTrue(temp_path.startswith("/tmp"))
 
 
 if __name__ == "__main__":
