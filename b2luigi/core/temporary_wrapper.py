@@ -62,9 +62,9 @@ class TemporaryFileContextManager(ExitStack):
                     if key in target_dict.keys():
                         target = target_dict[key]
                         temporary_path = target.get_temporary_input(task=task, **tmp_file_kwargs)
-                        self._open_files[internal_key].append(self.enter_context(temporary_path))
+                        self._open_input_files[internal_key].append(self.enter_context(temporary_path))
 
-            return self._open_files[internal_key]
+            return self._open_input_files[internal_key]
 
         self._task.get_input_file_names_from_dict = get_input_file_names_from_dict
 
