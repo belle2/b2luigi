@@ -1,6 +1,7 @@
 from contextlib import ExitStack
 from functools import wraps
 from multiprocessing.pool import ThreadPool
+from typing import Optional
 
 from b2luigi import Task
 from b2luigi.core.settings import get_setting
@@ -19,17 +20,17 @@ class TemporaryFileContextManager(ExitStack):
         self._open_input_files = {}
 
     def __enter__(self):
-        def get_output_file_name(key: str):
+        def get_output_file_name(key: str, task: Optional[Task] = None, **tmp_file_kwargs):
             if key not in self._open_output_files:
                 target = self._task._get_output_target(key)
-                temporary_path = target.temporary_path()
+                temporary_path = target.temporary_path(task=task, **tmp_file_kwargs)
                 self._open_output_files[key] = self.enter_context(temporary_path)
 
             return self._open_output_files[key]
 
         self._task.get_output_file_name = get_output_file_name
 
-        def get_input_file_names(key: str):
+        def get_input_file_names(key: str, task: Optional[Task] = None, **tmp_file_kwargs):
             if key not in self._open_input_files:
                 targets = self._task._get_input_targets(key)
                 self._open_input_files[key] = []
@@ -42,14 +43,16 @@ class TemporaryFileContextManager(ExitStack):
                         )
                 else:
                     for target in targets:  # TODO: This does not work in wrapping tasks
-                        temporary_path = target.get_temporary_input()
+                        temporary_path = target.get_temporary_input(task=task, **tmp_file_kwargs)
                         self._open_input_files[key].append(self.enter_context(temporary_path))
 
             return self._open_input_files[key]
 
         self._task.get_input_file_names = get_input_file_names
 
-        def get_input_file_names_from_dict(requirement_key: str, key: str):
+        def get_input_file_names_from_dict(
+            requirement_key: str, key: str, task: Optional[Task] = None, **tmp_file_kwargs
+        ):
             internal_key = f"{requirement_key}_{key}"
             if internal_key not in self._open_input_files:
                 target_dicts = self._task.input()[requirement_key]
@@ -58,7 +61,7 @@ class TemporaryFileContextManager(ExitStack):
                 for target_dict in target_dicts:
                     if key in target_dict.keys():
                         target = target_dict[key]
-                        temporary_path = target.get_temporary_input()
+                        temporary_path = target.get_temporary_input(task=task, **tmp_file_kwargs)
                         self._open_files[internal_key].append(self.enter_context(temporary_path))
 
             return self._open_files[internal_key]
