@@ -44,7 +44,7 @@ class FileSystemTarget(luigi.target.FileSystemTarget):
             If self.path is "data.txt", might return "data-luigi-tmp-1234567890.txt"
         """
         num = random.randrange(0, 10_000_000_000)
-        _temp_path = f"{self.path}-luigi-tmp-{num:010}{self._trailing_slash()}"
+        _temp_path = f"{os.path.basename(self.path)}-luigi-tmp-{num:010}{self._trailing_slash()}"
         return _temp_path
 
     @contextmanager
@@ -111,7 +111,7 @@ class FileSystemTarget(luigi.target.FileSystemTarget):
             dir=get_setting("scratch_dir", task=task, default="/tmp"), **tmp_file_kwargs
         ) as tmp_dir:
             tmp_path = os.path.join(tmp_dir, self.tmp_name)
-            os.makedirs(os.path.split(tmp_path)[0], exist_ok=True)
+            os.makedirs(os.path.dirname(tmp_path), exist_ok=True)
             yield tmp_path
             self.fs.rename_dont_move(tmp_path, self.path)
 
