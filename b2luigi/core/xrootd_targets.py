@@ -289,33 +289,3 @@ class XRootDTarget(FileSystemTarget):
             tmp_path = os.path.join(tmp_path, self.tmp_name)
             self.fs.copy_file_from_remote(self.path, tmp_path)
             yield tmp_path
-
-    @contextmanager
-    def temporary_path(self, task: Optional[Task] = None) -> Generator[str, None, None]:
-        """XRootD implementation of temporary output file handling.
-        Create a temporary local file that will be uploaded to XRootD.
-
-        Implements atomic write operations by first writing to a temporary local file
-        and then uploading it to the remote XRootD location only after successful completion.
-
-        Yields:
-            str: Absolute path to the temporary local file for writing
-
-        Note:
-            - The temporary directory and its contents are automatically cleaned up
-              after the file is uploaded to XRootD
-            - The final upload operation uses force=True to ensure atomicity
-
-        Example:
-            ```python
-            target = XRootDTarget("root://server/path/output.root", fs)
-            with target.temporary_path() as tmp_output:
-                with open(tmp_output, 'wb') as f:
-                    write_root_file(f)
-            # File is automatically uploaded to XRootD after context exit
-            ```
-        """
-        with tempfile.TemporaryDirectory(dir=get_setting("scratch_dir", task=task, default="/tmp")) as tmp_path:
-            tmp_path = os.path.join(tmp_path, self.tmp_name)
-            yield tmp_path
-            self.fs.copy_file_to_remote(tmp_path, self.path, force=True)
