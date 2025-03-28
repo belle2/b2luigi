@@ -217,7 +217,7 @@ class Task(luigi.Task):
         return output_dict[key]
 
     def _get_output_file_target(
-        self, base_filename: str, target_class: type[luigi.target.FileSystemTarget] = luigi.LocalTarget, **kwargs: Any
+        self, base_filename: str, target_class: Type[luigi.target.FileSystemTarget] = luigi.LocalTarget, **kwargs: Any
     ) -> luigi.LocalTarget:
         file_name: str = create_output_file_name(self, base_filename, **kwargs)
         return target_class(file_name)
