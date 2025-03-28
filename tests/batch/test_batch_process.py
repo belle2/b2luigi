@@ -7,6 +7,7 @@ from ..helpers import B2LuigiTestCase
 class BatchProcessTestCase(B2LuigiTestCase):
     def test_simple_task(self):
         self.call_file("batch/batch_task_1.py")
+        print(os.listdir())
         self.assertTrue(os.path.exists("some_parameter=bla_blub/test.txt"))
         self.assertTrue(os.path.exists("some_parameter=bla_blub/combined.txt"))
 
