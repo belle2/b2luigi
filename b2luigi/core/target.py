@@ -109,9 +109,9 @@ class FileSystemTarget(luigi.target.FileSystemTarget):
         # TODO: add scratch dir to list of settings in documentation
         with tempfile.TemporaryDirectory(
             dir=get_setting("scratch_dir", task=task, default="/tmp"), **tmp_file_kwargs
-        ) as tmp_path:
-            os.makedirs(tmp_path, exist_ok=True)
-            tmp_path = os.path.join(tmp_path, self.tmp_name)
+        ) as tmp_dir:
+            tmp_path = os.path.join(tmp_dir, self.tmp_name)
+            os.makedirs(os.path.split(tmp_path)[0], exist_ok=True)
             yield tmp_path
             self.fs.rename_dont_move(tmp_path, self.path)
 
