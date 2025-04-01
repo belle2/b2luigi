@@ -48,6 +48,7 @@ test:
   script:
     - pip install pytest pytest-cov python-coveralls flit
     - flit install -s
+    - echo "Running tests"
     - pytest -v --cov b2luigi --junitxml=$ARTIFACTS_TEST_PATH --cov-report=xml --cov-report=html --cov-report=term tests
     - mv htmlcov $ARTIFACTS_COV_PATH
   coverage: '/(?i)total.*? (100(?:\.0+)?\%|[1-9]?\d(?:\.\d+)?\%)$/'
