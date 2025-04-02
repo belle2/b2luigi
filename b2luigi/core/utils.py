@@ -354,7 +354,10 @@ def add_on_failure_function(task):
 
 
 def create_cmd_from_task(task):
-    filename = os.path.basename(get_filename())
+    filename = get_setting("filename", default=os.path.basename(get_filename()))
+
+    if not isinstance(filename, str):
+        filename = str(filename)
 
     prefix = get_setting("executable_prefix", task=task, default=[], deprecated_keys=["cmd_prefix"])
 
