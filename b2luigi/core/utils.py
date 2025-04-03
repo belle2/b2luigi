@@ -373,8 +373,8 @@ def create_cmd_from_task(task):
         raise ValueError("Your specified executable needs to be a list of strings, e.g. [python3]")
 
     cmd += executable
-    cmd += task_cmd_additional_args
     cmd += [filename, "--batch-runner", "--task-id", task.task_id]
+    cmd += task_cmd_additional_args
 
     return cmd
 
