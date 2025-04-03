@@ -10,6 +10,7 @@ from typing import Any, Dict, List, Optional, Iterator, Iterable
 import shlex
 import copy
 import shutil
+import logging
 
 import luigi
 
@@ -337,17 +338,21 @@ def _flatten(struct: Iterable) -> List:
     return result
 
 
-def on_failure(self, exception):
-    log_file_dir = os.path.abspath(get_log_file_dir(self))
+def on_failure(task, _):
+    explanation = f"Failed task {task} with task_id and parameters:\n"
+    explanation += f"\ttask_id={task.task_id}\n"
+    for key, value in get_filled_params(task).items():
+        explanation += f"\t{key}={value}\n"
+    explanation += "Please have a look into the log files in:\n"
+    explanation += os.path.abspath(get_log_file_dir(task))
 
+    # First print the explanation on stdout
     print(colorama.Fore.RED)
-    print("Task", self.task_family, "failed!")
-    print("Parameters")
-    for key, value in get_filled_params(self).items():
-        print("\t", key, "=", value)
-    print("Please have a look into the log files in")
-    print(log_file_dir)
+    print(explanation)
     print(colorama.Style.RESET_ALL)
+
+    # Then return it: it will be sent back to the scheduler
+    return explanation
 
 
 def add_on_failure_function(task):
@@ -449,3 +454,9 @@ def create_apptainer_command(command, task=None):
 
     # Do the shlex split for correct string interpretation
     return shlex.split(" ".join(exec_command))
+
+
+def get_luigi_logger():
+    """Helper function for getting the logger used by luigi."""
+    logger = logging.getLogger("luigi-interface")
+    return logger
