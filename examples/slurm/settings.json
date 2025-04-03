@@ -1,0 +1,9 @@
+{
+	"batch_system": "slurm",
+	"env_script": "setup_script.sh",
+	"executable": ["python3"],
+        "job_name": "b2luigi_example",
+	"slurm_settings": {
+		"partition" : "allcpu"
+	}
+}
