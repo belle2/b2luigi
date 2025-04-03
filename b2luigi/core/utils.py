@@ -399,6 +399,19 @@ def is_subdir(path, parent_dir):
     return os.path.commonpath([path, parent_dir]) == parent_dir
 
 
+def get_apptainer_or_singularity(task=None):
+    set_cmd = get_setting("apptainer_cmd", default="", task=task)
+    if set_cmd:
+        return set_cmd
+    if shutil.which("apptainer"):
+        return "apptainer"
+    elif shutil.which("singularity"):
+        return "singularity"
+    raise ValueError(
+        "Neither apptainer nor singularity is available on this system. If you know that one of them is available on the batch system you can manually set it via the `apptainer_cmd` setting."
+    )
+
+
 def create_apptainer_command(command, task=None):
     env_setup_script = get_setting("env_script", task=task, default="")
     if not env_setup_script:
@@ -410,7 +423,7 @@ def create_apptainer_command(command, task=None):
     if get_setting("batch_system", default="lsf", task=task) == "gbasf2":
         raise ValueError("Invalid batch system for apptainer usage. Apptainer is not supported for gbasf2.")
 
-    exec_command = ["apptainer", "exec"]
+    exec_command = [get_apptainer_or_singularity(task=task), "exec"]
     additional_params = get_setting("apptainer_additional_params", default="", task=task)
     exec_command += [f" {additional_params}"] if additional_params else []
 

@@ -23,7 +23,7 @@ where mode can be one of:
     By default, LSF is used as a batch system. If you want to change this, set the corresponding ``batch_system``
     (see :ref:`batch-label`) to one of the supported systems.
 
-*   **dry-run**: Similar to the dry-run funtionality of ``luigi``, this will not start any tasks but just tell
+*   **dry-run**: Similar to the dry-run functionality of ``luigi``, this will not start any tasks but just tell
     you, which tasks it would run, and call the ``dry_run`` method of the task if implemented:
 
     .. code-block:: python

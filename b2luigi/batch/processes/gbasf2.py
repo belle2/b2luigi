@@ -79,14 +79,14 @@ class Gbasf2Process(BatchProcess):
 
     Caveats
         - The gbasf2 batch process for luigi can only be used for tasks
-          inhereting from ``Basf2PathTask`` or other tasks with a
+          inheriting from ``Basf2PathTask`` or other tasks with a
           ``create_path()`` method that returns a basf2 path.
 
-        - It can be used **only for pickable basf2 paths**, with only some limited global basf2 state
+        - It can be used **only for picklable basf2 paths**, with only some limited global basf2 state
           saved (currently aliases and global tags). The batch process stores
           the path created by ``create_path`` in a python pickle file and runs that on the grid.
           Therefore, **python basf2 modules are not yet supported**.
-          To see if the path produced by a steering file is pickable, you can try to dump it with
+          To see if the path produced by a steering file is picklable, you can try to dump it with
           ``basf2 --dump-path`` and execute it again with ``basf2 --execute-path``.
 
         - Output format: Changing the batch to gbasf2 means you also have to
@@ -157,6 +157,11 @@ class Gbasf2Process(BatchProcess):
           If specified, one has to provide ``gbasf2_project_lpn_path`` parameter.
         - ``gbasf2_project_lpn_path``: Path to the LPN folder for a specified gbasf2 group.
           The parameter has no effect unless the ``gbasf2_proxy_group`` is used with non-default value.
+        - ``gbasf2_jinja_template_path``: This parameter sets a custom basf2 steering template where the user can adapt the
+          default template (e.g. for altering the pdg database, ...). Note that this is an expert option that should be treated with care.
+        - ``gbasf2_additional_download_params``: Defaults to ``"--new"``. This parameter sets additional parameters that
+          are given to gb2_ds_get. Note that in case you override the parameter, the ``--new`` parameter is not automatically set,
+          so you might have to manually add ``--new`` if you want this parameter to be used.
         - ``gbasf2_download_dataset``: Defaults to ``True``. Disable this setting if you don't want to download the
           output dataset from the grid on job success. As you can't use the downloaded dataset as an output target for luigi,
           you should then use the provided ``Gbasf2GridProjectTarget``, as shown in the following example:
@@ -265,7 +270,7 @@ class Gbasf2Process(BatchProcess):
             )
 
         #: Output file directory of the task to wrap with gbasf2, where we will
-        # store the pickled basf2 path and the created steerinfile to execute
+        # store the pickled basf2 path and the created steering file to execute
         # that path.
         task_file_dir = get_task_file_dir(self.task)
         os.makedirs(task_file_dir, exist_ok=True)
@@ -364,8 +369,8 @@ class Gbasf2Process(BatchProcess):
         n_in_final_state = n_done + n_failed
 
         # The gbasf2 project is considered as failed if any of the jobs in it failed.
-        # However, we first try to reschedule thos jobs and only declare it as failed if the maximum number of retries
-        # for reschedulinhas been reached
+        # However, we first try to reschedule those jobs and only declare it as failed if the maximum number of retries
+        # for rescheduling has been reached
         if n_failed > 0:
             self._on_failure_action()
             if self.max_retries > 0 and self._reschedule_failed_jobs():
@@ -662,8 +667,12 @@ class Gbasf2Process(BatchProcess):
         Create a steering file to send to the grid that executes the pickled
         basf2 path from ``self.task.create_path()``.
         """
-        # read a jinja2 template for the steerinfile that should execute the pickled path
-        template_file_path = os.path.join(self._file_dir, "templates/gbasf2_steering_file_wrapper.jinja2")
+        # read a jinja2 template for the steeringfile that should execute the pickled path
+        template_file_path = get_setting(
+            "gbasf2_jinja_template_path",
+            default=os.path.join(self._file_dir, "templates/gbasf2_steering_file_wrapper.jinja2"),
+            task=self.task,
+        )
         with open(template_file_path, "r") as template_file:
             template = Template(template_file.read())
             # replace some variable values in the templates
@@ -834,10 +843,13 @@ class Gbasf2Process(BatchProcess):
             ) = os.path.splitext(monitoring_failed_downloads_file)
             old_monitoring_failed_downloads_file = f"{monitoring_download_file_stem}_old{monitoring_downloads_file_ext}"
 
+            additional_gb2_ds_get_params = get_setting(
+                "gbasf2_additional_download_params", default="--new", task=self.task
+            )
             # In case of first download, the file 'monitoring_failed_downloads_file' does not exist
             if not os.path.isfile(monitoring_failed_downloads_file):
                 ds_get_command = shlex.split(
-                    f"gb2_ds_get --new --force {dataset_query_string} "
+                    f"gb2_ds_get {additional_gb2_ds_get_params} --force {dataset_query_string} "
                     f"--failed_lfns {monitoring_failed_downloads_file}"
                 )
                 print(
@@ -853,7 +865,7 @@ class Gbasf2Process(BatchProcess):
                     old_monitoring_failed_downloads_file,
                 )
                 ds_get_command = shlex.split(
-                    f"gb2_ds_get --new --force {dataset_query_string} "
+                    f"gb2_ds_get {additional_gb2_ds_get_params} --force {dataset_query_string} "
                     f"--input_dslist {old_monitoring_failed_downloads_file} "
                     f"--failed_lfns {monitoring_failed_downloads_file}"
                 )
@@ -1108,7 +1120,7 @@ def run_with_gbasf2(
     """
     Call ``cmd`` in a subprocess with the gbasf2 environment.
 
-    :param ensure_proxy_initialized: If this is True, check if the dirac proxy is initalized and alive and if not,
+    :param ensure_proxy_initialized: If this is True, check if the dirac proxy is initialized and alive and if not,
                                      initialize it.
     :param check: Whether to raise a ``CalledProcessError`` when the command returns with an error code.
                   The default value ``True`` is the same as in ``subprocess.check_call()`` and different as in the
@@ -1196,7 +1208,7 @@ def get_dirac_user(gbasf2_setup_path="/cvmfs/belle.kek.jp/grid/gbasf2/pro/bashrc
 
 def setup_dirac_proxy(gbasf2_setup_path="/cvmfs/belle.kek.jp/grid/gbasf2/pro/bashrc", task=None):
     """Run ``gb2_proxy_init -g belle`` if there's no active dirac proxy. If there is, do nothing."""
-    # first run script to check if proxy is already alive or needs to be initalized
+    # first run script to check if proxy is already alive or needs to be initialized
     try:
         if get_proxy_info(gbasf2_setup_path, task=task)["secondsLeft"] > 3600 * get_setting(
             "gbasf2_min_proxy_lifetime", default=0
@@ -1300,7 +1312,7 @@ def get_unique_project_name(task):
             "Task can only be used with the gbasf2 batch process if it has ``gbasf2_project_name_prefix`` "
             + "as a luigi parameter, attribute or setting."
         ) from err
-    # luigi interally assings a hash to a task by calling the builtin ``hash(task.task_id)``,
+    # luigi internally assigns a hash to a task by calling the builtin ``hash(task.task_id)``,
     # but that returns a signed integer. I prefer a hex string to get more information per character,
     # which is why I decided to use ``hashlib.md5``.
     task_id_hash = hashlib.md5(task.task_id.encode()).hexdigest()[0:10]
@@ -1387,13 +1399,13 @@ def _move_downloaded_dataset_to_output_dir(project_download_path: str, output_pa
         ├── …
 
     This function moves those files to their final ``output_path`` directory which has
-    the same name as the original root file (e.g. ``B.root``) to fullfill the luigi
+    the same name as the original root file (e.g. ``B.root``) to fulfill the luigi
     output definition. This output directory has the structure
 
         <result_dir>/B.root/job_name*B.root
 
     :param project_download_path: Directory into which ``gb2_ds_get`` downloaded the
-        grid dataset. The contents should be ``sub<xy>`` datablocks containing root files.
+        grid dataset. The contents should be ``sub<xy>`` data blocks containing root files.
     :param output_path: Final output directory into which the ROOT files should be copied.
     """
     # the download shouldn't happen if the output already exists, but assert that's the case just to be sure
