@@ -9,6 +9,7 @@ import types
 from typing import Any, Dict, List, Optional, Iterator, Iterable
 import shlex
 import copy
+import shutil
 import logging
 
 import luigi
