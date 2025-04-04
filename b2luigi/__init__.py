@@ -48,25 +48,27 @@ class requires(object):
 
     """
 
-    def __init__(self, task_to_require, **kwargs):
+    def __init__(self, *tasks_to_require, **kw_tasks_to_require):
         super(requires, self).__init__()
-        self.kwargs = kwargs
-        self.task_to_require = task_to_require
+        self.tasks_to_require = tasks_to_require
+        self.kw_tasks_to_require = kw_tasks_to_require
 
     def __call__(self, task_that_requires):
+        task_that_requires = inherits(*self.tasks_to_require, **self.kw_tasks_to_require)(task_that_requires)
         # Get all parameter objects from the underlying task
-        for param_name, param_obj in self.task_to_require.get_params():
-            # Check if the parameter exists in the inheriting task
-            if not hasattr(task_that_requires, param_name) and param_name not in self.kwargs:
-                # If not, add it to the inheriting task
-                setattr(task_that_requires, param_name, param_obj)
+        for task_to_requires in self.tasks_to_require:
+            for param_name, param_obj in task_to_requires.get_params():
+                # Check if the parameter exists in the inheriting task
+                if not hasattr(task_that_requires, param_name) and param_name not in self.kw_tasks_to_require:
+                    # If not, add it to the inheriting task
+                    setattr(task_that_requires, param_name, param_obj)
 
         old_requires = task_that_requires.requires
 
         # Modify task_that_requres by adding methods
         def requires(_self):
             yield from old_requires(_self)
-            yield _self.clone(cls=self.task_to_require, **self.kwargs)
+            yield (_self.clone_parent() if len(self.tasks_to_require) == 1 else _self.clone_parents())
 
         task_that_requires.requires = requires
 
