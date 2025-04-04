@@ -140,6 +140,6 @@ To do this correctly, you must set `ignore_additional_command_line_args=False` i
 Why we do this is to let b2luigi know that we are using our own argparser and to not throw an error when it encounters unknown arguments meant for our argparser.
 With this in place, we can freely add our own additional arguments to the exec command, like so::
 
-    b2luigi.set_setting("task_cmd_additional_args", "--name foo --import-variable bar")
+    b2luigi.set_setting("task_cmd_additional_args", ["--name", "foo", "--import-variable", "bar"])
 
 And with that, the exec function created by b2luigi for batch submission can be customised to suit your needs.
