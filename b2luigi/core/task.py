@@ -1,6 +1,6 @@
 from typing import Iterable, Iterator
 from b2luigi.core import utils
-from typing import Any, Union, List, Dict, Optional
+from typing import Any, Union, List, Dict, Optional, Type
 
 import luigi
 
@@ -41,7 +41,9 @@ class Task(luigi.Task):
                       f.write(f"{average}\\n")
     """
 
-    def add_to_output(self, output_file_name: str) -> Dict[str, luigi.LocalTarget]:
+    def add_to_output(
+        self, output_file_name: str, target_class: Type[luigi.target.FileSystemTarget] = luigi.LocalTarget, **kwargs
+    ) -> Dict[str, luigi.LocalTarget]:
         """
         Call this in your ``output()`` function to add a target to the list of files,
         this task will output.
@@ -51,7 +53,7 @@ class Task(luigi.Task):
 
             <result-path>/param1=value1/param2=value2/.../<output-file-name.ext>
 
-        This function will automatically use a ``LocalTarget``.
+        This function will by default use a ``LocalTarget``, but you can also pass a different `target_class` as an argument.
         If you do not want this, you can override the :obj:`_get_output_file_target` function.
 
         Example:
@@ -67,8 +69,11 @@ class Task(luigi.Task):
             output_file_name (:obj:`str`): the file name of the output file.
                 Refer to this file name as a key when using :obj:`get_input_file_names`,
                 :obj:`get_output_file_names` or :obj:`get_output_file`.
+            target_class: which class of luigi.FileSystemTarget to instatiate for this target.
+                defaults to LocalTarget
+            **kwargs: kwargs to be passed to :obj:create_output_file_name via the :obj:`_get_output_file_target` function
         """
-        return {output_file_name: self._get_output_file_target(output_file_name)}
+        return {output_file_name: self._get_output_file_target(output_file_name, target_class, **kwargs)}
 
     @staticmethod
     def _transform_io(input_generator: Iterable[luigi.target.FileSystemTarget]) -> Dict[str, List[str]]:
@@ -211,9 +216,11 @@ class Task(luigi.Task):
         output_dict: Dict[str, luigi.target.FileSystemTarget] = utils.flatten_to_dict(self.output())
         return output_dict[key]
 
-    def _get_output_file_target(self, base_filename: str, **kwargs: Any) -> luigi.LocalTarget:
+    def _get_output_file_target(
+        self, base_filename: str, target_class: Type[luigi.target.FileSystemTarget] = luigi.LocalTarget, **kwargs: Any
+    ) -> luigi.LocalTarget:
         file_name: str = create_output_file_name(self, base_filename, **kwargs)
-        return luigi.LocalTarget(file_name)
+        return target_class(file_name)
 
 
 class ExternalTask(Task, luigi.ExternalTask):
