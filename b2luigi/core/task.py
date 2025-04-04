@@ -53,7 +53,7 @@ class Task(luigi.Task):
 
             <result-path>/param1=value1/param2=value2/.../<output-file-name.ext>
 
-        This function will automatically use a ``LocalTarget``.
+        This function will by default use a ``LocalTarget``, but you can also pass a different `target_class` as an argument.
         If you do not want this, you can override the :obj:`_get_output_file_target` function.
 
         Example:
