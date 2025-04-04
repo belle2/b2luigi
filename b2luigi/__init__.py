@@ -54,7 +54,8 @@ class requires(object):
         self.kw_tasks_to_require = kw_tasks_to_require
 
     def __call__(self, task_that_requires):
-        task_that_requires = inherits(*self.tasks_to_require, **self.kw_tasks_to_require)(task_that_requires)
+        without = self.kw_tasks_to_require.pop("without", None)
+        task_that_requires = inherits(*self.tasks_to_require, without=without)(task_that_requires)
         # Get all parameter objects from the underlying task
         for task_to_requires in self.tasks_to_require:
             for param_name, param_obj in task_to_requires.get_params():
