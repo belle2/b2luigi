@@ -360,7 +360,11 @@ def add_on_failure_function(task):
 
 
 def create_cmd_from_task(task):
-    filename = os.path.basename(get_filename())
+    filename = get_filename() if get_setting("add_filename_to_cmd", task=task, default=True) else ""
+    task_cmd_additional_args = get_setting("task_cmd_additional_args", task=task, default=[])
+
+    if isinstance(task_cmd_additional_args, str):
+        raise ValueError("Your specified task_cmd_additional_args needs to be a list of strings, e.g. ['--foo', 'bar']")
 
     prefix = get_setting("executable_prefix", task=task, default=[], deprecated_keys=["cmd_prefix"])
 
@@ -376,6 +380,7 @@ def create_cmd_from_task(task):
 
     cmd += executable
     cmd += [filename, "--batch-runner", "--task-id", task.task_id]
+    cmd += task_cmd_additional_args
 
     return cmd
 
