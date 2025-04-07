@@ -121,12 +121,10 @@ class inherits(object):
 
     """
 
-    def __init__(self, *tasks_to_inherit, without: Optional[Union[Collection[str], str]] = None):
+    def __init__(self, *tasks_to_inherit, **kwargs):
         super(inherits, self).__init__()
-        if not tasks_to_inherit:
-            raise TypeError("tasks_to_inherit cannot be empty")
-
         self.tasks_to_inherit = tasks_to_inherit
+        without = kwargs.pop("without", None)
         if isinstance(without, str):
             self.without = [without]
         elif without is None:
@@ -136,18 +134,15 @@ class inherits(object):
 
     def __call__(self, task_that_inherits):
         # Get all parameter objects from each of the underlying tasks
-
-        for task_to_inherit in self.tasks_to_inherit:
+        task_iterator = self.tasks_to_inherit
+        for task_to_inherit in task_iterator:
             for param_name, param_obj in task_to_inherit.get_params():
-                # Check if the parameter exists in the inheriting task and isn't in without
+                # Check if the parameter exists in the inheriting task
                 if not hasattr(task_that_inherits, param_name) and param_name not in self.without:
                     # If not, add it to the inheriting task
                     setattr(task_that_inherits, param_name, param_obj)
                 elif param_name in self.without:
                     self.without.remove(param_name)
-
-        # Make sure we're only removing parameters that exist
-        assert not self.without, f"You're trying to remove parameter(s) {self.without} which do(es) not exist."
 
         # Modify task_that_inherits by adding methods
         def clone_parent(_self, **kwargs):
