@@ -46,6 +46,27 @@ class requires(object):
     This also means, that TaskB only has the parameters another_parameter
     and some_other_parameter (because some_parameter is already fixed).
 
+    It is also possible to require multiple tasks, e.g.
+
+        class TaskA(b2luigi.Task):
+             some_parameter = b2luigi.IntParameter()
+
+             def output(self):
+                 yield self.add_to_output("test.txt")
+
+         class TaskB(b2luigi.Task):
+             some_other_parameter = b2luigi.IntParameter()
+
+             def output(self):
+                 yield self.add_to_output("test.txt")
+
+         @b2luigi.requires(TaskA, TaskB)
+         class TaskC(b2luigi.Task):
+             another_parameter = b2luigi.IntParameter()
+
+             def output(self):
+                 yield self.add_to_output("out.dat")
+
     """
 
     def __init__(self, *tasks_to_require, **kwargs):
