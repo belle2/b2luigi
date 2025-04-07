@@ -48,28 +48,33 @@ class requires(object):
 
     """
 
-    def __init__(self, *tasks_to_require, **kw_tasks_to_require):
+    def __init__(self, *tasks_to_require, **kwargs):
         super(requires, self).__init__()
+
         self.tasks_to_require = tasks_to_require
-        self.kw_tasks_to_require = kw_tasks_to_require
+        self.kwargs = kwargs
 
     def __call__(self, task_that_requires):
-        without = self.kw_tasks_to_require.pop("without", None)
-        task_that_requires = inherits(*self.tasks_to_require, without=without)(task_that_requires)
         # Get all parameter objects from the underlying task
-        for task_to_requires in self.tasks_to_require:
-            for param_name, param_obj in task_to_requires.get_params():
+        for task_to_require in self.tasks_to_require:
+            for param_name, param_obj in task_to_require.get_params():
                 # Check if the parameter exists in the inheriting task
-                if not hasattr(task_that_requires, param_name) and param_name not in self.kw_tasks_to_require:
+                if not hasattr(task_that_requires, param_name) and param_name not in self.kwargs:
                     # If not, add it to the inheriting task
                     setattr(task_that_requires, param_name, param_obj)
 
+        # Modify task_that_requires by adding requires method.
+        # If only one task is required, this single task is returned.
+        # Otherwise, list of tasks is returned
         old_requires = task_that_requires.requires
 
-        # Modify task_that_requres by adding methods
         def requires(_self):
             yield from old_requires(_self)
-            yield (_self.clone_parent() if len(self.tasks_to_require) == 1 else _self.clone_parents())
+            yield (
+                _self.clone(cls=self.tasks_to_require[0], **self.kwargs)
+                if len(self.tasks_to_require) == 1
+                else [_self.clone(cls=task_to_require, **self.kwargs) for task_to_require in self.tasks_to_require]
+            )
 
         task_that_requires.requires = requires
 
