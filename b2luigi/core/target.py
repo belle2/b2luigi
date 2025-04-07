@@ -44,7 +44,10 @@ class FileSystemTarget(luigi.target.FileSystemTarget):
             If self.path is "data.txt", might return "data-luigi-tmp-1234567890.txt"
         """
         num = random.randrange(0, 10_000_000_000)
-        _temp_path = f"{os.path.basename(self.path)}-luigi-tmp-{num:010}{self._trailing_slash()}"
+        filename_parts = os.path.basename(self.path).split(".")
+        prefix = filename_parts[0]
+        extension = "".join(filename_parts[1:]) if len(filename_parts) > 1 else ""
+        _temp_path = f"{prefix}-luigi-tmp-{num:010}{extension}{self._trailing_slash()}"
         return _temp_path
 
     @contextmanager
