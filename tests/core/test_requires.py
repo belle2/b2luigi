@@ -130,3 +130,49 @@ class InheritsTestCase(B2LuigiTestCase):
                     f"results/some_parameter=23/some_other_parameter={some_other_parameter_values}/test.txt"
                 )
             )
+
+    def test_inherits_multiple_tasks(self):
+        class TaskA(b2luigi.Task):
+            some_parameter = b2luigi.IntParameter()
+
+            def output(self):
+                yield self.add_to_output("testA.txt")
+
+        class TaskB(b2luigi.Task):
+            some_other_parameter = b2luigi.IntParameter()
+
+            def output(self):
+                yield self.add_to_output("testB.txt")
+
+        @b2luigi.inherits(TaskA, TaskB, without="some_other_parameter")
+        class TaskC(b2luigi.Task):
+            another_parameter = b2luigi.IntParameter()
+
+            def requires(self):
+                yield self.clone(TaskA, some_parameter=self.some_parameter)
+                for my_other_parameter in range(10):
+                    yield self.clone(TaskB, some_other_parameter=my_other_parameter)
+
+            def run(self):
+                # somehow merge the output of TaskA to create "out.dat"
+                pass
+
+            def output(self):
+                yield self.add_to_output("out.dat")
+
+        task = TaskC(some_parameter=23, another_parameter=42)
+        self.assertEqual(task.get_param_names(), ["some_parameter", "another_parameter"])
+        self.assertEqual(task.another_parameter, 42)
+        self.assertEqual(task.some_parameter, 23)
+        self.assertFalse(hasattr(task, "some_other_parameter"))
+
+        self.assertTrue(
+            task.get_output_file_name("out.dat").endswith("results/some_parameter=23/another_parameter=42/out.dat")
+        )
+
+        input_files = task.get_input_file_names("testB.txt")
+        self.assertEqual(len(input_files), 10)
+        for my_other_parameter in range(10):
+            self.assertTrue(
+                input_files[my_other_parameter].endswith(f"results/some_other_parameter={my_other_parameter}/testB.txt")
+            )
