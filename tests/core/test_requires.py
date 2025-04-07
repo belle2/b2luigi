@@ -42,6 +42,40 @@ class RequiresTestCase(B2LuigiTestCase):
             )
         )
 
+    def test_requires_multiple_tasks(self):
+        class TaskA(b2luigi.Task):
+            some_parameter = b2luigi.IntParameter()
+
+            def output(self):
+                yield self.add_to_output("test.txt")
+
+        class TaskB(b2luigi.Task):
+            some_other_parameter = b2luigi.IntParameter()
+
+            def output(self):
+                yield self.add_to_output("test.txt")
+
+        @b2luigi.requires(TaskA, TaskB)
+        class TaskC(b2luigi.Task):
+            another_parameter = b2luigi.IntParameter()
+
+            def output(self):
+                yield self.add_to_output("out.dat")
+
+        task = TaskC(some_parameter=1, some_other_parameter=2, another_parameter=42)
+        self.assertEqual(
+            sorted(task.get_param_names()), ["another_parameter", "some_other_parameter", "some_parameter"]
+        )
+        self.assertEqual(task.some_parameter, 1)
+        self.assertEqual(task.some_other_parameter, 2)
+        self.assertEqual(task.another_parameter, 42)
+
+        self.assertTrue(
+            task.get_output_file_name("out.dat").endswith(
+                "results/some_parameter=1/some_other_parameter=2/another_parameter=42/out.dat"
+            )
+        )
+
 
 class InheritsTestCase(B2LuigiTestCase):
     def test_inherits(self):
