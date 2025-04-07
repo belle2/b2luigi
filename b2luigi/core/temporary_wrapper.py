@@ -4,6 +4,7 @@ from multiprocessing.pool import ThreadPool
 from typing import Optional
 
 from b2luigi import Task
+from b2luigi.core import utils
 from b2luigi.core.settings import get_setting
 
 
@@ -51,16 +52,32 @@ class TemporaryFileContextManager(ExitStack):
         self._task.get_input_file_names = get_input_file_names
 
         def get_input_file_names_from_dict(
-            requirement_key: str, key: str, task: Optional[Task] = None, **tmp_file_kwargs
+            requirement_key: str, key: Optional[str] = None, task: Optional[Task] = None, **tmp_file_kwargs
         ):
-            internal_key = f"{requirement_key}_{key}"
+            internal_key = f"{requirement_key}_{str(key)}"
             if internal_key not in self._open_input_files:
-                target_dicts = self._task.input()[requirement_key]
+                # Expected output of task.input is {key: [generators, ...]}
+                target_generator_list = self._task.input()[requirement_key]
 
                 self._open_input_files[internal_key] = []
-                for target_dict in target_dicts:
-                    if key in target_dict.keys():
-                        target = target_dict[key]
+
+                # Loop over all expected targets
+                for target_generator in target_generator_list:
+                    # Here we expect the mother tasks outputs as {output_key: [target, ...]}
+                    target_dict = utils.flatten_to_dict_of_lists(target_generator)
+                    if key is not None and key in target_dict.keys():
+                        targets = target_dict[key]
+
+                    # If no key is given, we want all targets
+                    elif key is None:
+                        targets = [item for sublist in target_dict.values() for item in sublist]
+
+                    else:
+                        raise KeyError(
+                            f"Could not resolve target structure with key: {key} and target_dict:\n{target_dict}"
+                        )
+
+                    for target in targets:
                         temporary_path = target.get_temporary_input(task=task, **tmp_file_kwargs)
                         self._open_input_files[internal_key].append(self.enter_context(temporary_path))
 
