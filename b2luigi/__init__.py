@@ -28,19 +28,21 @@ class requires(object):
     It can be used to require a certain task, but with some variables already set,
     e.g.
 
+    .. code-block:: python
+
         class TaskA(b2luigi.Task):
-             some_parameter = b2luigi.IntParameter()
-             some_other_parameter = b2luigi.IntParameter()
+            some_parameter = b2luigi.IntParameter()
+            some_other_parameter = b2luigi.IntParameter()
 
-             def output(self):
-                 yield self.add_to_output("test.txt")
+            def output(self):
+                yield self.add_to_output("test.txt")
 
-         @b2luigi.requires(TaskA, some_parameter=3)
-         class TaskB(b2luigi.Task):
-             another_parameter = b2luigi.IntParameter()
+        @b2luigi.requires(TaskA, some_parameter=3)
+        class TaskB(b2luigi.Task):
+            another_parameter = b2luigi.IntParameter()
 
-             def output(self):
-                 yield self.add_to_output("out.dat")
+            def output(self):
+                yield self.add_to_output("out.dat")
 
     TaskB will not require TaskA, where some_parameter is already set to 3.
     This also means, that TaskB only has the parameters another_parameter
@@ -48,24 +50,26 @@ class requires(object):
 
     It is also possible to require multiple tasks, e.g.
 
+    .. code-block:: python
+
         class TaskA(b2luigi.Task):
-             some_parameter = b2luigi.IntParameter()
+            some_parameter = b2luigi.IntParameter()
 
-             def output(self):
-                 yield self.add_to_output("test.txt")
+            def output(self):
+                yield self.add_to_output("test.txt")
 
-         class TaskB(b2luigi.Task):
-             some_other_parameter = b2luigi.IntParameter()
+        class TaskB(b2luigi.Task):
+            some_other_parameter = b2luigi.IntParameter()
 
-             def output(self):
-                 yield self.add_to_output("test.txt")
+            def output(self):
+                yield self.add_to_output("test.txt")
 
-         @b2luigi.requires(TaskA, TaskB)
-         class TaskC(b2luigi.Task):
-             another_parameter = b2luigi.IntParameter()
+        @b2luigi.requires(TaskA, TaskB)
+        class TaskC(b2luigi.Task):
+            another_parameter = b2luigi.IntParameter()
 
-             def output(self):
-                 yield self.add_to_output("out.dat")
+            def output(self):
+                yield self.add_to_output("out.dat")
 
     """
 
@@ -109,22 +113,24 @@ class inherits(object):
 
     It can e.g. be used in tasks that merge the output of the tasks they require. These merger tasks don't need
     the parameter they resolve anymore but should keep the same order of parameters, therefore simplifying the directory
-     structure created by `b2luigi.Task.add_to_output`.
+    structure created by `b2luigi.Task.add_to_output`.
 
     Usage can be similar to this:
 
+    .. code-block:: python
+
         class TaskA(b2luigi.Task):
-             some_parameter = b2luigi.IntParameter()
-             some_other_parameter = b2luigi.IntParameter()
+            some_parameter = b2luigi.IntParameter()
+            some_other_parameter = b2luigi.IntParameter()
 
-             def output(self):
-                 yield self.add_to_output("test.txt")
+            def output(self):
+                yield self.add_to_output("test.txt")
 
-         @b2luigi.inherits(TaskA, without='some_other_parameter')
-         class TaskB(b2luigi.Task):
-             another_parameter = b2luigi.IntParameter()
+        @b2luigi.inherits(TaskA, without='some_other_parameter')
+        class TaskB(b2luigi.Task):
+            another_parameter = b2luigi.IntParameter()
 
-             def requires(self):
+            def requires(self):
                 for my_other_parameter in range(10):
                     yield self.clone(TaskA, some_other_parameter=my_other_parameter)
 
@@ -132,8 +138,8 @@ class inherits(object):
                 # somehow merge the output of TaskA to create "out.dat"
                 pass
 
-             def output(self):
-                 yield self.add_to_output("out.dat")
+            def output(self):
+                yield self.add_to_output("out.dat")
 
     Parameters:
         without: Either a string or a collection of strings
