@@ -1,13 +1,37 @@
-# ----------------------------------------------------------------------------
-# Starter Kit: b2luigi (B2GM 2024)
-# Authors: Alexander Heidelbach, Jonas Eppelt, Giacomo De Pietro
-#
-# Scope: This example demonstrates how to submit a task to the LSF batch
-# system. In in it's core, the task is the same as in Ex07_basf2_analysis.py.
-# The key difference is the `batch_system` parameter that is set to "lsf" and
-# additional settings that are used to steer the submission to LSF.
-#
-# ----------------------------------------------------------------------------
+"""
+.. _exercise09_label:
+
+Submitting a task to the LSF batch system
+=========================================
+
+.. hint::
+    This example demonstrates how to submit a task to the LSF batch
+    system. In it's core, the task is the same as in :ref:`exercise07_label`.
+    The key difference is the ``batch_system`` parameter that is set to ``"lsf"``
+    and additional settings that are used to steer the submission to LSF.
+
+To define the batch system on which this task should run, the only
+change needed is to set the ``batch_system`` parameter to the desired
+batch system. The available options are:
+
+- ``"local"`` for no batch submission
+
+- ``"lsf"`` for LSF (see the `LSF documentation <https://www.ibm.com/docs/en/spectrum-lsf/10.1.0?topic=overview-lsf-introduction>`_)
+
+- ``"htcondor"`` for HTCondor (see the `HTCondor documentation <https://htcondor.readthedocs.io/en/latest/users-manual/quick-start-guide.html>`_)
+
+- ``"slurm"`` for Slurm (see the `Slurm documentation <https://slurm.schedmd.com/quickstart.html>`_)
+
+- ``"gbasf2"`` for the client to submit grid-based Belle II jobs (see the `gbasf2 documentation <https://gbasf2.belle2.org/>`_)
+
+In ``b2luigi`` there are some dedicated parameters for each supported batch system,
+see :ref:`batch-label`.
+For LSF, these parameters are:
+
+- ``queue``: the queue to submit the job to (default: ``"s"``)
+
+- ``job_name``: the name of the job to be displayed in the queue
+"""
 
 import basf2 as b2
 import modularAnalysis as ma
@@ -25,19 +49,7 @@ class AnalysisTask(Basf2PathTask):
     treeFit = b2luigi.BoolParameter(default=True)
     result_dir = "results/AnalysisLSF"
 
-    # To define the batch system on which this task should run, the only
-    # change needed is to set the `batch_system` parameter to the desired
-    # batch system. The available options are:
-    # - "local" (no batch submission)
-    # - "lsf" (e.g. kekcc)
-    # - "htcondor" (e.g. NAF)
-    # - "gbasf2" (e.g. Belle II grid)
     batch_system = "lsf"
-
-    # In b2luigi there are some settings for the supported batch systems
-    # For lsf, these parameters are:
-    # - queue: the queue to submit the job to (default: "s")
-    # - job_name: the name of the job to be displayed in the queue
     queue = "s"
 
     def output(self):
@@ -95,9 +107,21 @@ class AnalysisTask(Basf2PathTask):
         return main
 
 
+# %%
+# To execute tasks in batch mode, use the ``batch`` argument of the
+# ``process`` method.
+
+
+# %%
 if __name__ == "__main__":
-    # To execute tasks in batch mode, use the `batch` argument of the
-    # `process` method. Either pass `batch=True` as shown here or use the
-    # CLI option `--batch` when executing the script.
-    # e.g. `$ python Ex09_basf2_analysis_LSF.py --batch`
+
     b2luigi.process(AnalysisTask(n_events=10), batch=True)
+
+
+# %%
+# Either pass ``batch=True`` as shown above or use the
+# CLI option ``--batch`` when executing the script, e.g.:
+#
+# .. code-block:: bash
+#
+#   python3 Ex09_basf2_analysis_LSF.py --batch

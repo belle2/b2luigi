@@ -1,10 +1,12 @@
-# ----------------------------------------------------------------------------
-# Starter Kit: b2luigi (B2GM 2024)
-# Authors: Alexander Heidelbach, Jonas Eppelt, Giacomo De Pietro
-#
-# Scope: This example shows a basic basf2 analysis steeringfile within b2luigi
-#
-# ----------------------------------------------------------------------------
+"""
+.. _exercise07_label:
+
+Writing a ``basf2`` analysis steering file
+===========================================
+
+.. hint::
+    This example shows a basic ``basf2`` analysis steering file within ``b2luigi``.
+"""
 
 import basf2 as b2
 import modularAnalysis as ma
