@@ -1,5 +1,5 @@
 """
-Building a dependency graph with ``b2luigi``
+Building a Dependency Graph with ``b2luigi``
 ============================================
 
 .. hint::
