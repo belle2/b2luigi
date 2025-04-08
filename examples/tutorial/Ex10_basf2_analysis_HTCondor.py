@@ -1,13 +1,45 @@
-# ----------------------------------------------------------------------------
-# Starter Kit: b2luigi (B2GM 2024)
-# Authors: Alexander Heidelbach, Jonas Eppelt, Giacomo De Pietro
-#
-# Scope: This example demonstrates how to submit a task to the htcondor batch
-# system. In in it's core, the task is the same as in Ex07_basf2_analysis.py.
-# The key difference is the `batch_system` parameter that is set to "htcondor"
-# and additional settings that are used to steer the submission to htcondor.
-#
-# ----------------------------------------------------------------------------
+"""
+.. _exercise10_label:
+
+Submitting a task to the HTCondor batch system
+==============================================
+
+.. hint::
+    This example demonstrates how to submit a task to the HTCondor batch
+    system. In in it's core, the task is the same as in :ref:`exercise07_label`.
+    The key difference is the `batch_system` parameter that is set to "htcondor"
+    and additional settings that are used to steer the submission to htcondor.
+
+HTCondor specific settings that can be automatically provided to a
+htcondor task are:
+
+- ``htcondor_settings``:
+  A dictionary with the settings for the HTCondor job.
+  The specific settings need to be supported by the
+  HTCondor system. At NAF, some settings are already
+  predefined and can be used directly.
+- ``env_script``:
+  The path to the environment script that should be sourced.
+  This script will be ``source``'d before the execution of the
+  task on the host machine.
+- ``executable``:
+  The executable that should be run. This needs to be a list.
+- ``transfer_files``:
+  HTCondor supports copying files from submission to
+  workers. This means if the folder of your
+  script(s)/python project/etc. is not accessible on the
+  worker, you can copy it from the submission machine by
+  adding it to the setting ``transfer_files``. This list can
+  host both folders and files. Please note that due to
+  HTCondors file transfer mechanism, all specified
+  folders and files will be copied into the worker node
+  flattened, so if you specify `a/b/c.txt` you will end up
+  with a file `c.txt`. If you use the ``transfer_files``
+  mechanism, you need to set the ``working_dir`` setting
+  to “.” as the files will end up in the current worker
+  scratch folder. All specified files/folders should be
+  absolute paths.
+"""
 
 import os
 import basf2 as b2
@@ -27,30 +59,6 @@ class AnalysisTask(Basf2PathTask):
 
     batch_system = "htcondor"
 
-    # HTCondor specific settings that can be automatically provided to a
-    # htcondor task are:
-    # - htcondor_settings: A dictionary with the settings for the htcondor job.
-    #                      The specific settings need to be supported by the
-    #                      htcondor system. At NAF, some settings are already
-    #                      predefined and can be used directly.
-    # - env_script: The path to the environment script that should be sourced.
-    #               This script will be `source`d before the execution of the
-    #               task on the host machine.
-    # - executable: The executable that should be run. This needs to be a list.
-    # - transfer_files: HTCondor supports copying files from submission to
-    #                   workers. This means if the folder of your
-    #                   script(s)/python project/etc. is not accessible on the
-    #                   worker, you can copy it from the submission machine by
-    #                   adding it to the setting transfer_files. This list can
-    #                   host both folders and files. Please note that due to
-    #                   HTCondors file transfer mechanism, all specified
-    #                   folders and files will be copied into the worker node
-    #                   flattened, so if you specify a/b/c.txt you will end up
-    #                   with a file c.txt. If you use the transfer_files
-    #                   mechanism, you need to set the working_dir setting
-    #                   to “.” as the files will end up in the current worker
-    #                   scratch folder. All specified files/folders should be
-    #                   absolute paths
     @property
     def htcondor_settings(self):
         return {
