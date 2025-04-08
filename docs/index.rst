@@ -95,6 +95,7 @@ Content
 
     usage/installation
     usage/quickstart
+    starterkit/tutorial_prerequisits
     usage/batch
     advanced/basf2-examples
     documentation/api
