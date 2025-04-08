@@ -1,12 +1,18 @@
-# ----------------------------------------------------------------------------
-# Starter Kit: b2luigi (B2GM 2024)
-# Authors: Alexander Heidelbach, Jonas Eppelt, Giacomo De Pietro
-#
-# Scope: This example demonstrates how to create a simple b2luigi task that
-# executes the reconstruction of previously simulated events. The key point of
-# this example is the `requires` decorator.
-#
-# ----------------------------------------------------------------------------
+"""
+.. _exercise06_label:
+
+The ``requires`` decorator
+==========================
+
+.. hint::
+    This example demonstrates how to create a simple ``b2luigi`` task that
+    executes the reconstruction of previously simulated events. The key point of
+    this example is the ``requires`` decorator.
+
+We start with the usual imports. Note that we import the task ``SimulationTask``
+class defined in the previous example: it's generally recommended to keep your code
+as much modular as possible.
+"""
 
 import basf2 as b2
 import reconstruction as re
@@ -17,11 +23,15 @@ from b2luigi.basf2_helper import Basf2PathTask
 from Ex05_basf2_simulation import SimulationTask
 
 
-# Here me make use of the `requires` decorator to require the SimulationTask.
+# %%
+# Here me make use of the ``requires`` decorator to require the ``SimulationTask``.
 # This functionality is very useful when the dependencies of tasks are very
-# easily defined. The task with the `requires` decorator will automatically
-# create the `requires` method that returns the required task. Additionally,
+# easily defined. The task with the ``requires`` decorator will automatically
+# create the ``requires`` method that returns the required task. Additionally,
 # the task also inherits all the parameters of the required task.
+
+
+# %%
 @b2luigi.requires(SimulationTask)
 class ReconstructionTask(Basf2PathTask):
     result_dir = "results/Reconstruction"
@@ -46,5 +56,9 @@ class ReconstructionTask(Basf2PathTask):
         return main
 
 
+# %%
+# As already pointed out in the second example, here we only need to
+# call the ``ReconstructionTask``: the scheduler will resolves all the
+# required dependencies.
 if __name__ == "__main__":
     b2luigi.process(ReconstructionTask(n_events=10))
