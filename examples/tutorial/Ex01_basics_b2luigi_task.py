@@ -2,13 +2,12 @@
 A Simple ``b2luigi`` Task
 =========================
 
-.. note::
-    **Scope**
+.. hint::
     This example demonstrates how to create a simple b2luigi
     task that writes a parameter to a file. The key points to be
     learned from this example are the ``run`` and ``output`` methods.
 
-(b2)luigi tasks are defined as classes that inherit from a luigi task class, for this example we will start
+``(b2)luigi`` tasks are defined as classes that inherit from a luigi task class, for this example we will start
 with a basic class that inherits from ``b2luigi.Task``. The task class should define the parameters, the run method,
 and the output method. The parameters are defined as class attributes, and the run method contains the actual
 computation. The output method defines the output of the task, which is used to determine if the task has been
