@@ -1,4 +1,6 @@
 """
+.. _exercise03_label:
+
 ``b2luigi.WrapperTask`` and ``b2luigi`` Settings
 ================================================
 

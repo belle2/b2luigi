@@ -1,4 +1,6 @@
 """
+.. _exercise01_label:
+
 A Simple ``b2luigi`` Task
 =========================
 

@@ -1,4 +1,6 @@
 """
+.. _exercise02_label:
+
 Building a Dependency Graph with ``b2luigi``
 ============================================
 
