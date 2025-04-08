@@ -57,3 +57,4 @@ line-length = 120
 [tool.ruff.extend-per-file-ignores]
 "__init__.py" = ["F401", "F403", "E402"]
 "examples/gbasf2/example_mdst_analysis.py" = ["E501"]
+"examples/tutorial/Ex13_plot_invariant_mass.py" = ["E402"]
