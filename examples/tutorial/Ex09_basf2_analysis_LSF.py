@@ -114,7 +114,6 @@ class AnalysisTask(Basf2PathTask):
 
 # %%
 if __name__ == "__main__":
-
     b2luigi.process(AnalysisTask(n_events=10), batch=True)
 
 

@@ -74,7 +74,6 @@ class SimulationTask(Basf2PathTask):
     def output(self):
         yield self.add_to_output("simulation.root")
 
-
     def create_path(self):
         main = b2.Path()
 

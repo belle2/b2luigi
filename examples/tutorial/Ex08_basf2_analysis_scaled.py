@@ -25,6 +25,7 @@ from Ex07_basf2_analysis import AnalysisTask
 # parameter they resolve anymore but should keep the same order of parameters,
 # therefore simplifying the directory
 
+
 # %%
 @b2luigi.inherits(AnalysisTask, without="identifier")
 class AnalysisWrapperTask(b2luigi.WrapperTask):
