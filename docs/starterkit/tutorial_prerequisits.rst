@@ -1,0 +1,61 @@
+.. _`tutorial_prerequisits_label`:
+
+``b2luigi`` Tutorial
+====================
+
+This tutorial was developed as a workshop for the October 2024 Belle II General Meeting.
+The idea of this tutorial is that each of the following examples is present in your current working directory and is executed by hand.
+To get the example files...
+1. ... eiher copy the Python code directly from this page into a blank file or...
+2. ... clone the ``b2luigi`` repository and move to the ``examples`` directory, e.g.
+
+.. code-block:: bash
+
+    git clone https://gitlab.desy.de/belle2/software/b2luigi.git
+    cd b2luigi/examples
+
+Alternatively, you can also clone directly from `GitHub <https://github.com/belle2/b2luigi>`_.
+
+In any of these cases, it is recommended to run the tutorial in a virtual environment.
+With access to the Belle II software stack, you can use the following commands to set up a virtual environment and install the necessary packages:
+
+.. code-block:: bash
+
+    source /cvmfs/belle.cern.ch/tools/b2setup
+    b2venv prerelease-09-00-00c
+
+.. hint::
+
+    Use a full ``basf2`` release if you want to run the ``basf2`` examples with the reconstruction.
+
+The ``b2venv`` command creates a ``venv`` directory in the repository with the name "venv".
+The next step is to activate the environment:
+
+.. code-block:: bash
+
+    source venv/bin/activate
+
+This environment will be based on the `basf2` environment.
+However, Python packages that are not provided by the externals will be installed in the virtual environment.
+To install the requirements for this tutorial run:
+
+.. code-block:: bash
+
+    pip install b2luigi
+
+.. container:: toggle
+
+   .. note::
+
+      **Click to expand this note**
+
+      This is the content of the note. It is hidden until the user clicks to expand the box.
+
+
+Content
+-------
+
+.. toctree::
+    :maxdepth: 2
+
+    gallery/index
