@@ -12,7 +12,7 @@ Common Analysis Workflow
     Python class and the run method can be for example functionally structured.
 
 One of the command line tools in ``b2luigi`` is the ``dry_run`` method. This
-will only execute the :meth:``b2luigi.Task.dry_run`` method of each task. This can be usefull
+will only execute the :meth:`b2luigi.Task.dry_run` method of each task. This can be usefull
 when developing a pipeline and one wants to preview the output of the
 pipeline without actually running it.
 
