@@ -1,5 +1,5 @@
 """
-``b2luigi.WrapperTask`` and ``b2luigi`` settings
+``b2luigi.WrapperTask`` and ``b2luigi`` Settings
 ================================================
 
 .. hint::
