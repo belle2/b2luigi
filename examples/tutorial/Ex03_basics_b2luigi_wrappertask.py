@@ -1,12 +1,20 @@
-# ----------------------------------------------------------------------------
-# Starter Kit: b2luigi (B2GM 2024)
-# Authors: Alexander Heidelbach, Jonas Eppelt
-#
-# Scope: This example demonstrates the usage of the `b2luigi.WrapperTask`
-# class. This class is used to define a task that requires multiple other
-# tasks to be executed.
-#
-# ----------------------------------------------------------------------------
+"""
+``b2luigi.WrapperTask`` and ``b2luigi`` settings
+================================================
+
+.. hint::
+    This example demonstrates the usage of the ``b2luigi.WrapperTask`` class.
+    This class is used to define a task that requires multiple other tasks to be executed.
+    At the end of this section, we introduce the ``b2luigi`` settings mechanism.
+
+The ``b2luigi.WrapperTask`` class is used to define a task that requires all parameter combinations of another task to be executed.
+The combinations are determined by the ``requires`` method of the ``b2luigi.WrapperTask``.
+In contrast to the usual ``b2luigi.Task`` class it does not need a ``run`` and ``output`` method.
+The task counts as completed if its requirement is fulfilled.
+
+To show the functionality of the ``b2luigi.WrapperTask`` class, we will create a third task that depends on second task and executes all parameter combinations of the second task.
+For this, we define the first and second task in the same way as in the previous example.
+"""
 
 import b2luigi
 
@@ -39,11 +47,11 @@ class MyOtherTask(b2luigi.Task):
             f.write(f"{number**2}")
 
 
-# The `b2luigi.WrapperTask` class is used to define a task that requires all
-# parameter combinations of another task to be executed. The combinations are
-# determined by the `requires` method of the `WrapperTask`. In contrast to
-# the usual `b2luigi.Task` class it does not need a `run` and `output` method.
-# The task counts as completed if its requirement is fulfilled.
+# %%
+# Here, we define the ``b2luigi.WrapperTask`` to loop over all parameter combinations of the second task.
+
+
+# %%
 class MyWrapperTask(b2luigi.WrapperTask):
     max_value = b2luigi.IntParameter()
 
@@ -51,25 +59,36 @@ class MyWrapperTask(b2luigi.WrapperTask):
         return [MyOtherTask(parameter=value) for value in range(self.max_value)]
 
 
+# %%
+# We make use of the settings mechanism of ``b2luigi`` to define the directory where the results will be stored.
+# This is done by assigning a value to the `result_dir` key.
+# Setting the `results_dir` here, globaly, will now save all the outputs of the processed tasks in the specified location.
+# It is also possible to define for each task specifically the settings.
+# The order in which the settings are respected is as follows:
+#
+# - Task instance attribute
+# - Task class property
+# - Global setting (as demostrated here)
+# - Configuration file 'settings.json'
+#
+# More information about the settings can be found in the :ref:`settings-label` section.
+
+# %%
 if __name__ == "__main__":
-    # Here, we make use of the settings mechanism of b2luigi to define the
-    # directory where the results will be stored. This is done by assigning a
-    # value to the `result_dir` key. Setting the `results_dir` here, globaly,
-    # will now save all the outputs of the processed tasks in the specified
-    # location.
-    # It is also possible to define for each task specifically the settings.
-    # The order in which the settings are respected is as follows:
-    # - Task instance attribute
-    # - Task class property
-    # - Global setting (as demostrated here)
-    # - Configuration file 'settings.json'
     b2luigi.set_setting("result_dir", "results")
-
     b2luigi.process(MyWrapperTask(max_value=10))
-    # Check the output with:
-    # `for file in results/*/output2.txt; do cat "$file"; echo ""; done`
 
-    # In very easy cases, it is also possible to directly process a list of
-    # tasks at this position. However, this is not recommended for more complex
-    # task trees. The equivalent process call would be:
-    # b2luigi.process([MyOtherTask(parameter=value) for value in range(10)])
+# %%
+# Check the output with:
+#
+# .. code-block:: bash
+#
+#   for file in results/*/output2.txt; do cat "$file"; echo ""; done
+#
+# In very easy cases, it is also possible to directly process a list of
+# tasks at this position. However, this is not recommended for more complex
+# task trees. The equivalent process call would be:
+#
+# .. code-block:: python
+#
+#   b2luigi.process([MyOtherTask(parameter=value) for value in range(10)])
