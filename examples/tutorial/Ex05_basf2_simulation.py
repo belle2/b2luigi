@@ -5,15 +5,18 @@ Introduction to ``Basf2PathTask``
 =================================
 
 .. hint::
-    This example demonstrates how to create a simple b2luigi task that
-    executes a ``basf2`` simulation. The key points to be learned from this example
-    are the ``Basf2PathTask`` class and  ``create_path`` method.
+    This example demonstrates how to create a simple b2luigi task that executes a
+    ``basf2`` simulation.
+    The key points to be learned from this example are the
+    :class:`Basf2PathTask <b2luigi.basf2_helper.tasks.Basf2PathTask>` class
+    and :meth:`create_path <b2luigi.basf2_helper.tasks.Basf2PathTask.create_path>` method.
 
 For directly working with the Belle II Analysis Software Framework (``basf2``),
-``b2luigi`` provides the ``Basf2PathTask`` task class.
+``b2luigi`` provides the :class:`Basf2PathTask <b2luigi.basf2_helper.tasks.Basf2PathTask>`
+task class.
 This class provides help for the user to create and execute a ``basf2`` path.
-The ``Basf2PathTask`` also provides the following parameters that can be
-useful when executing ``basf2`` processes:
+The :class:`Basf2PathTask <b2luigi.basf2_helper.tasks.Basf2PathTask>` also provides the
+following parameters that can be useful when executing ``basf2`` processes:
 
 - ``num_processes``: number of parallel processes to use for the ``basf2`` execution.
 
@@ -21,13 +24,16 @@ useful when executing ``basf2`` processes:
   will be processed.
 
 In contrast to the normal ``(b2)luigi`` tasks, the execution logic of a
-``Basf2PathTask`` is not defined in a ``run`` method but in ``create_path``.
-The ``create_path`` method needs to return the ``basf2`` path that is created in
-the steering file. Furthermore, the ``Progess`` module is automatically
-added and ``print(b2.statistics)`` is called after the path is processed.
+:class:`Basf2PathTask <b2luigi.basf2_helper.tasks.Basf2PathTask>` is not defined in
+a ``run`` method but in
+:meth:`create_path <b2luigi.basf2_helper.tasks.Basf2PathTask.create_path>`.
+The :meth:`create_path <b2luigi.basf2_helper.tasks.Basf2PathTask.create_path>` method needs
+to return the ``basf2`` path that is created in the steering file.
+Furthermore, the ``Progress`` module is automatically added and ``print(b2.statistics)``
+is called after the path is processed.
 
 .. warning::
-    Due to technical reasons, the path needs to be created within the ``create_path``
+    Due to technical reasons, the path needs to be created within the :meth:`create_path <b2luigi.basf2_helper.tasks.Basf2PathTask.create_path>`
     method. The path can be used in further objects, however, it is not possible
     for it to originate from an outer scope.
 
@@ -44,7 +50,8 @@ Additional tips:
 - No batch submission of this task will be done (``batch_system = "local"``), more will
   come in the next examples.
 
-- The example relies again on the task's own ``get_output_file_name`` method to generate
+- The example relies again on the task's own
+  :meth:`get_output_file_name <b2luigi.Task.get_output_file_name>` method to generate
   the output file name.
 """
 

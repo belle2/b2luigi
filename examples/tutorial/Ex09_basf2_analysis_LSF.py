@@ -11,20 +11,21 @@ Submitting a task to the LSF batch system
     and additional settings that are used to steer the submission to LSF.
 
 To define the batch system on which this task should run, the only
-change needed is to set the `batch_system` parameter to the desired
+change needed is to set the ``batch_system`` parameter to the desired
 batch system. The available options are:
 
-- ``"local"`` (no batch submission)
+- ``"local"`` for no batch submission
 
-- ``"lsf"`` (e.g. KEKCC)
+- ``"lsf"`` for LSF (see the `LSF documentation <https://www.ibm.com/docs/en/spectrum-lsf/10.1.0?topic=overview-lsf-introduction>`_)
 
-- ``"htcondor"`` (e.g. NAF)
+- ``"htcondor"`` for HTCondor (see the `HTCondor documentation <https://htcondor.readthedocs.io/en/latest/users-manual/quick-start-guide.html>`_)
 
-- ``"slurm"`` (e.g. Adelaide)
+- ``"slurm"`` for Slurm (see the `Slurm documentation <https://slurm.schedmd.com/quickstart.html>`_)
 
-- ``"gbasf2"`` (e.g. Belle II grid)
+- ``"gbasf2"`` for the client to submit grid-based Belle II jobs (see the `gbasf2 documentation <https://gbasf2.belle2.org/>`_)
 
-In ``b2luigi`` there are some settings for the supported batch systems
+In ``b2luigi`` there are some dedicated parameters for each supported batch system,
+see :ref:`batch-label`.
 For LSF, these parameters are:
 
 - ``queue``: the queue to submit the job to (default: ``"s"``)

@@ -10,8 +10,8 @@ The ``requires`` decorator
     this example is the ``requires`` decorator.
 
 We start with the usual imports. Note that we import the task ``SimulationTask``
-class defined in the previous example: it's generally recommended to keep your code
-as much modular as possible.
+class defined in the previous example :ref:`exercise05_label`: it's generally recommended
+to keep your code as much modular as possible.
 """
 
 import basf2 as b2
