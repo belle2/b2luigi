@@ -1,14 +1,26 @@
-# ----------------------------------------------------------------------------
-# Starter Kit: b2luigi (B2GM 2024)
-# Authors: Alexander Heidelbach, Jonas Eppelt, Giacomo De Pietro
-#
-# Scope: This example demonstrates the transition from a basf2 analysis to the
-# part independent of basf2 as this the usual usecase. Examplary, this
-# exercise merges the ntuple files from the basf2 analysis. Additionally, the
-# task demonstarates that every task, for the most part, works as a normal
-# python class and the run method can be for example functionally structured.
-#
-# ----------------------------------------------------------------------------
+"""
+.. _exercise12_label:
+
+Common Analysis Workflow
+========================
+
+.. hint::
+    This example demonstrates the transition from a ``basf2`` analysis to the
+    part independent of ``basf2`` as this the usual usecase. Examplary, this
+    exercise merges the ntuple files from the ``basf2`` analysis. Additionally, the
+    task demonstarates that every task, for the most part, works as a normal
+    Python class and the run method can be for example functionally structured.
+
+One of the command line tools in ``b2luigi`` is the ``dry_run`` method. This
+will only execute the :meth:``b2luigi.Task.dry_run`` method of each task. This can be usefull
+when developing a pipeline and one wants to preview the output of the
+pipeline without actually running it.
+
+In the ``dry_run`` method one can perform preparotory operations for
+the actual run such as evaluating input and output files. This can
+be reused during the actual ``run`` method to make the code more
+readable and maintainable.
+"""
 
 import uproot
 import pandas as pd
@@ -62,10 +74,6 @@ class MergerTask(b2luigi.Task):
             output_path,
         )
 
-    # One of the command line tools in b2luigi is the `dry_run` method. This
-    # will only execute the "dry_run" method of each task. This can be usefull
-    # when developing a pipeline and one wants to preview the output of the
-    # pipeline without actually running it.
     def dry_run(self):
         print("Merging the analysis files:")
         for filename in self.get_all_input_file_names():
@@ -73,10 +81,6 @@ class MergerTask(b2luigi.Task):
             print(f"  - {filename}")
 
     def run(self):
-        # In the `dry_run` method one can perform preparotory operations for
-        # the actual run such as evaluating input and output files. This can
-        # be reused during the actual `run` method to make the code more
-        # readable and maintainable.
         self.dry_run()
 
         # Read all the input root files into pandas dataframes
