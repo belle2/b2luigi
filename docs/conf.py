@@ -84,7 +84,7 @@ release = _version
 extensions = ["sphinx.ext.doctest", "sphinx.ext.autodoc", "sphinx.ext.napoleon", "sphinx_gallery.gen_gallery"]
 sphinx_gallery_conf = {
     "examples_dirs": "../examples/tutorial",
-    "gallery_dirs": "starterkit/gallery",
+    "gallery_dirs": "starterkit",
     "filename_pattern": r"Ex\d+.*\.py",
     "ignore_pattern": r"^.*\.txt$|.*\.sh$",
     "plot_gallery": False,
