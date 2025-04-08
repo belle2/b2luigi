@@ -6,17 +6,17 @@
 This tutorial was developed as a workshop for the October 2024 Belle II General Meeting.
 The idea of this tutorial is that each of the following examples is present in your current working directory and is executed by hand.
 To get the example files...
+
 1. ... eiher copy the Python code directly from this page into a blank file or...
 2. ... download the examples directly from their respective pages or...
-3. ... clone the ``b2luigi`` repository and move to the ``examples`` directory,
-  e.g.
+3. ... clone the ``b2luigi`` repository and move to the ``examples`` directory, e.g.
 
-  .. code-block:: bash
+.. code-block:: bash
 
-      git clone https://gitlab.desy.de/belle2/software/b2luigi.git
-      cd b2luigi/examples
+    git clone https://gitlab.desy.de/belle2/software/b2luigi.git
+    cd b2luigi/examples
 
-  Alternatively, you can also clone directly from `GitHub <https://github.com/belle2/b2luigi>`_.
+Alternatively, you can also clone directly from `GitHub <https://github.com/belle2/b2luigi>`_.
 
 In any of these cases, it is recommended to run the tutorial in a virtual environment.
 With access to the Belle II software stack, you can use the following commands to set up a virtual environment and install the necessary packages:

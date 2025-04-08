@@ -87,6 +87,7 @@ sphinx_gallery_conf = {
     "gallery_dirs": "starterkit",
     "filename_pattern": r"Ex\d+.*\.py",
     "ignore_pattern": r"^.*\.txt$|.*\.sh$",
+    "write_computation_times": False,
     "plot_gallery": False,
     "show_memory": False,
     "min_reported_time": 0,
@@ -94,6 +95,7 @@ sphinx_gallery_conf = {
     "backreferences_dir": None,
     "download_all_examples": False,
     "notebook_extensions": {},  # Don't create notebook download
+    "within_subsection_order": "FileNameSortKey",
 }
 
 # Add any paths that contain templates here, relative to this directory.
