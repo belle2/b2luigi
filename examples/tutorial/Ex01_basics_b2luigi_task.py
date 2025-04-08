@@ -18,16 +18,18 @@ Although ``luigi.Parameter`` acts as general parameter type, it assumes
 a string value. More parameter types are available in the luigi API: `Parameter <https://luigi.readthedocs.io/en/stable/api/luigi.parameter.html>`_.
 
 Commonly used types are:
-  - ``b2luigi.IntParameter``
-  - ``b2luigi.FloatParameter``
-  - ``b2luigi.BoolParameter``
-  - ``b2luigi.DictParameter``
+
+- ``b2luigi.IntParameter``
+- ``b2luigi.FloatParameter``
+- ``b2luigi.BoolParameter``
+- ``b2luigi.DictParameter``
 
 Usefull parameter attributes are:
-  - ``default``: default value of the parameter
-  - ``significant``: specify False if the parameter should not be treated as part of the unique identifier for a Task
-  - ``description``: description of the parameter
-  - ``hashed``: hashes the parameter value to generate the unique identifier
+
+- ``default``: default value of the parameter
+- ``significant``: specify False if the parameter should not be treated as part of the unique identifier for a Task
+- ``description``: description of the parameter
+- ``hashed``: hashes the parameter value to generate the unique identifier
 
 The ``run`` method defines the task's computation. It is called when the
 task is executed by being called as part of :meth:`b2luigi.process`.
@@ -40,10 +42,11 @@ strings or target objects (e.g. ``b2luigi.LocalTarget``, :class:`b2luigi.XRootDT
 when all output targets are present.
 
 A few additional methods are available to help with the output structure:
-  - The :meth:`b2luigi.Task.add_to_output` method is a helper function that adds a target to the list of files, this task will output.
-    Always use in combination with yield. This function will automatically add all current parameter values to the output
-    directory.
-  - The :meth:`b2luigi.Task.get_output_file_name` method returns an output file defined in the output function with the given key.
+
+- The :meth:`b2luigi.Task.add_to_output` method is a helper function that adds a target to the list of files, this task will output.
+  Always use in combination with yield. This function will automatically add all current parameter values to the output
+  directory.
+- The :meth:`b2luigi.Task.get_output_file_name` method returns an output file defined in the output function with the given key.
 
 """
 
@@ -87,9 +90,17 @@ if __name__ == "__main__":
 
 # %%
 # The script can be executed with
-#   .. code-block:: bash
 #
-#     python3 Ex01_basics_b2luigi_task.py
+# .. code-block:: bash
 #
-# A directory with the name "``parameter=1``" will be created containing a
-# file "``output.txt``" with the content "``1``".
+#   python3 Ex01_basics_b2luigi_task.py
+#
+# The output of the script will be the direcotry structure
+#
+# .. code-block:: none
+#
+#   parameter=1/
+#     output.txt
+#
+# The output file will contain the value of the parameter, in this case
+# ``1``.
