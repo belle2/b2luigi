@@ -100,6 +100,7 @@ as a random task parameter.
 I do not like to have "=" in my output file names. Is there a way to not have them in the generated output paths?
 -------------------------------------------------------------------------------------------------------------------
 
-Yes, you can use the setting `use_parameter_name_in_output` to control this behaviour.
-If you set it to `False` the paths for your outputs and logs will be generated using only the parameter values.
+Yes, there are two options. The first is to set the setting `use_parameter_name_in_output` to `False`.
+The paths for your outputs and logs will then be generated using only the parameter values.
 It is then up to you to remember which parameter value belongs to which parameter name.
+Alernatively, you can use the setting `parameter_seperator` to change `=` to a string of your choice.
