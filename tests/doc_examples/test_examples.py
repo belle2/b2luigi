@@ -6,9 +6,7 @@ from ..helpers import B2LuigiTestCase
 
 
 class ExampleTestCase(B2LuigiTestCase):
-
     def test_examples(self):
-
         test_file_dir = Path(__file__).parent.resolve()
 
         for file_name in glob(os.path.join(os.path.dirname(__file__), "*.py")):
@@ -24,7 +22,7 @@ class ExampleTestCase(B2LuigiTestCase):
             "Ex01_basics_b2luigi_task.py",
             "Ex02_basics_b2luigi_require.py",
             "Ex03_basics_b2luigi_wrappertask.py",
-            "Ex04_basics_b2luigi_averagetask.py"
+            "Ex04_basics_b2luigi_averagetask.py",
         ]
 
         test_file_dir = Path(__file__).parent.resolve()
