@@ -248,19 +248,20 @@ def create_output_file_name(task, base_filename: str, result_dir: Optional[str] 
         # Be sure to evaluate things relative to the current executed file, not to where we are now
         result_dir: str = map_folder(get_setting("result_dir", task=task, default=".", deprecated_keys=["result_path"]))
 
+    separator = get_setting("parameter_separator", task=task, default="=")
     for key, value in serialized_parameters.items():
         # Raise error if parameter value contains path separator "/" ("\" on Windows)
         # or is not interpretable as basename due to other reasons.
         if value != os.path.basename(value):
             raise ValueError(
-                f"Parameter `{key}={value}` cannot be interpreted as directory name. "
+                f"Parameter `{key}{separator}{value}` cannot be interpreted as directory name. "
                 f"Make sure it does not contain the path separators ``{os.path.sep}``. "
                 "Consider using a hashed parameter (e.g. ``b2luigi.Parameter(hashed=True)``)."
             )
 
     use_parameter_name = get_setting("use_parameter_name_in_output", task=task, default=True)
     if use_parameter_name:
-        param_list: List[str] = [f"{key}={value}" for key, value in serialized_parameters.items()]
+        param_list: List[str] = [f"{key}{separator}{value}" for key, value in serialized_parameters.items()]
     else:
         param_list: List[str] = [f"{value}" for value in serialized_parameters.values()]
     output_path: str = os.path.join(result_dir, *param_list)
