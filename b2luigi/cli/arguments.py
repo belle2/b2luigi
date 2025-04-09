@@ -46,13 +46,13 @@ def get_cli_arguments(ignore_additional_command_line_args=False):
         "--remove",
         type=lambda s: s.split(",") if "," in s else [s],
         default=[],
-        help="Remove the output of this task and its dependes. If a list of tasks is given, remove the output of all tasks in the list.",
+        help="Remove the output of this task and its dependents. If a list of tasks is given, this will be done for each of the tasks in the list.",
     )
     parser.add_argument(
         "--remove-only",
         type=lambda s: s.split(",") if "," in s else [s],
         default=[],
-        help="Remove the output of this task. If a list of tasks is given, remove the output of all tasks in the list.",
+        help="Remove the output of only this task, not its dependents. If a list of tasks is given, remove only the output of the tasks in the list.",
     )
 
     parser.add_argument("--task-id", help="EXPERT.", default="")
