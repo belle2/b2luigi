@@ -69,7 +69,7 @@ class Task(luigi.Task):
             output_file_name (:obj:`str`): the file name of the output file.
                 Refer to this file name as a key when using :obj:`get_input_file_names`,
                 :obj:`get_output_file_names` or :obj:`get_output_file`.
-            target_class: which class of luigi.FileSystemTarget to instatiate for this target.
+            target_class: which class of luigi.FileSystemTarget to instantiate for this target.
                 defaults to LocalTarget
             **kwargs: kwargs to be passed to :obj:create_output_file_name via the :obj:`_get_output_file_target` function
         """
@@ -168,6 +168,29 @@ class Task(luigi.Task):
         if key is not None:
             return self._transform_io(self.input()[requirement_key])[key]
         return self._transform_io(self.input()[requirement_key])
+
+    def get_input_file_name(self, key: Optional[str] = None):
+        """
+        Wraps :obj:`get_input_file_names` and asserts there is only one input file.
+
+        Args:
+            key (:obj:`str`, optional): Return the file path with this given key.
+
+        Return:
+            File path for the given key.
+        """
+        input_obj = self.get_input_file_names(key)
+        if isinstance(input_obj, list):
+            if len(input_obj) == 1:
+                return input_obj[0]
+        elif isinstance(input_obj, dict):
+            if len(input_obj) == 1:
+                value = next(iter(input_obj.values()))
+                if isinstance(value, list) and len(value) == 1:
+                    return value[0]
+        raise ValueError(
+            "Found more than 1 input file for the key '{key}'. If this is expected use self.get_input_file_names instead."
+        )
 
     def get_all_output_file_names(self) -> Iterator[str]:
         """
