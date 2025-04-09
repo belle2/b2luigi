@@ -36,6 +36,7 @@ class LSFProcess(BatchProcess):
     LSF-specific :meth:`settings <b2luigi.set_setting>`. These are:
 
     * the LSF queue: ``queue``.
+    * the number of slots for the job. On KEKCC this increases the memory available to the job: ``job_slots``.
     * the LSF job name: ``job_name``.
 
     For example:
@@ -87,6 +88,10 @@ class LSFProcess(BatchProcess):
         queue = get_setting("queue", task=self.task, default=False)
         if queue is not False:
             command += ["-q", queue]
+
+        job_slots = get_setting("job_slots", task=self.task, default=False)
+        if job_slots is not False:
+            command += ["-n", job_slots]
 
         job_name = get_setting("job_name", task=self.task, default=False)
         if job_name is not False:

@@ -10,7 +10,7 @@ In the background, this relies on the Python bindings of the XRootD client and o
 .. hint::
     To access XRootD storage you will need a valid VOMS proxy.
 
-To use the targets, you will need to overwrite the ``_get_output_file_target`` function of your Task.
+To use the targets, you will have to pass the `XRootDTarget` class and the keyword arguments to the `add_to_output` function.
 This requires some additional setup compared to the standard `LocalTarget`.
 
 First you need to create a `FileSystem` object, which is used to connect to the XRootD server.
@@ -30,11 +30,6 @@ A full task using XRootDTargets could look like this:
         import b2luigi
 
         class MyTask(b2luigi.Task):
-            def _get_output_file_target(self, base_filename: str, **kwargs) -> b2luigi.Target:
-                filename = create_output_filename(self, base_filename,  result_dir="<path on your XRootD storage>")
-                fs = XRootDSystem("root://eospublic.cern.ch")
-                return XRootDTarget(filename, fs, scratch_dir)
-
             def run(self):
                 file_name = "Hello_world.txt"
                 target = self._get_output_file_target(file_name)
@@ -43,7 +38,8 @@ A full task using XRootDTargets could look like this:
                         f.write("Hello World")
 
             def output(self):
-                yield self.add_to_output("Hello_world.txt")
+                fs = XRootDSystem("root://eospublic.cern.ch")
+                yield self.add_to_output("Hello_world.txt", XRootDTarget, file_system  =fs)
 
 .. autoclass:: b2luigi.XRootDSystem
     :members:

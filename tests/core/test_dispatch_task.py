@@ -20,8 +20,8 @@ class DispatchTaskTestCase(B2LuigiTestCase):
                 self.assertIn("Hello!\n", stdout_content)
                 self.assertIn("Bye!\n", stdout_content)
 
-            self.assertIn(b"Task MyTask failed!", out.splitlines())
-            self.assertIn(b"Please have a look into the log files in", out.splitlines())
+            self.assertIn(b"Failed task MyTask() with task_id and parameters:", out.splitlines())
+            self.assertIn(b"Please have a look into the log files in:", out.splitlines())
             self.assertIn(b"RuntimeError: Execution failed with return code -11", out.splitlines())
 
     def test_env_and_script_dispatch(self):

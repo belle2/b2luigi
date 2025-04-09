@@ -42,6 +42,11 @@ class Gbasf2Process(BatchProcess):
           are also stored in the pickle file. It then sends both the pickle file
           and the steering file wrapper to the grid via the Belle II-specific
           DIRAC-wrapper gbasf2.
+          However, ``b2luigi`` supports the submission of custom steering files with the setting
+          ``gbasf2_custom_steering_file``. This conserves the way that the basf2 path os still contained in the ``create_path()`` method. In this instance,
+          ``b2luigi``checks automatically if the corresponding file exists and copies it into the
+          active directory. The Gbasf2 task is then set to submit the unpickled file to the grid job
+          which allows the utilization of python-based basf2 modules.
 
         - **Project status monitoring**
 
@@ -81,14 +86,13 @@ class Gbasf2Process(BatchProcess):
         - The gbasf2 batch process for luigi can only be used for tasks
           inheriting from ``Basf2PathTask`` or other tasks with a
           ``create_path()`` method that returns a basf2 path.
-
         - It can be used **only for picklable basf2 paths**, with only some limited global basf2 state
           saved (currently aliases and global tags). The batch process stores
           the path created by ``create_path`` in a python pickle file and runs that on the grid.
           Therefore, **python basf2 modules are not yet supported**.
           To see if the path produced by a steering file is picklable, you can try to dump it with
           ``basf2 --dump-path`` and execute it again with ``basf2 --execute-path``.
-
+          In case the steering file contains content (e.g. modules) that cannot be pickled, the feature setting ``gbasf2_custom_steering_file`` can be utilized which has to be set to the path of the steering file the user wishes to be used. This submits the custom steering file to the grid job. The specific use case for this is the usage and interaction with python-based basf2 modules that are not pickable.
         - Output format: Changing the batch to gbasf2 means you also have to
           adapt how you handle the output of your gbasf2 task in tasks depending
           on it, because the output will not be a single root file anymore (e.g.
@@ -159,6 +163,9 @@ class Gbasf2Process(BatchProcess):
           The parameter has no effect unless the ``gbasf2_proxy_group`` is used with non-default value.
         - ``gbasf2_jinja_template_path``: This parameter sets a custom basf2 steering template where the user can adapt the
           default template (e.g. for altering the pdg database, ...). Note that this is an expert option that should be treated with care.
+        - ``gbasf2_additional_download_params``: Defaults to ``"--new"``. This parameter sets additional parameters that
+          are given to gb2_ds_get. Note that in case you override the parameter, the ``--new`` parameter is not automatically set,
+          so you might have to manually add ``--new`` if you want this parameter to be used.
         - ``gbasf2_download_dataset``: Defaults to ``True``. Disable this setting if you don't want to download the
           output dataset from the grid on job success. As you can't use the downloaded dataset as an output target for luigi,
           you should then use the provided ``Gbasf2GridProjectTarget``, as shown in the following example:
@@ -184,7 +191,8 @@ class Gbasf2Process(BatchProcess):
             Set only one global ``gbasf2_proxy_group`` setting.
 
         - ``gbasf2_download_logs``: Whether to automatically download the log output of gbasf2 projects when the
-          task succeeds or fails. Having the logs is important for reproducibility, but k
+          task succeeds or fails. Having the logs is important for reproducibility.
+        - ``gbasf2_custom_steering_file``: Optional path to submit a custom steering file to gbasf2. This does not pickle the ``basf2.Path`` instance and allows the utilization of python-based basf2 modules. Named modules have to be contained either in the steering file itself or by additional files via the input sandbox.
 
         The following optional settings correspond to the equally named ``gbasf`` command line options
         (without the ``gbasf_`` prefix) that you can set to customize your gbasf2 project:
@@ -840,10 +848,13 @@ class Gbasf2Process(BatchProcess):
             ) = os.path.splitext(monitoring_failed_downloads_file)
             old_monitoring_failed_downloads_file = f"{monitoring_download_file_stem}_old{monitoring_downloads_file_ext}"
 
+            additional_gb2_ds_get_params = get_setting(
+                "gbasf2_additional_download_params", default="--new", task=self.task
+            )
             # In case of first download, the file 'monitoring_failed_downloads_file' does not exist
             if not os.path.isfile(monitoring_failed_downloads_file):
                 ds_get_command = shlex.split(
-                    f"gb2_ds_get --new --force {dataset_query_string} "
+                    f"gb2_ds_get {additional_gb2_ds_get_params} --force {dataset_query_string} "
                     f"--failed_lfns {monitoring_failed_downloads_file}"
                 )
                 print(
@@ -859,7 +870,7 @@ class Gbasf2Process(BatchProcess):
                     old_monitoring_failed_downloads_file,
                 )
                 ds_get_command = shlex.split(
-                    f"gb2_ds_get --new --force {dataset_query_string} "
+                    f"gb2_ds_get {additional_gb2_ds_get_params} --force {dataset_query_string} "
                     f"--input_dslist {old_monitoring_failed_downloads_file} "
                     f"--failed_lfns {monitoring_failed_downloads_file}"
                 )
