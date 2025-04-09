@@ -37,7 +37,7 @@ The next step is to activate the environment:
 
     source venv/bin/activate
 
-This environment will be based on the `basf2` environment.
+This environment will be based on the ``basf2`` environment.
 However, Python packages that are not provided by the externals will be installed in the virtual environment.
 To install the requirements with in a ``b2venv`` for this tutorial run:
 
