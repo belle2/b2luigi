@@ -39,8 +39,20 @@ The next step is to activate the environment:
 
 This environment will be based on the `basf2` environment.
 However, Python packages that are not provided by the externals will be installed in the virtual environment.
-To install the requirements for this tutorial run:
+To install the requirements with in a ``b2venv`` for this tutorial run:
 
 .. code-block:: bash
 
     pip install b2luigi
+
+If you use a clear ``venv``, you can install the requirements with:
+
+.. code-block:: bash
+
+    pip install b2luigi pandas pyarrow uproot matplotlib plothist
+
+If you copied the examples from the Git repository, you can install the requirements with:
+
+.. code-block:: bash
+
+    pip install -r requirements.txt
