@@ -21,17 +21,17 @@ class TemporaryFileContextManager(ExitStack):
         self._open_input_files = {}
 
     def __enter__(self):
-        def get_output_file_name(key: str, task: Optional[Task] = None, **tmp_file_kwargs):
+        def get_output_file_name(key: str, **tmp_file_kwargs):
             if key not in self._open_output_files:
                 target = self._task._get_output_target(key)
-                temporary_path = target.temporary_path(task=task, **tmp_file_kwargs)
+                temporary_path = target.temporary_path(task=self._task, **tmp_file_kwargs)
                 self._open_output_files[key] = self.enter_context(temporary_path)
 
             return self._open_output_files[key]
 
         self._task.get_output_file_name = get_output_file_name
 
-        def get_input_file_names(key: str, task: Optional[Task] = None, **tmp_file_kwargs):
+        def get_input_file_names(key: str, **tmp_file_kwargs):
             if key not in self._open_input_files:
                 targets = self._task._get_input_targets(key)
                 self._open_input_files[key] = []
@@ -39,21 +39,21 @@ class TemporaryFileContextManager(ExitStack):
                 if n_download_threads is not None:
                     with ThreadPool(n_download_threads) as pool:
                         self._open_input_files[key] = pool.map(
-                            lambda target: self.enter_context(target.get_temporary_input(task=task, **tmp_file_kwargs)),
+                            lambda target: self.enter_context(
+                                target.get_temporary_input(task=self._task, **tmp_file_kwargs)
+                            ),
                             targets,
                         )
                 else:
                     for target in targets:  # TODO: This does not work in wrapping tasks
-                        temporary_path = target.get_temporary_input(task=task, **tmp_file_kwargs)
+                        temporary_path = target.get_temporary_input(task=self._task, **tmp_file_kwargs)
                         self._open_input_files[key].append(self.enter_context(temporary_path))
 
             return self._open_input_files[key]
 
         self._task.get_input_file_names = get_input_file_names
 
-        def get_input_file_names_from_dict(
-            requirement_key: str, key: Optional[str] = None, task: Optional[Task] = None, **tmp_file_kwargs
-        ):
+        def get_input_file_names_from_dict(requirement_key: str, key: Optional[str] = None, **tmp_file_kwargs):
             internal_key = f"{requirement_key}_{str(key)}"
             if internal_key not in self._open_input_files:
                 # Expected output of task.input is {key: [generators, ...]}
@@ -78,7 +78,7 @@ class TemporaryFileContextManager(ExitStack):
                         )
 
                     for target in targets:
-                        temporary_path = target.get_temporary_input(task=task, **tmp_file_kwargs)
+                        temporary_path = target.get_temporary_input(task=self._task, **tmp_file_kwargs)
                         self._open_input_files[internal_key].append(self.enter_context(temporary_path))
 
             return self._open_input_files[internal_key]
