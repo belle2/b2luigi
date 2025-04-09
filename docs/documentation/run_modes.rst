@@ -46,6 +46,23 @@ where mode can be one of:
 *   **test**: Run the tasks normally (no batch submission), but turn on debug logging of ``luigi``. Also,
     do not dispatch any task (if requested) and print the output to the console instead of in log files.
 
+*   **remove**: Remove all output files of the tasks and the tasks on which it depends on. This is useful if you
+    want to re-run a task and the tasks depending on it which has already been run before. This will not run the task
+    but just execute the ``remove_output`` method of the task if implemented:
+
+    .. code-block:: python
+
+        class SomeTask(b2luigi.Task):
+            [...]
+            def remove_output(self):
+                # if a method with this name is provided, it will be executed
+                # automatically when starting the processing in remove mode
+                do_some_stuff_in_remove_mode()
+
+    If you are very sure in what you are doing check out the :meth:`b2luigi.Task._remove_output` private method.
+
+*   **remove_only**: Similar to the ``remove`` mode, but only remove the output of the given task(s).
+
 Additional console arguments:
 
 *   **--scheduler-host** and **--scheduler-port**: If you have set up a central scheduler, you can pass this information
