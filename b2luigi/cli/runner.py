@@ -144,7 +144,7 @@ def remove_outputs(task_list, target_tasks, only=False):
         for task in to_be_removed_tasks[task_class]:
             print("\tRemoving output for", task)
 
-            # execute the dry_run method of the task if it is implemented
+            # execute the remove_output method of the task if it is implemented
             if hasattr(task, "remove_output"):
                 print("\tcall: remove_output()")
                 task.remove_output()
