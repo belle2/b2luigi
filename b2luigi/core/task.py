@@ -169,6 +169,29 @@ class Task(luigi.Task):
             return self._transform_io(self.input()[requirement_key])[key]
         return self._transform_io(self.input()[requirement_key])
 
+    def get_input_file_name(self, key: Optional[str] = None):
+        """
+        Wraps :obj:`get_input_file_names` and asserts there is only one input file.
+
+        Args:
+            key (:obj:`str`, optional): Return the file path with this given key.
+
+        Return:
+            File path for the given key.
+        """
+        input_obj = self.get_input_file_names(key)
+        if isinstance(input_obj, list):
+            if len(input_obj) == 1:
+                return input_obj[0]
+        elif isinstance(input_obj, dict):
+            if len(input_obj) == 1:
+                value = next(iter(input_obj.values()))
+                if isinstance(value, list) and len(value) == 1:
+                    return value[0]
+        raise ValueError(
+            f"Found more than 1 input file for the key '{key}'. If this is expected use self.get_input_file_names instead."
+        )
+
     def get_all_output_file_names(self) -> Iterator[str]:
         """
         Return all file paths created by this task.
