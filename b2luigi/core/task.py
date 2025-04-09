@@ -189,7 +189,7 @@ class Task(luigi.Task):
                 if isinstance(value, list) and len(value) == 1:
                     return value[0]
         raise ValueError(
-            "Found more than 1 input file for the key '{key}'. If this is expected use self.get_input_file_names instead."
+            f"Found more than 1 input file for the key '{key}'. If this is expected use self.get_input_file_names instead."
         )
 
     def get_all_output_file_names(self) -> Iterator[str]:
