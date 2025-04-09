@@ -6,7 +6,7 @@ import luigi.configuration
 
 from b2luigi.batch.workers import SendJobWorkerSchedulerFactory
 from b2luigi.core.settings import set_setting
-from b2luigi.core.utils import task_iterator, get_all_output_files_in_tree
+from b2luigi.core.utils import find_dependents, task_iterator, get_all_output_files_in_tree
 from b2luigi.core.utils import create_output_dirs
 
 
@@ -117,4 +117,43 @@ def dry_run(task_list):
         print("In total", non_completed_tasks)
         exit(1)
     print("All tasks are finished!")
+    exit(0)
+
+
+def remove_outputs(task_list, target_tasks, only=False):
+    to_be_removed_tasks = collections.defaultdict(set)
+
+    # Remove the output of this task and all its dependent tasks
+    if not only:
+        for root_task in task_list:
+            for target_task in target_tasks:
+                dependent_tasks = find_dependents(task_iterator(root_task), target_task)
+                for task in dependent_tasks:
+                    to_be_removed_tasks[task.__class__.__name__].add(task)
+
+    # Remove only the output of the tasks that are given in the list
+    else:
+        for root_task in task_list:
+            for task in task_iterator(root_task):
+                if task.__class__.__name__ in target_tasks:
+                    to_be_removed_tasks[task.__class__.__name__].add(task)
+
+    removed_tasks = 0
+    for task_class in sorted(to_be_removed_tasks):
+        print(task_class)
+        for task in to_be_removed_tasks[task_class]:
+            print("\tRemoving output for", task)
+
+            # execute the dry_run method of the task if it is implemented
+            if hasattr(task, "remove_output"):
+                print("\tcall: remove_output()")
+                task.remove_output()
+                removed_tasks += 1
+            else:
+                print(f"No remove_output() method implemented for {task_class}. Doing nothing.")
+            print()
+
+    if removed_tasks:
+        print("In total", removed_tasks)
+        exit(1)
     exit(0)
