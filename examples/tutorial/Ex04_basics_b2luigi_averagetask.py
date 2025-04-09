@@ -9,7 +9,7 @@ Multiple Tasks and Introduction to Schedulers
     This is useful if the output of multiple tasks is needed to compute the output of the following task.
     Additionally, we introduce the core concepts of schedulers.
 
-``b2luigi.WrapperTask`` is not the only way to require multiple tasks.
+:class:`b2luigi.WrapperTask` is not the only way to require multiple tasks.
 Also normal tasks can require multiple tasks.
 This is useful if the wrapper task uses the inputs of the required tasks to compute its output.
 
@@ -49,9 +49,9 @@ class MyOtherTask(b2luigi.Task):
 # %%
 # In this example we will build a task whose ``require`` method and the task parameter look identical to the previous example in :ref:`exercise03_label`.
 #
-# Now we make use of the fact that the iterable of :meth:`b2luigi.Task.get_input_file_names`
+# Now, we make use of the fact that the iterable of :meth:`b2luigi.Task.get_input_file_names`
 # returns all the input targets that match the provided key.
-# In this case, the key is the file name defined with `add_to_output` in ``MyOtherTask``.
+# In this case, the key is the file name defined with :meth:`b2luigi.Task.add_to_output` in ``MyOtherTask``.
 
 
 # %%
@@ -81,7 +81,7 @@ class MyAverageTask(b2luigi.Task):
 
 
 # %%
-# The output of ``MyAverageTask`` will now be in the ``result_dir``, however,
+# The output of ``MyAverageTask`` will now be in the `result_dir`, however,
 # since we used the :meth:`b2luigi.Task.add_to_output` it will create another subdirectory
 # corresponding to its parameter value, i.e. `max_value=10`.
 
@@ -107,7 +107,7 @@ if __name__ == "__main__":
 #   host@user:$ luigid --port 8080
 #
 # The ``port`` number should be an accesible port of the ``host`` machine. We
-# can then use the ``--scheduler-host``` and ``--scheduler-port`` arguments to
+# can then use the ``--scheduler-host`` and ``--scheduler-port`` arguments to
 # tell the task where to find the scheduler.
 #
 # .. code-block:: bash

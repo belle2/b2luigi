@@ -35,7 +35,7 @@ class MyTask(b2luigi.Task):
 
 
 # %%
-# Here, we again make use of the :meth:`b2luigi.add_to_output` method to add
+# We again make use of the :meth:`b2luigi.Task.add_to_output` method to add
 # another output file in the now existing directory structure. In this
 # example, the output is structered as follows:
 #
@@ -72,12 +72,12 @@ class MyOtherTask(b2luigi.Task):
 # %%
 # For the process method, we now have to call the new task. The scheduler
 # will automatically resolve the dependencies between the tasks. If the
-# output of `MyTask` is not present, it will be executed first. As soon as,
-# the output is present, `MyOtherTask` will be executed.
+# output of ``MyTask`` is not present, it will be executed first. As soon as,
+# the output is present, ``MyOtherTask`` will be executed.
 if __name__ == "__main__":
     b2luigi.process(MyOtherTask(parameter=1))
 
 # %%
-# You can try to adjust the value in "parameter=1'/output.txt", delete the
+# You can try to adjust the value in `parameter=1/output.txt`, delete the
 # output of ``MyOtherTask`` and rerun the script to see how this affects the
 # result of the tasks.

@@ -9,12 +9,10 @@
     This class is used to define a task that requires multiple other tasks to be executed.
     At the end of this section, we introduce the ``b2luigi`` settings mechanism.
 
-The ``b2luigi.WrapperTask`` class is used to define a task that requires all parameter combinations of another task to be executed.
-The combinations are determined by the ``requires`` method of the ``b2luigi.WrapperTask``.
-In contrast to the usual ``b2luigi.Task`` class it does not need a ``run`` and ``output`` method.
-The task counts as completed if its requirement is fulfilled.
+The :class:`b2luigi.WrapperTask` class is used to define a task that requires all parameter combinations of another task to be executed.
+The combinations are determined by the ``requires`` method of the :class:`b2luigi.WrapperTask`.
 
-To show the functionality of the ``b2luigi.WrapperTask`` class, we will create a third task that depends on second task and executes all parameter combinations of the second task.
+To show the functionality of the :class:`b2luigi.WrapperTask` class, we will create a third task that depends on second task and executes all parameter combinations of the second task.
 For this, we define the first and second task in the same way as in the previous example.
 """
 
@@ -51,6 +49,8 @@ class MyOtherTask(b2luigi.Task):
 
 # %%
 # Here, we define the ``b2luigi.WrapperTask`` to loop over all parameter combinations of the second task.
+# In contrast to the usual :class:`b2luigi.Task` class it does not need a ``run`` and ``output`` method.
+# The task counts as completed if its requirement is fulfilled.
 
 
 # %%

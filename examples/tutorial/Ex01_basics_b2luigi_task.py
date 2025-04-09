@@ -10,13 +10,13 @@ A Simple ``b2luigi`` Task
     learned from this example are the ``run`` and ``output`` methods.
 
 ``(b2)luigi`` tasks are defined as classes that inherit from a luigi task class, for this example we will start
-with a basic class that inherits from ``b2luigi.Task``. The task class should define the parameters, the run method,
+with a basic class that inherits from :class:`b2luigi.Task`. The task class should define the parameters, the run method,
 and the output method. The parameters are defined as class attributes, and the run method contains the actual
 computation. The output method defines the output of the task, which is used to determine if the task has been
 completed.
 
 Task parameters are defined as class attributes.
-Although ``luigi.Parameter`` acts as general parameter type, it assumes
+Although :class:`luigi.Parameter` acts as general parameter type, it assumes
 a string value. More parameter types are available in the luigi API: `Parameter <https://luigi.readthedocs.io/en/stable/api/luigi.parameter.html>`_.
 
 Commonly used types are:
@@ -29,7 +29,7 @@ Commonly used types are:
 Usefull parameter attributes are:
 
 - ``default``: default value of the parameter
-- ``significant``: specify False if the parameter should not be treated as part of the unique identifier for a Task
+- ``significant``: specify ``False`` if the parameter should not be treated as part of the unique identifier for a Task
 - ``description``: description of the parameter
 - ``hashed``: hashes the parameter value to generate the unique identifier
 
@@ -40,7 +40,7 @@ to the specified location.
 
 The ``output`` method defines the output of the task. It should return an
 iterable of output targets. The output targets are specified as either
-strings or target objects (e.g. ``b2luigi.LocalTarget``, :class:`b2luigi.XRootDTarget`). The task is considered complete
+strings (will be interpreted as :class:`b2luigi.LocalTarget) or target objects (e.g. :class:`b2luigi.LocalTarget`, :class:`b2luigi.XRootDTarget`). The task is considered complete
 when all output targets are present.
 
 A few additional methods are available to help with the output structure:
@@ -67,7 +67,7 @@ class MyTask(b2luigi.Task):
 
 
 # %%
-# Call :meth:`b2luigi.process` in your main method to tell b2luigi where your
+# Call :meth:`b2luigi.process` in your main method to tell ``b2luigi`` where your
 # entry point of the task graph is. Optional arguments are:
 #
 # - ``show_output``:
@@ -84,7 +84,7 @@ class MyTask(b2luigi.Task):
 #   Does neither run on the batch system, with multiprocessing or
 #   dispatched but directly on the machine for debugging reasons.
 #   Does output all logs to the console.
-# - ``batch``: More in 08_basf2_analysis_LSF.py
+# - ``batch``: More in :ref:`exercise08_label`.
 
 # %%
 if __name__ == "__main__":

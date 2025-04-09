@@ -7,7 +7,7 @@ Submitting a task to the HTCondor batch system
 .. hint::
     This example demonstrates how to submit a task to the HTCondor batch
     system. In in it's core, the task is the same as in :ref:`exercise07_label`.
-    The key difference is the `batch_system` parameter that is set to "htcondor"
+    The key difference is the ``batch_system`` parameter that is set to ``"htcondor"``
     and additional settings that are used to steer the submission to htcondor.
 
 HTCondor specific settings that can be automatically provided to a
@@ -36,7 +36,7 @@ htcondor task are:
   flattened, so if you specify `a/b/c.txt` you will end up
   with a file `c.txt`. If you use the ``transfer_files``
   mechanism, you need to set the ``working_dir`` setting
-  to “.” as the files will end up in the current worker
+  to ``“.”`` as the files will end up in the current worker
   scratch folder. All specified files/folders should be
   absolute paths.
 """

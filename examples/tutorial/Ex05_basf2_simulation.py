@@ -20,7 +20,7 @@ following parameters that can be useful when executing ``basf2`` processes:
 
 - ``num_processes``: number of parallel processes to use for the ``basf2`` execution.
 
-- ``max_event``: maximum number of events to process. If set to 0, all events
+- ``max_event``: maximum number of events to process. If set to ``0``, all events
   will be processed.
 
 In contrast to the normal ``(b2)luigi`` tasks, the execution logic of a
@@ -42,7 +42,7 @@ Additional tips:
 - For later porpuses, we add a parameter (``identifier``) to identify the output file
   uniqley. This is useful when running multiple tasks in parallel.
 
-- We make use of the task own settings via ``result_dir``. It is sometimes more usefull
+- We make use of the task own settings via `result_dir`. It is sometimes more usefull
   to structure the output of your tasks in task specific directories than solely in the
   parameter based directories. Additionally, good practice is to provide absolute paths
   instead of relative paths as we do in this example.
