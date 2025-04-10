@@ -161,6 +161,26 @@ def task_iterator(task, only_non_complete=False):
     yield from _unique_task_iterator(task, only_non_complete)
 
 
+def find_dependents(task_iterator, target_task):
+    dependents = set()
+
+    def depends_on(task, target):
+        for dep in luigi.task.flatten(task.requires()):
+            if dep.__class__.__name__ == target:
+                return True
+            if depends_on(dep, target):
+                return True
+        return False
+
+    for task in task_iterator:
+        if task.__class__.__name__ == target_task:
+            dependents.add(task)
+        if depends_on(task, target_task):
+            dependents.add(task)
+
+    return dependents
+
+
 def get_all_output_files_in_tree(root_module, key=None):
     if key:
         return get_all_output_files_in_tree(root_module)[key]

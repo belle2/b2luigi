@@ -245,6 +245,61 @@ class Task(luigi.Task):
         file_name: str = create_output_file_name(self, base_filename, **kwargs)
         return target_class(file_name)
 
+    def _remove_output_file_target(self, base_filename: str) -> None:
+        """
+        Removes the output file target associated with the given base filename.
+
+        This method retrieves the output file target using the provided base filename
+        and attempts to remove it. If the target does not have a `remove` method,
+        a `NotImplementedError` is raised.
+
+        Args:
+            base_filename (str): The base filename used to identify the output file target.
+
+        Raises:
+            NotImplementedError: If the target does not have a `remove` method.
+        """
+        target: luigi.LocalTarget = self._get_output_file_target(base_filename)
+        if hasattr(target, "remove"):
+            target.remove()
+        else:
+            raise NotImplementedError(
+                f"Cannot remove output file target for {base_filename}. " "The target does not have a remove method."
+            )
+
+    def _remove_output(self) -> None:
+        """
+        Removes all output file targets associated with the task.
+
+        This method iterates through all output file names retrieved from
+        :obj:`get_all_output_file_names` and removes each corresponding output
+        file target by calling :obj:`_remove_output_file_target`.
+
+        .. warning::
+            Be very careful with this method!
+            It will remove all output files of this task!
+            This is not reversible.
+
+        .. hint::
+            If you are very sure in what you are doing, you can use this method
+            to remove all output files of this task by calling it in the
+            :obj:`remove_output` method of your task.
+
+        Example:
+            .. code-block:: python
+
+              class TheSuperFancyTask(b2luigi.Task):
+                  def remove_output(self):
+                      self._remove_output()
+        Returns:
+            None
+        """
+        for key in self.get_all_output_file_names():
+            try:
+                self._remove_output_file_target(key)
+            except Exception as ex:
+                print(f"Could not remove output file {key}: {ex}")
+
 
 class ExternalTask(Task, luigi.ExternalTask):
     """Direct copy of :obj:`luigi.ExternalTask`, but with the capabilities of :obj:`Task` added."""

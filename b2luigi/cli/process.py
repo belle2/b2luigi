@@ -11,6 +11,9 @@ def process(
     dry_run=False,
     test=False,
     batch=False,
+    remove=[],
+    remove_only=[],
+    auto_confirm=False,
     ignore_additional_command_line_args=False,
     **kwargs,
 ):
@@ -72,6 +75,9 @@ def process(
             The default batch system is LSF, but this can be changed with the `batch_system`
             settings. See :obj:`get_setting` on how to define settings.
 
+        remove (list, optional): If a single task is given, remove the output of this task.
+            If a list of tasks is given, remove the output of all tasks in the list.
+
         ignore_additional_command_line_args (bool, optional, default False): Ignore additional
             command line arguments. This is useful if you want to use this function in a file
             that also does some command line parsing.
@@ -109,5 +115,16 @@ def process(
         runner.run_as_batch_worker(task_list, cli_args, kwargs)
     elif cli_args.batch or batch:
         runner.run_batched(task_list, cli_args, kwargs)
+    elif cli_args.remove or remove:
+        runner.remove_outputs(
+            task_list, target_tasks=cli_args.remove or remove, auto_confirm=auto_confirm or cli_args.yes
+        )
+    elif cli_args.remove_only or remove_only:
+        runner.remove_outputs(
+            task_list,
+            target_tasks=cli_args.remove_only or remove_only,
+            only=True,
+            auto_confirm=auto_confirm or cli_args.yes,
+        )
     else:
         runner.run_local(task_list, cli_args, kwargs)
