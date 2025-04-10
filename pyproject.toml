@@ -51,7 +51,8 @@ dev = [
     "pre_commit",
     "pytest",
     "pytest-cov",
-    "python-coveralls"
+    "python-coveralls",
+    "bump-my-version"
 ]
 
 [tool.flit.metadata.urls]
