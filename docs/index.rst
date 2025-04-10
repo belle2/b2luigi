@@ -95,7 +95,7 @@ Content
 
     installation
     quickstart
-    starterkit
+    starterkit/index
     faq
     features
     examples
