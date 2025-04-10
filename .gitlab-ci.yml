@@ -46,8 +46,8 @@ pre_commit:
 test:
   stage: test
   script:
-    - pip install pytest pytest-cov python-coveralls flit
-    - flit install -s
+    - pip install flit
+    - flit install -s -deps=develop
     - echo "Running tests"
     - pytest -v --cov b2luigi --junitxml=$ARTIFACTS_TEST_PATH --cov-report=xml --cov-report=html --cov-report=term tests
     - mv htmlcov $ARTIFACTS_COV_PATH
@@ -73,7 +73,7 @@ docs:
       artifacts: false
   script:
     - pip install flit
-    - flit install -s
+    - flit install -s -deps=develop
     - sphinx-build docs/ $ARTIFACTS_DOCS_PATH
   artifacts:
     paths:

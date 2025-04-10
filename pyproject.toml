@@ -47,6 +47,12 @@ doc = [
     "sphinx-gallery",
     "sphinx-autobuild"
 ]
+dev = [
+    "flit",
+    "pytest",
+    "pytest-cov",
+    "python-coveralls"
+]
 
 [tool.flit.metadata.urls]
 "Homepage" = "https://github.com/belle2/b2luigi"
