@@ -36,6 +36,7 @@ default:
     - echo ${BASF2_RELEASE_VERSION}
     - b2venv ${BASF2_RELEASE_VERSION}
     - source venv/bin/activate
+    - pip install flit
 
 pre_commit:
   stage: pre_commit
@@ -46,8 +47,7 @@ pre_commit:
 test:
   stage: test
   script:
-    - pip install flit
-    - flit install -s -deps=develop
+    - flit install -s --deps=develop
     - echo "Running tests"
     - pytest -v --cov b2luigi --junitxml=$ARTIFACTS_TEST_PATH --cov-report=xml --cov-report=html --cov-report=term tests
     - mv htmlcov $ARTIFACTS_COV_PATH
@@ -72,8 +72,7 @@ docs:
     - job: test
       artifacts: false
   script:
-    - pip install flit
-    - flit install -s -deps=develop
+    - flit install -s --deps=develop
     - sphinx-build docs/ $ARTIFACTS_DOCS_PATH
   artifacts:
     paths:
@@ -90,7 +89,7 @@ publish:
     - job: docs
       artifacts: false
   script:
-    - pip install setuptools wheel twine flit
+    - pip install setuptools wheel twine
     - flit publish
   only:
     - tags
