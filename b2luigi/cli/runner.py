@@ -120,7 +120,7 @@ def dry_run(task_list):
     exit(0)
 
 
-def remove_outputs(task_list, target_tasks, only=False):
+def remove_outputs(task_list, target_tasks, only=False, auto_confirm=False):
     to_be_removed_tasks = collections.defaultdict(set)
 
     # Remove the output of this task and all its dependent tasks
@@ -138,6 +138,23 @@ def remove_outputs(task_list, target_tasks, only=False):
                 if task.__class__.__name__ in target_tasks:
                     to_be_removed_tasks[task.__class__.__name__].add(task)
 
+    if not to_be_removed_tasks:
+        print("Nothing to remove.")
+        exit(0)
+
+    if not auto_confirm:
+        print("The following outputs of these tasks are about to be removed:")
+        for task in sorted(to_be_removed_tasks):
+            print(f"\t- {task}")
+
+        confirm = input("Are you sure you want to remove all of these tasks outputs? [y/N]: ").strip().lower()
+    else:
+        confirm = "y"
+
+    if confirm != "y":
+        print("No tasks were removed.")
+        exit(0)
+
     removed_tasks = 0
     for task_class in sorted(to_be_removed_tasks):
         print(task_class)
@@ -150,7 +167,7 @@ def remove_outputs(task_list, target_tasks, only=False):
                 task.remove_output()
                 removed_tasks += 1
             else:
-                print(f"No remove_output() method implemented for {task_class}. Doing nothing.")
+                print(f"\tNo remove_output() method implemented for {task_class}. Doing nothing.")
             print()
 
     if removed_tasks:
