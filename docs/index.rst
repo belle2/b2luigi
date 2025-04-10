@@ -29,12 +29,6 @@ Jump right into it with out :ref:`quick-start-label`.
 If you have never worked with ``luigi`` before, you may want to have a look into the `luigi documentation`_.
 But you can learn most of the nice features also from this documentation!
 
-.. attention::
-
-    The API of ``b2luigi`` is still under construction.
-    Please remember this when using the package in production!
-
-
 Why not use the already created batch tasks?
 --------------------------------------------
 
@@ -42,16 +36,19 @@ Why not use the already created batch tasks?
 But for thousands of tasks in very large projects with different task-defining libraries, you have some problems:
 
 *   **You want to run many (many many!) batch jobs in parallel**
+
     In other ``luigi`` batch implementations, for every running batch job you also need a running task that monitors it.
     On most of the systems, the maximal number of processes is limited per user, so you will not be able to run more
     batch jobs than this.
     But what do you do if you have thousands of tasks to do?
 *   **You have already a large set of luigi tasks in your project**
+
     In other implementations you either have to override a ``work`` function (and you are not allowed to touch
     the ``run`` function) or they can only run an external command, which you need to define.
     The first approach plays not well when mixing non-batch and batch task libraries and the second
     has problems when you need to pass complex arguments to the external command (via command line).
 *   **You do not know which batch system you will run on**
+
     Currently, the batch tasks are mostly defined for a specific batch system. But what if you want to
     switch from AWS to Azure? From LSF to SGE?
 
