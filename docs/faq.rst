@@ -85,52 +85,58 @@ create a file called ``my_parameter=hashed_08928069d368e4a0f8ac02a0193e443b/test
 instead of using the list value.
 
 
-What does the ValueError "The task id {task.task_id} to be executed..." mean?
------------------------------------------------------------------------------
+What does the ValueError `"The task id {task.task_id} to be executed..."`` mean?
+--------------------------------------------------------------------------------
 
-The `ValueError` exception `The task id <task_id> to be executed by this batch worker does
-not exist in the locally reproduced task graph.` is thrown by ``b2luigi`` batch workers if
+The :obj:`ValueError` exception `"The task id <task_id> to be executed by this batch worker does
+not exist in the locally reproduced task graph.""` is thrown by ``b2luigi`` batch workers if
 the task that should have been executed by this batch worker does not exist in the task
 graph reproduced by the batch worker. This means that the task graph produced by the initial
-``b2luigi.process`` call and the one reproduced in the batch job differ from each other.
+:meth:`b2luigi.process` call and the one reproduced in the batch job differ from each other.
 This can be caused by a non-deterministic behavior of your dependency graph generation, such
-as a random task parameter.
+as a random task parameter or parameters which are paths and differ for local vs. batch execution.
 
 
 I do not like to have "=" in my output file names. Is there a way to not have them in the generated output paths?
--------------------------------------------------------------------------------------------------------------------
+-----------------------------------------------------------------------------------------------------------------
 
-Yes, there are two options. The first is to set the setting `use_parameter_name_in_output` to `False`.
+Yes, there are two options. The first is to set the setting ``use_parameter_name_in_output`` to ``False``.
 The paths for your outputs and logs will then be generated using only the parameter values.
 It is then up to you to remember which parameter value belongs to which parameter name.
-Alernatively, you can use the setting `parameter_seperator` to change `=` to a string of your choice.
+Alernatively, you can use the setting ``parameter_seperator`` to change "=" to a string of your choice.
 
 
-Can I alter the "exec" string in the executable wrapper made by b2luigi for batch submissions?
------------------------------------------------------------------------------------------------
+Can I alter the ``exec`` string in the executable wrapper made by b2luigi for batch submissions?
+------------------------------------------------------------------------------------------------
 
-Yes, you can adjust the "exec" string used in the executable wrapper for batch submissions. The exec string is made up
+Yes, you can adjust the ``exec`` string used in the executable wrapper for batch submissions. The exec string is made up
 of three key components::
 
     exec <executable> <filename> --batch --batch-it ExampleTask_id_123 <task cmd additional args>
 
 Where by default:
 
-- `executable` = [python3]
-- `filename` = [path/to/main/python/script.py]
-- `task_cmd_additional_args`= [] i.e nothing
+- ``executable`` = ``[python3]``
+- ``filename`` = ``[path/to/main/python/script.py]``
+- ``task_cmd_additional_args`` = ``[]`` i.e nothing
 
-The `executable` variable can be set to a custom value using the b2luigi settings manager, like so::
+The ``executable`` variable can be set to a custom value using the b2luigi settings manager, like so:
+
+.. code-block:: python
 
     b2luigi.set_setting("executable", ["my_custom", "executable"])
 
-The `filename` can not be customised. However, if necessary it can be excluded from the exec string through the boolean setting `add_filename_to_cmd`.
-By default `add_filename_to_cmd` is `True`, but by setting it to `False` the filename is excluded from the exec string::
+The `filename` can not be customised. However, if necessary it can be excluded from the exec string through the boolean setting ``add_filename_to_cmd``.
+By default ``add_filename_to_cmd`` is ``True``, but by setting it to ``False`` the filename is excluded from the exec string:
+
+.. code-block:: python
 
     b2luigi.set_setting("add_filename_to_cmd", False)
 
-Lastly, `task_cmd_additional_args` is a way to parse your own custom arguments to your python script or CLI that is being called on the batch system.
-To do this correctly, you must set `ignore_additional_command_line_args=False` in your `b2luigi.process` call, for example::
+Lastly, ``task_cmd_additional_args`` is a way to parse your own custom arguments to your python script or CLI that is being called on the batch system.
+To do this correctly, you must set ``ignore_additional_command_line_args=False`` in your :meth:`b2luigi.process` call, for example:
+
+.. code-block:: python
 
     b2luigi.process(
         MyTask(),
@@ -138,8 +144,10 @@ To do this correctly, you must set `ignore_additional_command_line_args=False` i
         ignore_additional_command_line_args = False
     )
 
-Why we do this is to let b2luigi know that we are using our own argparser and to not throw an error when it encounters unknown arguments meant for our argparser.
-With this in place, we can freely add our own additional arguments to the exec command, like so::
+Why we do this is to let ``b2luigi`` know that we are using our own argparser and to not throw an error when it encounters unknown arguments meant for our argparser.
+With this in place, we can freely add our own additional arguments to the exec command, like so:
+
+.. code-block:: python
 
     b2luigi.set_setting("task_cmd_additional_args", ["--name", "foo", "--import-variable", "bar"])
 
