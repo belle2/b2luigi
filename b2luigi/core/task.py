@@ -43,7 +43,7 @@ class Task(luigi.Task):
     """
 
     def add_to_output(
-        self, output_file_name: str, target_class: Type[luigi.target.FileSystemTarget] = luigi.LocalTarget, **kwargs
+        self, output_file_name: str, target_class: Type[luigi.target.FileSystemTarget] = LocalTarget, **kwargs
     ) -> Dict[str, luigi.LocalTarget]:
         """
         Call this in your ``output()`` function to add a target to the list of files,
