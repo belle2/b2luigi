@@ -1,31 +1,96 @@
 from contextlib import ExitStack
 from functools import wraps
+from multiprocessing.pool import ThreadPool
+from typing import Optional
+
+from b2luigi import Task
+from b2luigi.core import utils
+from b2luigi.core.settings import get_setting
 
 
 class TemporaryFileContextManager(ExitStack):
-    def __init__(self, task):
+    def __init__(self, task: Task):
         super().__init__()
 
         self._task = task
         self._task_output_function = task.get_output_file_name
+        self._task_input_function = task.get_input_file_names
+        self._task_input_function_from_dict = task.get_input_file_names_from_dict
 
-        self._open_files = {}
+        self._open_output_files = {}
+        self._open_input_files = {}
 
     def __enter__(self):
-        def get_output_file_name(key):
-            if key not in self._open_files:
+        def get_output_file_name(key: str, **tmp_file_kwargs):
+            if key not in self._open_output_files:
                 target = self._task._get_output_target(key)
-                temporary_path = target.temporary_path()
-                self._open_files[key] = self.enter_context(temporary_path)
+                temporary_path = target.temporary_path(task=self._task, **tmp_file_kwargs)
+                self._open_output_files[key] = self.enter_context(temporary_path)
 
-            return self._open_files[key]
+            return self._open_output_files[key]
 
         self._task.get_output_file_name = get_output_file_name
+
+        def get_input_file_names(key: str, **tmp_file_kwargs):
+            if key not in self._open_input_files:
+                targets = self._task._get_input_targets(key)
+                self._open_input_files[key] = []
+                n_download_threads = get_setting("n_download_threads", default=2, task=self._task)
+                if n_download_threads is not None:
+                    with ThreadPool(n_download_threads) as pool:
+                        self._open_input_files[key] = pool.map(
+                            lambda target: self.enter_context(
+                                target.get_temporary_input(task=self._task, **tmp_file_kwargs)
+                            ),
+                            targets,
+                        )
+                else:
+                    for target in targets:  # TODO: This does not work in wrapping tasks
+                        temporary_path = target.get_temporary_input(task=self._task, **tmp_file_kwargs)
+                        self._open_input_files[key].append(self.enter_context(temporary_path))
+
+            return self._open_input_files[key]
+
+        self._task.get_input_file_names = get_input_file_names
+
+        def get_input_file_names_from_dict(requirement_key: str, key: Optional[str] = None, **tmp_file_kwargs):
+            internal_key = f"{requirement_key}_{str(key)}"
+            if internal_key not in self._open_input_files:
+                # Expected output of task.input is {key: [generators, ...]}
+                target_generator_list = self._task.input()[requirement_key]
+
+                self._open_input_files[internal_key] = []
+
+                # Loop over all expected targets
+                for target_generator in target_generator_list:
+                    # Here we expect the mother tasks outputs as {output_key: [target, ...]}
+                    target_dict = utils.flatten_to_dict_of_lists(target_generator)
+                    if key is not None and key in target_dict.keys():
+                        targets = target_dict[key]
+
+                    # If no key is given, we want all targets
+                    elif key is None:
+                        targets = [item for sublist in target_dict.values() for item in sublist]
+
+                    else:
+                        raise KeyError(
+                            f"Could not resolve target structure with key: {key} and target_dict:\n{target_dict}"
+                        )
+
+                    for target in targets:
+                        temporary_path = target.get_temporary_input(task=self._task, **tmp_file_kwargs)
+                        self._open_input_files[internal_key].append(self.enter_context(temporary_path))
+
+            return self._open_input_files[internal_key]
+
+        self._task.get_input_file_names_from_dict = get_input_file_names_from_dict
 
     def __exit__(self, *exc_details):
         super().__exit__(*exc_details)
 
         self._task.get_output_file_name = self._task_output_function
+        self._task.get_input_file_names = self._task_input_function
+        self._task.get_input_file_names_from_dict = self._task_input_function_from_dict
 
 
 def on_temporary_files(run_function):
@@ -77,8 +142,8 @@ def on_temporary_files(run_function):
     """
 
     @wraps(run_function)
-    def run(self):
+    def run(self, *args, **kwargs):
         with TemporaryFileContextManager(self):
-            run_function(self)
+            run_function(self, *args, **kwargs)
 
     return run

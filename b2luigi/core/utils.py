@@ -314,7 +314,7 @@ def get_task_file_dir(task):
 def get_filename():
     import __main__
 
-    return __main__.__file__
+    return os.path.abspath(__main__.__file__)
 
 
 def map_folder(input_folder):

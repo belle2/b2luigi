@@ -46,7 +46,7 @@ A full task using XRootDTargets could look like this:
     :undoc-members:
     :show-inheritance:
 
-.. autoclass::b2luigi.XrootDTarget
+.. autoclass:: b2luigi.XRootDTarget
     :members:
     :undoc-members:
     :show-inheritance:
