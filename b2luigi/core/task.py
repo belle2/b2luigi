@@ -265,7 +265,10 @@ class Task(luigi.Task):
             None
         """
         for key in self.get_all_output_file_names():
-            self._remove_output_file_target(key)
+            try:
+                self._remove_output_file_target(key)
+            except Exception as ex:
+                print(f"Could not remove output file {key}: {ex}")
 
 
 class ExternalTask(Task, luigi.ExternalTask):
