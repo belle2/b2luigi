@@ -151,7 +151,7 @@ def remove_outputs(task_list, target_tasks, only=False, auto_confirm=False):
     else:
         confirm = "y"
 
-    if confirm != "y":
+    if confirm not in {"y", "yes"}:
         print("No tasks were removed.")
         exit(0)
 
