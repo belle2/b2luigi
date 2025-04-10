@@ -148,13 +148,6 @@ class XRootDSystem(FileSystem):
         In case the creation fails, a warning will be printed and a assertion will fail.
 
         Args:
-            path: Path to the directory on the remote file system.
-        """
-
-        If the directory already exists, a warning is logged, and the function returns.
-        If the creation fails, a warning is logged, and an assertion error is raised.
-
-        Args:
             path (str): The path of the directory to create.
 
         Raises:
@@ -344,18 +337,6 @@ class XRootDTarget(FileSystemTarget):
         """
         self.fs.copy_file_from_remote(self.path, f"{path}/{self.base_name}")
         return f"{path}/{self.base_name}"
-
-    @contextmanager
-    def temporary_path(self) -> Generator[str, None, None]:
-        """
-        Context manager to create a temporary file on the local file system.
-
-        Returns:
-            str: Path to the copied file.
-        """
-        local_path = os.path.join(path, self.base_name)
-        self.fs.copy_file_from_remote(self.path, local_path)
-        return local_path
 
     def open(self, mode: str) -> None:
         """Raise NotImplementedError as open is not supported."""
