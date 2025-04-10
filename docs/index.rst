@@ -75,7 +75,7 @@ that we have learned with time.
 Why are you still talking, lets use it!
 ---------------------------------------
 
-Have a look into the :ref:`quick-start-label`.
+Have a look into the :ref:`quick-start-label` and/or the :ref:`starterkit_label`.
 
 You can also start reading the :ref:`api-documentation-label` or the code on GitHub_.
 
@@ -92,8 +92,8 @@ Content
 
     installation
     quickstart
-    features
     starterkit/index
+    features
     examples
     api
     faq
