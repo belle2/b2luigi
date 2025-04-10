@@ -1,4 +1,4 @@
-"""Task scheduling and batch running for basf2 jobs made simple"""
+"""b2luigi - bringing batch 2 luigi"""
 
 from luigi import *
 from luigi.util import copies
