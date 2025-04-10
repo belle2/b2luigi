@@ -141,6 +141,7 @@ Features, fixing, help and testing
     * Giacomo De Pietro (`GiacomoXT`_)
     * Alex Heidelbach (`AlexanderHeidelbach`_)
     * Tristan Fillinger (`0ctagon`_)
+    * Jonas Eppelt (`JonasEppelt`_)
 
 Stolen ideas
     * Implementation of SGE batch system (`sge`_).
@@ -167,6 +168,7 @@ Stolen ideas
 .. _`MarcelHoh`: https://github.com/MarcelHoh
 .. _`GiacomoXT`: https://github.com/GiacomoXT
 .. _`AlexanderHeidelbach`: https://github.com/AlexanderHeidelbach
+.. _`JonasEppelt`: https://github.com/JonasEppelt
 .. _`0ctagon`: https://github.com/0ctagon
 .. _`sge`: https://github.com/spotify/luigi/blob/master/luigi/contrib/sge.py
 .. _`lsf`: https://github.com/spotify/luigi/pull/2373/files

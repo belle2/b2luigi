@@ -13,6 +13,7 @@ variables:
   GITLAB_BELLE2_TOOLS_B2SETUP: "/cvmfs/belle.cern.ch/tools/b2setup"
   FLIT_INDEX_URL: "https://upload.pypi.org/legacy/"
   FLIT_USERNAME: __token__
+  BASF2_RELEASE_VERSION: "light-2409-toyger"
 
 workflow:
   rules:
@@ -32,7 +33,8 @@ default:
     - git config --global --add safe.directory $(dirname ${GITLAB_BELLE2_TOOLS_B2SETUP})
     # Setup of basf2
     - source ${GITLAB_BELLE2_TOOLS_B2SETUP}
-    - b2venv $(b2help-releases)
+    - echo ${BASF2_RELEASE_VERSION}
+    - b2venv ${BASF2_RELEASE_VERSION}
     - source venv/bin/activate
 
 pre_commit:
@@ -49,6 +51,9 @@ test:
     - pytest -v --cov b2luigi --junitxml=$ARTIFACTS_TEST_PATH --cov-report=xml --cov-report=html --cov-report=term tests
     - mv htmlcov $ARTIFACTS_COV_PATH
   coverage: '/(?i)total.*? (100(?:\.0+)?\%|[1-9]?\d(?:\.\d+)?\%)$/'
+  parallel:
+    matrix:
+      - BASF2_RELEASE_VERSION: [$BASF2_PYTHON38_RELEASE, $BASF2_PYTHON311_RELEASE]
   artifacts:
     reports:
       junit: $ARTIFACTS_TEST_PATH
