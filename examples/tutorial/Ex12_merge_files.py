@@ -12,7 +12,7 @@ Common Analysis Workflow
     Python class and the run method can be for example functionally structured.
 
 One of the command line tools in ``b2luigi`` is the ``dry_run`` method. This
-will only execute the :meth:`b2luigi.Task.dry_run` method of each task. This can be usefull
+will only execute the :meth:`b2luigi.Task.dry_run` method of each task. This can be useful
 when developing a pipeline and one wants to preview the output of the
 pipeline without actually running it.
 
@@ -87,7 +87,7 @@ class MergerTask(b2luigi.Task):
         dataframes = [self.read_root(filename) for filename in self.filenames]
 
         # Concatenate all the dataframes into a single dataframe
-        # Caution: Don't use this methode for large and/or many dataframes
+        # Caution: Don't use this method for large and/or many dataframes
         #          since the performance is very bad
         merged_df = pd.concat(dataframes)
 

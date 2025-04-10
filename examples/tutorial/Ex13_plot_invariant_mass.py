@@ -9,7 +9,7 @@ Common Analysis Workflow Continued
     the merged ntuple files from the previous task to perform an invariant mass
     fit. For demonstartion purposes, the task does not contain the actual run
     logic but calls a fitting module that is defined at a different location. In
-    this way, the pipeline gains more readabilty since each task only contains
+    this way, the pipeline gains more readability since each task only contains
     a method call instead of the actual, potentianally long logic.
 
 In a separate module, we define the ``PlotInvariantMass`` class that
@@ -77,7 +77,7 @@ class PlotInvariantMass:
 
 
 # %%
-# In the workflow pipeline, we only define the ``PlotInvariantMassTask`` which handels the
+# In the workflow pipeline, we only define the ``PlotInvariantMassTask`` which handles the
 # input and output files. The actual plotting is outsourced to the ``PlotInvariantMass``
 # class defined in a separate location and can potentially be reused in other tasks.
 # The task inherits from the ``MergerTask`` and uses the output files of the
@@ -113,7 +113,7 @@ class PlotInvariantMassTask(b2luigi.Task):
             # Append the dictionary to the result list
             input_data.append({"event_type": event_type, "treeFit": tree_fit, "filename": input})
 
-        # Call "general" ploting module that contains the actual task and
+        # Call "general" plotting module that contains the actual task and
         # produces files according to the prefined `output` method
         plotter = PlotInvariantMass(
             input_data=input_data,

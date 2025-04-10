@@ -37,7 +37,7 @@ class MyTask(b2luigi.Task):
 # %%
 # We again make use of the :meth:`b2luigi.Task.add_to_output` method to add
 # another output file in the now existing directory structure. In this
-# example, the output is structered as follows:
+# example, the output is structured as follows:
 #
 # .. code-block:: none
 #

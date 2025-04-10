@@ -64,13 +64,13 @@ class MyWrapperTask(b2luigi.WrapperTask):
 # %%
 # We make use of the settings mechanism of ``b2luigi`` to define the directory where the results will be stored.
 # This is done by assigning a value to the `result_dir` key.
-# Setting the `results_dir` here, globaly, will now save all the outputs of the processed tasks in the specified location.
+# Setting the `results_dir` here, globally, will now save all the outputs of the processed tasks in the specified location.
 # It is also possible to define for each task specifically the settings.
 # The order in which the settings are respected is as follows:
 #
 # - Task instance attribute
 # - Task class property
-# - Global setting (as demostrated here)
+# - Global setting (as demonstrated here)
 # - Configuration file 'settings.json'
 #
 # More information about the settings can be found in the :ref:`settings-label` section.

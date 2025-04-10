@@ -31,7 +31,7 @@ To prevent this, you can set the ``hashed`` attribute of the parameter to ``True
         my_parameter = b2luigi.ListParameter(hashed=True)
 
 This will use an md5 hash of the parameters string representation to build the output name.
-It is also possible, to give a custum hashing function to the parameter, by setting the ``hash_function`` attribute to a function that takes the parameter as input and returns a string.
+It is also possible, to give a custom hashing function to the parameter, by setting the ``hash_function`` attribute to a function that takes the parameter as input and returns a string.
 .. code-block:: python
 
     class MyTask(b2lujson.Task):

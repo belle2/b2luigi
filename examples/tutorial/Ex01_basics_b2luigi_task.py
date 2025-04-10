@@ -26,7 +26,7 @@ Commonly used types are:
 - ``b2luigi.BoolParameter``
 - ``b2luigi.DictParameter``
 
-Usefull parameter attributes are:
+Useful parameter attributes are:
 
 - ``default``: default value of the parameter
 - ``significant``: specify ``False`` if the parameter should not be treated as part of the unique identifier for a Task
@@ -97,7 +97,7 @@ if __name__ == "__main__":
 #
 #   python3 Ex01_basics_b2luigi_task.py
 #
-# The output of the script will be the direcotry structure
+# The output of the script will be the directory structure
 #
 # .. code-block:: none
 #

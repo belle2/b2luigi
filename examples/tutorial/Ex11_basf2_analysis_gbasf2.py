@@ -6,7 +6,7 @@
 
 .. hint::
     This example demonstrates how to submit a ``basf2`` analysis task via ``gbasf2``.
-    Here, we do not rely on the self simulated and reconstructed data but use a MC dataset that is avaible on the grid as input.
+    Here, we do not rely on the self simulated and reconstructed data but use a MC dataset that is available on the grid as input.
     In addition, this exercise explains every setting that can be set for a :class:`Basf2PathTask <b2luigi.basf2_helper.tasks.Basf2PathTask>` that is submitted via ``gbasf2``.
 
 To submit jobs via ``gbasf2``, the user will need to have a valid grid certificate.
@@ -183,7 +183,7 @@ if __name__ == "__main__":
     b2luigi.process(AnalysisTask(), batch=True)
 
 # %%
-# **Optional but Usefull Settings for gbasf2**
+# **Optional but useful settings for gbasf2**
 #
 # - ``gbasf2_release``:
 #   Defaults to the release of your currently set up ``basf2``

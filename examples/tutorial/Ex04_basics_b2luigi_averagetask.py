@@ -92,7 +92,7 @@ if __name__ == "__main__":
 
 # %%
 # In real applications, tasks depending on multiple other tasks can
-# form very large dependecy graphs. Additionally, the execution time of the
+# form very large dependency graphs. Additionally, the execution time of the
 # entire workflow can be very long. To handle the schedule and execution of
 # such workflows, ``luigi`` provides the user with the concept of local and
 # global schedulers. The ``local_scheduler`` is the default scheduler and is
@@ -100,13 +100,13 @@ if __name__ == "__main__":
 #
 # We can also define which scheduler should be used to schedule the task
 # here. For this, we spawn the scheduler in a separate process with the
-# help of the ``luigi`` deamon:
+# help of the ``luigi`` daemon:
 #
 # .. code-block:: bash
 #
 #   host@user:$ luigid --port 8080
 #
-# The ``port`` number should be an accesible port of the ``host`` machine. We
+# The ``port`` number should be an accessible port of the ``host`` machine. We
 # can then use the ``--scheduler-host`` and ``--scheduler-port`` arguments to
 # tell the task where to find the scheduler.
 #

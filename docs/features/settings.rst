@@ -124,7 +124,7 @@ Here is a list of available settings already implemented in b2luigi:
         It is recommended to set this setting via Task properties.
 
     - ``transfer_files``: List[String]
-        Files to be transfered from the HTCondor Job. The ``env_script`` is automatically included.
+        Files to be transferred from the HTCondor Job. The ``env_script`` is automatically included.
         It is set as default for the `transfer_input_files` in the ``htcondor_settings``.
 
     LSF specific settings
