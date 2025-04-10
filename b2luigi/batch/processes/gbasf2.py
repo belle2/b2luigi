@@ -206,7 +206,9 @@ class Gbasf2Process(BatchProcess):
         ``gbasf2_evtpersec``,
         ``gbasf2_priority``,
         ``gbasf2_jobtype``,
-        ``gbasf2_basf2opt``
+        ``gbasf2_basf2opt``,
+        ``gbasf2_lfn_sandboxfiles``,
+        ``gbasf2_input_grouping``
 
         It is further possible to append arbitrary command line arguments to the ``gbasf2`` submission command
         with the ``gbasf2_additional_params`` setting.
@@ -631,6 +633,16 @@ class Gbasf2Process(BatchProcess):
         basf2opt = get_setting("gbasf2_basf2opt", default=False, task=self.task)
         if basf2opt is not False:
             gbasf2_command_str += f" --basf2opt='{basf2opt}' "
+
+        gbasf2_lfn_sandboxfiles = get_setting("gbasf2_lfn_sandboxfiles", default=False, task=self.task)
+        if gbasf2_lfn_sandboxfiles is not False:
+            gbasf2_command_str += " --lfn_sandboxfiles "
+
+        gbasf2_input_grouping = get_setting("gbasf2_input_grouping", default=False, task=self.task)
+        if gbasf2_input_grouping is not False:
+            if gbasf2_input_grouping not in {"site", "size"}:
+                raise ValueError("gbasf2_input_grouping must be either 'site' or 'size'.")
+            gbasf2_command_str += f" --input_grouping {' '.join(gbasf2_input_grouping)} "
 
         # Provide a output_ds parameter if the group is not belle
         group_name = get_setting("gbasf2_proxy_group", default="belle", task=self.task)
