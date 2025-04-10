@@ -54,6 +54,7 @@ def get_cli_arguments(ignore_additional_command_line_args=False):
         default=[],
         help="Remove the output of only this task, not its dependents. If a list of tasks is given, remove only the output of the tasks in the list.",
     )
+    parser.add_argument("-y", "--yes", action="store_true", help="Automatically confirm removal without prompting")
 
     parser.add_argument("--task-id", help="EXPERT.", default="")
 
@@ -68,9 +69,9 @@ def get_cli_arguments(ignore_additional_command_line_args=False):
         raise AttributeError("A batch runner should always have a fully qualified task id.")
     if args.show_output and (args.scheduler_host or args.scheduler_port or args.batch or args.test):
         print("Ignoring all other parameters, as you have given the --show-output parameter.")
-    if args.remove and (args.scheduler_host or args.scheduler_port or args.batch or args.test):
+    if args.remove and (args.scheduler_host or args.scheduler_port or args.batch or args.test or args.show_output):
         print("Ignoring all other parameters, as you have given the --remove parameter.")
-    if args.remove_only and (args.scheduler_host or args.scheduler_port or args.batch or args.test):
+    if args.remove_only and (args.scheduler_host or args.scheduler_port or args.batch or args.test or args.show_output):
         print("Ignoring all other parameters, as you have given the --remove-only parameter.")
 
     return args
