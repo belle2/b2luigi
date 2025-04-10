@@ -1,7 +1,7 @@
-b2luigi Features
---------
+``b2luigi`` Features
+--------------------
 
-Once you have your first task tree setup, (b2)luigi has many features, that make your live easier.
+Once you have your first task tree setup, ``(b2)luigi`` has many features, that make your live easier.
 From leveraging batch systems, setting up different environments, keeping track over many parameters and files, there are many features to keep in mind.
 In the following sections some of the important features are explained in more detail.
 Also checkout our :ref:`examples-label` for some working examples.
