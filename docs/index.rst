@@ -93,14 +93,14 @@ Content
 .. toctree::
     :maxdepth: 2
 
-    usage/installation
-    usage/quickstart
-    usage/batch
-    advanced/basf2-examples
-    documentation/api
-    documentation/run_modes
-    advanced/faq
-    advanced/development
+    installation
+    quickstart
+    starterkit
+    faq
+    features
+    examples
+    development
+    api
 
 
 The name

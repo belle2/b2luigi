@@ -44,6 +44,7 @@ doc = [
     "sphinxcontrib-jsmath==1.0.1",
     "sphinxcontrib-qthelp==1.0.3",
     "sphinxcontrib-serializinghtml==1.1.5",
+    "sphinx-gallery",
     "sphinx-autobuild"
 ]
 
@@ -57,3 +58,4 @@ line-length = 120
 [tool.ruff.extend-per-file-ignores]
 "__init__.py" = ["F401", "F403", "E402"]
 "examples/gbasf2/example_mdst_analysis.py" = ["E501"]
+"examples/tutorial/Ex13_plot_invariant_mass.py" = ["E402"]

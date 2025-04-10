@@ -81,7 +81,21 @@ release = _version
 # Add any Sphinx extension module names here, as strings. They can be
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom
 # ones.
-extensions = ["sphinx.ext.doctest", "sphinx.ext.autodoc", "sphinx.ext.napoleon"]
+extensions = ["sphinx.ext.doctest", "sphinx.ext.autodoc", "sphinx.ext.napoleon", "sphinx_gallery.gen_gallery"]
+sphinx_gallery_conf = {
+    "examples_dirs": "../examples/tutorial",
+    "gallery_dirs": "starterkit",
+    "filename_pattern": r"Ex\d+.*\.py",
+    "ignore_pattern": r"^.*\.txt$|.*\.sh$",
+    "plot_gallery": False,
+    "show_memory": False,
+    "min_reported_time": 0,
+    "remove_config_comments": True,
+    "backreferences_dir": None,
+    "download_all_examples": False,
+    "notebook_extensions": {},  # Don't create notebook download
+    "within_subsection_order": "FileNameSortKey",
+}
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ["_templates"]
