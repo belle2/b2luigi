@@ -3,6 +3,16 @@ from unittest.mock import MagicMock
 from b2luigi.core.xrootd_targets import XRootDSystem, XRootDTarget
 
 
+def XRootD_available():
+    try:
+        import XRootD  # noqa
+
+        return True
+    except ModuleNotFoundError:
+        return False
+
+
+@unittest.skipIf(not XRootD_available(), "XRootD is not available. Skipping tests.")
 class TestXRootDSystem(unittest.TestCase):
     def setUp(self) -> None:
         self.mock_server_path: str = "root://mockserver.cern.ch/"

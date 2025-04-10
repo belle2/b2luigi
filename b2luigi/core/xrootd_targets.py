@@ -38,9 +38,8 @@ class XRootDSystem(FileSystem):
 
     def exists(self, path: str) -> bool:
         """
-        Implementation of the exists function for the :obj:`XRootDSystem`.
-        Will return ``True`` if the file or directory exists and fails if it can not be found.
-        This might also include cases, where the server is not reachable.
+        Implementation of the exists function for the XRootDSystem.
+        Will return True if the file or directory exists and False if it can not be found. This might also include cases, where the server is not reachable.
 
         Args:
             path (str): The path to check for existence.
@@ -57,10 +56,8 @@ class XRootDSystem(FileSystem):
 
     def copy_file_to_remote(self, local_path: str, remote_path: str, force: bool = False) -> None:
         """
-        Copies a file from the local file system to the remote file system.
-
-        This method uses the client to perform the file transfer. If the copy operation
-        fails, a warning message is logged, and an assertion error is raised.
+        Function to copy a file from the local file system to the remote file system.
+        In case the copy fails, a warning will be printed and a assertion will fail.
 
         Args:
             local_path (str): The path to the file on the local file system.
@@ -79,7 +76,13 @@ class XRootDSystem(FileSystem):
 
     def copy_file_from_remote(self, remote_path: str, local_path: str, force: bool = False) -> None:
         """
-        Copies a file from the remote file system to the local file system.
+        Function to copy a file from the remote file system to the local file system.
+        In case the copy fails, a warning will be printed and a assertion will fail.
+
+        Args:
+            remote_path: Path to the file on the remote file system.
+            local_path: Path to the file on the local file system.
+            force: If True, the file will be overwritten if it already exists. Default is False.
 
         This method uses the client to perform the file transfer. If the copy operation
         fails, a warning message is logged, and an assertion error is raised.
@@ -124,10 +127,8 @@ class XRootDSystem(FileSystem):
 
     def move(self, source_path: str, dest_path: str) -> None:
         """
-        Moves a file from one location to another on the XRootD server.
-
-        This method uses the client to perform the move operation. If the move fails,
-        a warning message is logged, and an assertion error is raised.
+        A function to move a file from one location to another on the XRootD server.
+        In case the move fails, a warning will be printed and a assertion will fail.
 
         Args:
             source_path (str): The current path of the file on the remote file system.
@@ -143,7 +144,12 @@ class XRootDSystem(FileSystem):
 
     def mkdir(self, path: str) -> None:
         """
-        Creates a directory on the remote file system.
+        A function to create a directory on the remote file system.
+        In case the creation fails, a warning will be printed and a assertion will fail.
+
+        Args:
+            path: Path to the directory on the remote file system.
+        """
 
         If the directory already exists, a warning is logged, and the function returns.
         If the creation fails, a warning is logged, and an assertion error is raised.
@@ -191,7 +197,12 @@ class XRootDSystem(FileSystem):
 
     def remove(self, path: str) -> None:
         """
-        Removes a file from the remote file system.
+        A function to remove a file from the remote file system.
+        This function can not remove directories. Use ``remove_dir`` for that.
+        In case the removal fails, a warning will be printed and a assertion will fail.
+
+        Args:
+            path: Path to the file on the remote file system.
 
         This method deletes a single file and does not support directory removal.
 
@@ -206,7 +217,7 @@ class XRootDSystem(FileSystem):
             logging.warning(f"Failed to remove file {path}: {status.message}")
         assert status.ok, f"File removal failed: {status.message}"
 
-    def listdir(self, path: str) -> Tuple[Dict[str, int], Any]:
+    def listdir(self, path: str, print_entries: bool = False) -> Tuple[Dict[str, int], Any]:
         """
         Lists the contents of a directory on the remote file system.
 
@@ -236,18 +247,16 @@ class XRootDSystem(FileSystem):
             elif entry.statinfo.flags in {48, 16}:  # File flags
                 dir_dict[f"{listing.parent}{entry.name}"] = 0
             else:
-                logging.warning(f"Unknown entry type: {entry}")
-                raise ValueError("Unknown flags. Possible read-only files or unusual permissions.")
-            logging.info(f"{entry.name}: {entry.statinfo.size / 1024 / 1024:.2f} MB")
-
+                logging.warning(f"[get_directory_listing] Info: {entry}")
+                exit("Unknown flags. RO files, strange permissions?")
+            if print_entries:
+                print(entry.name, f"{entry.statinfo.size/1024/1024} MB")
         return dir_dict, listing
 
     def remove_dir(self, path: str) -> None:
         """
-        Recursively removes a directory and all its contents from the remote file system.
-
-        This method iterates through the directory contents, removing files and subdirectories.
-        If the operation fails, a warning is logged, and an assertion error is raised.
+        A function to iteratively remove a directory and all its content from the remote file system.
+        In case the removal fails, a warning will be printed and a assertion will fail.
 
         Args:
             path (str): Path to the directory on the remote file system.
@@ -277,6 +286,15 @@ class XRootDSystem(FileSystem):
         assert status.ok, f"Directory removal failed: {status.message}"
 
     def rename_dont_move(self, path: str, dest: str) -> None:
+        """
+        Overwriting a the luigi function used to handle the atomic write problem.
+        (See https://github.com/spotify/luigi/blob/master/luigi/target.py#L303)
+        In this case it is just an alias for ``copy_file_to_remote`` with ``force=True``.
+
+        Args:
+            local_path: Path to the file on the local file system.
+            remote_path: Path to the file on the remote file system.
+        """
         self.copy_file_to_remote(path, dest, force=True)
 
 
@@ -316,10 +334,21 @@ class XRootDTarget(FileSystemTarget):
 
     def get(self, path: str = "~") -> str:
         """
-        Copy the file from the remote file system to the local file system.
+        A function to copy the file from the remote file system to the local file system.
 
         Args:
-            path (str): Path to copy the file to.
+            path: Path to copy the file to.
+
+        Returns:
+            Path to the copied file.
+        """
+        self.fs.copy_file_from_remote(self.path, f"{path}/{self.base_name}")
+        return f"{path}/{self.base_name}"
+
+    @contextmanager
+    def temporary_path(self) -> Generator[str, None, None]:
+        """
+        Context manager to create a temporary file on the local file system.
 
         Returns:
             str: Path to the copied file.

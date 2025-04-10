@@ -9,6 +9,8 @@ import types
 from typing import Any, Dict, List, Optional, Iterator, Iterable
 import shlex
 import copy
+import shutil
+import logging
 
 import luigi
 
@@ -159,6 +161,26 @@ def task_iterator(task, only_non_complete=False):
     yield from _unique_task_iterator(task, only_non_complete)
 
 
+def find_dependents(task_iterator, target_task):
+    dependents = set()
+
+    def depends_on(task, target):
+        for dep in luigi.task.flatten(task.requires()):
+            if dep.__class__.__name__ == target:
+                return True
+            if depends_on(dep, target):
+                return True
+        return False
+
+    for task in task_iterator:
+        if task.__class__.__name__ == target_task:
+            dependents.add(task)
+        if depends_on(task, target_task):
+            dependents.add(task)
+
+    return dependents
+
+
 def get_all_output_files_in_tree(root_module, key=None):
     if key:
         return get_all_output_files_in_tree(root_module)[key]
@@ -246,19 +268,20 @@ def create_output_file_name(task, base_filename: str, result_dir: Optional[str] 
         # Be sure to evaluate things relative to the current executed file, not to where we are now
         result_dir: str = map_folder(get_setting("result_dir", task=task, default=".", deprecated_keys=["result_path"]))
 
+    separator = get_setting("parameter_separator", task=task, default="=")
     for key, value in serialized_parameters.items():
         # Raise error if parameter value contains path separator "/" ("\" on Windows)
         # or is not interpretable as basename due to other reasons.
         if value != os.path.basename(value):
             raise ValueError(
-                f"Parameter `{key}={value}` cannot be interpreted as directory name. "
+                f"Parameter `{key}{separator}{value}` cannot be interpreted as directory name. "
                 f"Make sure it does not contain the path separators ``{os.path.sep}``. "
                 "Consider using a hashed parameter (e.g. ``b2luigi.Parameter(hashed=True)``)."
             )
 
     use_parameter_name = get_setting("use_parameter_name_in_output", task=task, default=True)
     if use_parameter_name:
-        param_list: List[str] = [f"{key}={value}" for key, value in serialized_parameters.items()]
+        param_list: List[str] = [f"{key}{separator}{value}" for key, value in serialized_parameters.items()]
     else:
         param_list: List[str] = [f"{value}" for value in serialized_parameters.values()]
     output_path: str = os.path.join(result_dir, *param_list)
@@ -336,17 +359,21 @@ def _flatten(struct: Iterable) -> List:
     return result
 
 
-def on_failure(self, exception):
-    log_file_dir = os.path.abspath(get_log_file_dir(self))
+def on_failure(task, _):
+    explanation = f"Failed task {task} with task_id and parameters:\n"
+    explanation += f"\ttask_id={task.task_id}\n"
+    for key, value in get_filled_params(task).items():
+        explanation += f"\t{key}={value}\n"
+    explanation += "Please have a look into the log files in:\n"
+    explanation += os.path.abspath(get_log_file_dir(task))
 
+    # First print the explanation on stdout
     print(colorama.Fore.RED)
-    print("Task", self.task_family, "failed!")
-    print("Parameters")
-    for key, value in get_filled_params(self).items():
-        print("\t", key, "=", value)
-    print("Please have a look into the log files in")
-    print(log_file_dir)
+    print(explanation)
     print(colorama.Style.RESET_ALL)
+
+    # Then return it: it will be sent back to the scheduler
+    return explanation
 
 
 def add_on_failure_function(task):
@@ -354,7 +381,11 @@ def add_on_failure_function(task):
 
 
 def create_cmd_from_task(task):
-    filename = os.path.basename(get_filename())
+    filename = get_filename() if get_setting("add_filename_to_cmd", task=task, default=True) else ""
+    task_cmd_additional_args = get_setting("task_cmd_additional_args", task=task, default=[])
+
+    if isinstance(task_cmd_additional_args, str):
+        raise ValueError("Your specified task_cmd_additional_args needs to be a list of strings, e.g. ['--foo', 'bar']")
 
     prefix = get_setting("executable_prefix", task=task, default=[], deprecated_keys=["cmd_prefix"])
 
@@ -370,6 +401,7 @@ def create_cmd_from_task(task):
 
     cmd += executable
     cmd += [filename, "--batch-runner", "--task-id", task.task_id]
+    cmd += task_cmd_additional_args
 
     return cmd
 
@@ -394,6 +426,19 @@ def is_subdir(path, parent_dir):
     return os.path.commonpath([path, parent_dir]) == parent_dir
 
 
+def get_apptainer_or_singularity(task=None):
+    set_cmd = get_setting("apptainer_cmd", default="", task=task)
+    if set_cmd:
+        return set_cmd
+    if shutil.which("apptainer"):
+        return "apptainer"
+    elif shutil.which("singularity"):
+        return "singularity"
+    raise ValueError(
+        "Neither apptainer nor singularity is available on this system. If you know that one of them is available on the batch system you can manually set it via the `apptainer_cmd` setting."
+    )
+
+
 def create_apptainer_command(command, task=None):
     env_setup_script = get_setting("env_script", task=task, default="")
     if not env_setup_script:
@@ -405,7 +450,7 @@ def create_apptainer_command(command, task=None):
     if get_setting("batch_system", default="lsf", task=task) == "gbasf2":
         raise ValueError("Invalid batch system for apptainer usage. Apptainer is not supported for gbasf2.")
 
-    exec_command = ["apptainer", "exec"]
+    exec_command = [get_apptainer_or_singularity(task=task), "exec"]
     additional_params = get_setting("apptainer_additional_params", default="", task=task)
     exec_command += [f" {additional_params}"] if additional_params else []
 
@@ -435,3 +480,9 @@ def create_apptainer_command(command, task=None):
 
     # Do the shlex split for correct string interpretation
     return shlex.split(" ".join(exec_command))
+
+
+def get_luigi_logger():
+    """Helper function for getting the logger used by luigi."""
+    logger = logging.getLogger("luigi-interface")
+    return logger

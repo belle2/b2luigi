@@ -174,6 +174,19 @@ class OutputFileNameTestCase(B2LuigiTestCase):
 
         self.assertEqual(output, f"{self.test_dir}/results/parameter={self.dummy_parameter}/output.txt")
 
+    def test_output_file_name_basename_alternate_separator(self):
+        """
+        Test that utils.create_output_file_name will return the expected output filename path
+        """
+        b2luigi.set_setting("parameter_separator", "_EQ_")
+
+        test_task = self._get_dummy_task(self.dummy_parameter)
+        output = utils.create_output_file_name(
+            test_task, base_filename="output.txt", result_dir=f"{self.test_dir}/results"
+        )
+        b2luigi.clear_setting("parameter_separator")
+        self.assertEqual(output, f"{self.test_dir}/results/parameter_EQ_{self.dummy_parameter}/output.txt")
+
     def test_output_file_name_basename_error(self):
         """
         Test that utils.create_output_file_name will raise an error if a parameter contains
@@ -366,7 +379,8 @@ class CreateApptainerCommandTestCase(TestCase):
                             "-c",
                             f"'source {self.env_setup_script} && {self.command}'",
                         ]
-                        result = utils.create_apptainer_command(self.command, task=self.task)
+                        with mock.patch("b2luigi.core.utils.get_apptainer_or_singularity", return_value="apptainer"):
+                            result = utils.create_apptainer_command(self.command, task=self.task)
                         self.assertEqual(result, shlex.split(" ".join(expected_command)))
 
     def test_create_apptainer_command_no_env_script(self):
@@ -415,7 +429,8 @@ class CreateApptainerCommandTestCase(TestCase):
                             "-c",
                             f"'source {self.env_setup_script} && {self.command}'",
                         ]
-                        result = utils.create_apptainer_command(self.command, task=self.task)
+                        with mock.patch("b2luigi.core.utils.get_apptainer_or_singularity", return_value="apptainer"):
+                            result = utils.create_apptainer_command(self.command, task=self.task)
                         self.assertEqual(result, shlex.split(" ".join(expected_command)))
 
     def test_create_apptainer_command_no_mounts(self):
@@ -440,5 +455,34 @@ class CreateApptainerCommandTestCase(TestCase):
                             "-c",
                             f"'source {self.env_setup_script} && {self.command}'",
                         ]
+                        with mock.patch("b2luigi.core.utils.get_apptainer_or_singularity", return_value="apptainer"):
+                            result = utils.create_apptainer_command(self.command, task=self.task)
+                        self.assertEqual(result, shlex.split(" ".join(expected_command)))
+
+    def test_create_apptainer_command_override_apptainer_name(self):
+        with mock.patch(
+            "b2luigi.core.utils.get_setting",
+            side_effect=lambda key, **kwargs: self.settings.get(key, kwargs.get("default")),
+        ):
+            with mock.patch("b2luigi.core.utils.map_folder", side_effect=lambda x: x):
+                with mock.patch("b2luigi.core.utils.get_log_file_dir", return_value=self.log_dir):
+                    with mock.patch("os.makedirs"):
+                        expected_command = [
+                            "test_apptainer_cmd",
+                            "exec",
+                            f" {self.additional_params}",
+                            "--bind",
+                            self.mounts[0],
+                            "--bind",
+                            self.result_dir,
+                            "--bind",
+                            self.log_dir,
+                            self.apptainer_image,
+                            "/bin/bash",
+                            "-c",
+                            f"'source {self.env_setup_script} && {self.command}'",
+                        ]
+                        self.settings["apptainer_cmd"] = "test_apptainer_cmd"
                         result = utils.create_apptainer_command(self.command, task=self.task)
                         self.assertEqual(result, shlex.split(" ".join(expected_command)))
+                        del self.settings["apptainer_cmd"]
