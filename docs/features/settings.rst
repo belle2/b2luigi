@@ -34,6 +34,10 @@ General settings
     If not set, a folder named ``logs`` in the current working directory is used.
     It is recommended to set this path per project via the settings file.
 
+- ``scratch_dir``: String
+    The directory, where temporary files are written to when using the :meth:`on_temporary_files` context.
+    This is used when targets are created with the :meth:`Task.add_to_output` method.
+
 - ``batch_system``: String
     The batch system to use when executed in batch mode. Currently, ``htcondor``, ``lsf``, ``gbasf2``, ``auto`` and ``local`` are supported.
     In case of ``auto``, b2luigi will try to detect the batch system automatically by checking for the executables of ``htcondor`` and ``lsf``.
@@ -51,6 +55,13 @@ General settings
     If set to ``True``, the parameter name is used in the output file name. E.g.: `/result_dir/parameter1_name=value1/parameter2_name=value2/output.txt`.
     If set to ``False``, only the parameter valueeth is used in the output file name: `/result_dir/value1/value2/output.txt`.
     Default is ``True``.
+
+- ``parameter_separator``: String
+    The string used to separate parameter names and parameter values in the output path.
+
+- ``n_download_threads``: int
+    The number of parallel threads used to download input targets with the :meth:`Task.get_input_file_names` function.
+    Defaults to `2`. Set it to `None` to disable the usage of a ThreadPool.
 
 Apptainer settings
 ++++++++++++++++++
@@ -77,7 +88,7 @@ Batch mode specific settings
 ++++++++++++++++++++++++++++
 
 - ``job_name``: String
-    If set, a job name will be set for ``lsf`` and ``htcondor`` batch systems.
+    If set, a job name will be set for ``slurm``, ``lsf`` and ``htcondor`` batch systems.
     For HTCondor, the ClassAdd ``JobBatchName`` is set to this value.
     For LSF, the ``-J`` flag is set to this value.
     By default it is not set.
@@ -111,7 +122,11 @@ Batch mode specific settings
     Only change this setting if you know what you are doing.
     This setting can be used to debug remote execution by pre pending e.g. ``strace`` to the executable.
 
+- ``add_filename_to_cmd``: Boolean
+    Whether to add the filename the the `exec` command in the `executable_wrapper.sh`. Defaults to `True`.
 
+- ``task_cmd_additional_args``: List[String]
+    A list of additional Parameters to add the the `exec` command in the `executable_wrapper.sh`. Defaults to `[]`.
 
 HTCondor specific settings
 ++++++++++++++++++++++++++
@@ -132,6 +147,13 @@ LSF specific settings
 - ``queue``: String
     The queue to submit to.
     Defaults to not setting any queue.
+
+
+Slurm specific settings
++++++++++++++++++++++++
+
+- ``slurm_settings``: Dict
+    A dictionary of settings used for the submit file.
 
 
 ``gbasf2`` specific settings
