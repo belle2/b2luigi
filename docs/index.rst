@@ -95,12 +95,12 @@ Content
 
     installation
     quickstart
-    starterkit/index
-    faq
     features
+    starterkit/index
     examples
-    development
     api
+    faq
+    development
 
 
 The name
@@ -145,7 +145,6 @@ Features, fixing, help and testing
     * Jonas Eppelt (`JonasEppelt`_)
 
 Stolen ideas
-    * Implementation of SGE batch system (`sge`_).
     * Implementation of LSF batch system (`lsf`_).
 
 
@@ -171,7 +170,6 @@ Stolen ideas
 .. _`AlexanderHeidelbach`: https://github.com/AlexanderHeidelbach
 .. _`JonasEppelt`: https://github.com/JonasEppelt
 .. _`0ctagon`: https://github.com/0ctagon
-.. _`sge`: https://github.com/spotify/luigi/blob/master/luigi/contrib/sge.py
 .. _`lsf`: https://github.com/spotify/luigi/pull/2373/files
 
 
