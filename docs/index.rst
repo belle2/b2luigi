@@ -114,57 +114,15 @@ The team
 --------
 
 Current developer and maintainer
-    The Belle II Collaboration (`belle2`_)
+    The Belle II Collaboration (`belle2`_) since November 2023
 
 Original author
     Nils Braun (`nils-braun`_)
-
-Former developer and maintainer
-    Michael Eliachevitch (`meliache`_)
-
-Features, fixing, help and testing
-    * Felix Metzner (`FelixMetzner`_)
-    * Patrick Ecker (`eckerpatrick`_)
-    * Jochen Gemmler
-    * Maximilian Welsch (`welschma`_)
-    * Kilian Lieret (`klieret`_)
-    * Sviatoslav Bilokin (`bilokin`_)
-    * Phil Grace (`philiptgrace`_)
-    * Anselm Baur (`anselmbaur`_)
-    * Moritz Bauer (`sognetic`_)
-    * Matthias Schnepf  (`mschnepf`_)
-    * Artur Gottmann (`ArturAkh`_)
-    * Caspar Schmitt (`schmitca`_)
-    * Marcel Hohmann (`MarcelHoh`_)
-    * Giacomo De Pietro (`GiacomoXT`_)
-    * Alex Heidelbach (`AlexanderHeidelbach`_)
-    * Tristan Fillinger (`0ctagon`_)
-    * Jonas Eppelt (`JonasEppelt`_)
-
 
 .. _github: https://github.com/belle2/b2luigi
 .. _`luigi documentation`: https://luigi.readthedocs.io/en/stable
 .. _`Belle II`: https://www.belle2.org
 .. _`belle2`: https://github.com/belle2
 .. _`nils-braun`: https://github.com/nils-braun
-.. _`meliache`: https://github.com/meliache
-.. _`welschma`: https://github.com/welschma
-.. _`FelixMetzner`: https://github.com/FelixMetzner
-.. _`eckerpatrick`: https://github.com/eckerpatrick
-.. _`klieret`: https://github.com/klieret
-.. _`bilokin`: https://github.com/bilokin
-.. _`philiptgrace`: https://github.com/philiptgrace
-.. _`anselmbaur`: https://github.com/anselm-baur
-.. _`sognetic`: https://github.com/sognetic
-.. _`ArturAkh`: https://github.com/ArturAkh
-.. _`mschnepf`: https://github.com/mschnepf
-.. _`schmitca`: https://github.com/schmitca
-.. _`MarcelHoh`: https://github.com/MarcelHoh
-.. _`GiacomoXT`: https://github.com/GiacomoXT
-.. _`AlexanderHeidelbach`: https://github.com/AlexanderHeidelbach
-.. _`JonasEppelt`: https://github.com/JonasEppelt
-.. _`0ctagon`: https://github.com/0ctagon
-
-
 
 .. [1] https://github.com/spotify/luigi/blob/master/luigi/contrib/sge.py
