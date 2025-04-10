@@ -1,14 +1,6 @@
 b2luigi.basf2\_helper package
 =============================
 
-b2luigi.basf2\_helper.data module
----------------------------------
-
-.. automodule:: b2luigi.basf2_helper.data
-    :members:
-    :undoc-members:
-    :show-inheritance:
-
 b2luigi.basf2\_helper.targets module
 ------------------------------------
 
