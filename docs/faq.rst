@@ -112,7 +112,7 @@ Can I alter the ``exec`` string in the executable wrapper made by b2luigi for ba
 Yes, you can adjust the ``exec`` string used in the executable wrapper for batch submissions. The exec string is made up
 of three key components::
 
-    exec <executable> <filename> --batch --batch-it ExampleTask_id_123 <task cmd additional args>
+    <executable_prefix> <executable> <filename> --batch-runner --task-id ExampleTask_id_123 <task_cmd_additional_args>
 
 Where by default:
 
