@@ -18,7 +18,7 @@ If you are submitting your jobs from a remote machine, you can forward the sched
 Parameters
 ----------
 ``luigi`` already has various Parameter types to pass to your tasks, like :obj:`ListParameter`, :obj:`IntParameter`, :obj:`DateParameter` and many more.
-Check the `luigi documentation <https://luigi.readthedocs.io/en/stable/parameters.html>`_ for more information.
+Check the `luigi parameter documentation <https://luigi.readthedocs.io/en/stable/parameters.html>`_ for more information.
 
 Logging
 -------
