@@ -28,45 +28,78 @@ class requires(object):
     It can be used to require a certain task, but with some variables already set,
     e.g.
 
+    .. code-block:: python
+
         class TaskA(b2luigi.Task):
-             some_parameter = b2luigi.IntParameter()
-             some_other_parameter = b2luigi.IntParameter()
+            some_parameter = b2luigi.IntParameter()
+            some_other_parameter = b2luigi.IntParameter()
 
-             def output(self):
-                 yield self.add_to_output("test.txt")
+            def output(self):
+                yield self.add_to_output("test.txt")
 
-         @b2luigi.requires(TaskA, some_parameter=3)
-         class TaskB(b2luigi.Task):
-             another_parameter = b2luigi.IntParameter()
+        @b2luigi.requires(TaskA, some_parameter=3)
+        class TaskB(b2luigi.Task):
+            another_parameter = b2luigi.IntParameter()
 
-             def output(self):
-                 yield self.add_to_output("out.dat")
+            def output(self):
+                yield self.add_to_output("out.dat")
 
     TaskB will not require TaskA, where some_parameter is already set to 3.
     This also means, that TaskB only has the parameters another_parameter
     and some_other_parameter (because some_parameter is already fixed).
 
+    It is also possible to require multiple tasks, e.g.
+
+    .. code-block:: python
+
+        class TaskA(b2luigi.Task):
+            some_parameter = b2luigi.IntParameter()
+
+            def output(self):
+                yield self.add_to_output("test.txt")
+
+        class TaskB(b2luigi.Task):
+            some_other_parameter = b2luigi.IntParameter()
+
+            def output(self):
+                yield self.add_to_output("test.txt")
+
+        @b2luigi.requires(TaskA, TaskB)
+        class TaskC(b2luigi.Task):
+            another_parameter = b2luigi.IntParameter()
+
+            def output(self):
+                yield self.add_to_output("out.dat")
+
     """
 
-    def __init__(self, task_to_require, **kwargs):
+    def __init__(self, *tasks_to_require, **kwargs):
         super(requires, self).__init__()
+
+        self.tasks_to_require = tasks_to_require
         self.kwargs = kwargs
-        self.task_to_require = task_to_require
 
     def __call__(self, task_that_requires):
         # Get all parameter objects from the underlying task
-        for param_name, param_obj in self.task_to_require.get_params():
-            # Check if the parameter exists in the inheriting task
-            if not hasattr(task_that_requires, param_name) and param_name not in self.kwargs:
-                # If not, add it to the inheriting task
-                setattr(task_that_requires, param_name, param_obj)
+        for task_to_require in self.tasks_to_require:
+            for param_name, param_obj in task_to_require.get_params():
+                # Check if the parameter exists in the inheriting task
+                if not hasattr(task_that_requires, param_name) and param_name not in self.kwargs:
+                    # If not, add it to the inheriting task
+                    setattr(task_that_requires, param_name, param_obj)
 
+        # Modify task_that_requires by adding requires method.
+        # If only one task is required, this single task is returned.
+        # Otherwise, list of tasks is returned
         old_requires = task_that_requires.requires
 
-        # Modify task_that_requres by adding methods
         def requires(_self):
             yield from old_requires(_self)
-            yield _self.clone(cls=self.task_to_require, **self.kwargs)
+            yield (
+                _self.clone(cls=self.tasks_to_require[0], **self.kwargs)
+                if len(self.tasks_to_require) == 1
+                else [_self.clone(cls=task_to_require, **self.kwargs) for task_to_require in self.tasks_to_require]
+            )
 
         task_that_requires.requires = requires
 
@@ -80,22 +113,24 @@ class inherits(object):
 
     It can e.g. be used in tasks that merge the output of the tasks they require. These merger tasks don't need
     the parameter they resolve anymore but should keep the same order of parameters, therefore simplifying the directory
-     structure created by `b2luigi.Task.add_to_output`.
+    structure created by `b2luigi.Task.add_to_output`.
 
     Usage can be similar to this:
 
+    .. code-block:: python
+
         class TaskA(b2luigi.Task):
-             some_parameter = b2luigi.IntParameter()
-             some_other_parameter = b2luigi.IntParameter()
+            some_parameter = b2luigi.IntParameter()
+            some_other_parameter = b2luigi.IntParameter()
 
-             def output(self):
-                 yield self.add_to_output("test.txt")
+            def output(self):
+                yield self.add_to_output("test.txt")
 
-         @b2luigi.inherits(TaskA, without='some_other_parameter')
-         class TaskB(b2luigi.Task):
-             another_parameter = b2luigi.IntParameter()
+        @b2luigi.inherits(TaskA, without='some_other_parameter')
+        class TaskB(b2luigi.Task):
+            another_parameter = b2luigi.IntParameter()
 
-             def requires(self):
+            def requires(self):
                 for my_other_parameter in range(10):
                     yield self.clone(TaskA, some_other_parameter=my_other_parameter)
 
@@ -103,8 +138,8 @@ class inherits(object):
                 # somehow merge the output of TaskA to create "out.dat"
                 pass
 
-             def output(self):
-                 yield self.add_to_output("out.dat")
+            def output(self):
+                yield self.add_to_output("out.dat")
 
     Parameters:
         without: Either a string or a collection of strings
@@ -113,12 +148,10 @@ class inherits(object):
 
     """
 
-    def __init__(self, *tasks_to_inherit, without: Optional[Union[Collection[str], str]] = None):
+    def __init__(self, *tasks_to_inherit, **kwargs):
         super(inherits, self).__init__()
-        if not tasks_to_inherit:
-            raise TypeError("tasks_to_inherit cannot be empty")
-
         self.tasks_to_inherit = tasks_to_inherit
+        without = kwargs.pop("without", None)
         if isinstance(without, str):
             self.without = [without]
         elif without is None:
@@ -128,18 +161,15 @@ class inherits(object):
 
     def __call__(self, task_that_inherits):
         # Get all parameter objects from each of the underlying tasks
-
-        for task_to_inherit in self.tasks_to_inherit:
+        task_iterator = self.tasks_to_inherit
+        for task_to_inherit in task_iterator:
             for param_name, param_obj in task_to_inherit.get_params():
-                # Check if the parameter exists in the inheriting task and isn't in without
+                # Check if the parameter exists in the inheriting task
                 if not hasattr(task_that_inherits, param_name) and param_name not in self.without:
                     # If not, add it to the inheriting task
                     setattr(task_that_inherits, param_name, param_obj)
                 elif param_name in self.without:
                     self.without.remove(param_name)
-
-        # Make sure we're only removing parameters that exist
-        assert not self.without, f"You're trying to remove parameter(s) {self.without} which do(es) not exist."
 
         # Modify task_that_inherits by adding methods
         def clone_parent(_self, **kwargs):
