@@ -1,7 +1,7 @@
 .. _luigi-features-label:
 
-Luigi Features
-==============
+``luigi`` Features
+==================
 
 ``luigi`` already has many nice and helpful features.
 All of them can be used with ``b2luigi`` as well.
@@ -17,20 +17,20 @@ If you are submitting your jobs from a remote machine, you can forward the sched
 
 Parameters
 ----------
-Luigi already has various Parameter types to pass to your tasks, like ``ListParameter``, ``IntParameter``, ``DateParameter`` and many more.
+``luigi`` already has various Parameter types to pass to your tasks, like :obj:`ListParameter`, :obj:`IntParameter`, :obj:`DateParameter` and many more.
 Check the `luigi documentation <https://luigi.readthedocs.io/en/stable/parameters.html>`_ for more information.
 
 Logging
 -------
-Luigi has some `logging features <https://luigi.readthedocs.io/en/stable/logging.html>`_` built in.
+``luigi`` has some `logging features <https://luigi.readthedocs.io/en/stable/logging.html>`_` built in.
 
 Even more settings
 ------------------
-Many aspects of luigis scheduling mechanism can be controlled via the `luigi configuration <https://luigi.readthedocs.io/en/stable/configuration.html>`_.
+Many aspects of ``luigi``s scheduling mechanism can be controlled via the `luigi configuration <https://luigi.readthedocs.io/en/stable/configuration.html>`_.
 Please be aware, that these settings is are a separate configuration from the settings in ``b2luigi``.
 Yes, this is very confusing, but historically grown. In one point in the future, this might get changed.
 
 Resource Management
 -------------------
 Using the central scheduler, ``luigi`` can do some simple `resource management <https://luigi.readthedocs.io/en/stable/configuration.html#resources> `_.
-Just set the available resources in the ``luigi.cfg`` and set the amount used as a Task property.
+Just set the available resources in the `luigi.cfg` and set the amount used as a task property.
