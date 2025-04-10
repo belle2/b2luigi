@@ -59,7 +59,9 @@ where mode can be one of:
                 # automatically when starting the processing in remove mode
                 do_some_stuff_in_remove_mode()
 
-    If you are very sure in what you are doing check out the :meth:`b2luigi.Task._remove_output` private method.
+    If you are very sure in what you are doing check out the :meth:`b2luigi.Task._remove_output` private method. Before
+    executing the ``remove_output`` method of each task, you have to confirm once that you want to remove the output. To
+    skip the confirmation, add the ``--yes`` or ``-y`` flag to the command line.
 
 *   **remove_only**: Similar to the ``remove`` mode, but only remove the output of the given task(s).
 
