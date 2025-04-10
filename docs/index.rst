@@ -141,9 +141,6 @@ Features, fixing, help and testing
     * Tristan Fillinger (`0ctagon`_)
     * Jonas Eppelt (`JonasEppelt`_)
 
-Stolen ideas
-    * Implementation of LSF batch system (`lsf`_).
-
 
 .. _github: https://github.com/belle2/b2luigi
 .. _`luigi documentation`: https://luigi.readthedocs.io/en/stable
@@ -167,7 +164,6 @@ Stolen ideas
 .. _`AlexanderHeidelbach`: https://github.com/AlexanderHeidelbach
 .. _`JonasEppelt`: https://github.com/JonasEppelt
 .. _`0ctagon`: https://github.com/0ctagon
-.. _`lsf`: https://github.com/spotify/luigi/pull/2373/files
 
 
 

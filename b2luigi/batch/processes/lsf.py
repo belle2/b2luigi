@@ -31,6 +31,7 @@ _batch_job_status_cache = LSFJobStatusCache()
 class LSFProcess(BatchProcess):
     """
     Reference implementation of the batch process for a LSF batch system.
+    Heavily inspired by `this post <https://github.com/spotify/luigi/pull/2373/files>`_.
 
     Additional to the basic batch setup (see :ref:`batch-label`), there are
     LSF-specific :meth:`settings <b2luigi.set_setting>`. These are:
