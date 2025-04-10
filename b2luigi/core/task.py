@@ -5,7 +5,7 @@ from typing import Any, Union, List, Dict, Optional, Type
 import luigi
 
 from b2luigi.core.utils import create_output_file_name
-from b2luigi.core.target import LocalTarget
+from b2luigi.core.target import LocalTarget, FileSystemTarget
 
 
 class Task(luigi.Task):
@@ -43,8 +43,8 @@ class Task(luigi.Task):
     """
 
     def add_to_output(
-        self, output_file_name: str, target_class: Type[luigi.target.FileSystemTarget] = LocalTarget, **kwargs
-    ) -> Dict[str, luigi.LocalTarget]:
+        self, output_file_name: str, target_class: Type[FileSystemTarget] = LocalTarget, **kwargs
+    ) -> Dict[str, LocalTarget]:
         """
         Call this in your ``output()`` function to add a target to the list of files,
         this task will output.
@@ -54,7 +54,7 @@ class Task(luigi.Task):
 
             <result-path>/param1=value1/param2=value2/.../<output-file-name.ext>
 
-        This function will by default use a ``LocalTarget``, but you can also pass a different `target_class` as an argument.
+        This function will by default use a :obj:`LocalTarget`, but you can also pass a different ``target_class`` as an argument.
         If you do not want this, you can override the :obj:`_get_output_file_target` function.
 
         Example:
@@ -70,9 +70,9 @@ class Task(luigi.Task):
             output_file_name (:obj:`str`): the file name of the output file.
                 Refer to this file name as a key when using :obj:`get_input_file_names`,
                 :obj:`get_output_file_names` or :obj:`get_output_file`.
-            target_class: which class of luigi.FileSystemTarget to instantiate for this target.
-                defaults to LocalTarget
-            **kwargs: kwargs to be passed to :obj:create_output_file_name via the :obj:`_get_output_file_target` function
+            target_class: which class of :obj:`FileSystemTarget` to instantiate for this target.
+                defaults to :obj:`LocalTarget`
+            **kwargs: kwargs to be passed to :obj:`create_output_file_name` via the :obj:`_get_output_file_target` function
 
         Returns:
             A dictionary with the output file name as key and the target as value.
@@ -80,7 +80,7 @@ class Task(luigi.Task):
         return {output_file_name: self._get_output_file_target(output_file_name, target_class, **kwargs)}
 
     @staticmethod
-    def _transform_io(input_generator: Iterable[luigi.target.FileSystemTarget]) -> Dict[str, List[str]]:
+    def _transform_io(input_generator: Iterable[FileSystemTarget]) -> Dict[str, List[str]]:
         file_paths: Dict[str, List[str]] = utils.flatten_to_file_paths(input_generator)
 
         return file_paths
@@ -269,12 +269,12 @@ class Task(luigi.Task):
         Returns:
             luigi.Target: The ``luigi`` target associated with the specified key.
         """
-        output_dict: Dict[str, luigi.target.FileSystemTarget] = utils.flatten_to_dict(self.output())
+        output_dict: Dict[str, FileSystemTarget] = utils.flatten_to_dict(self.output())
         return output_dict[key]
 
     def _get_output_file_target(
-        self, base_filename: str, target_class: Type[luigi.target.FileSystemTarget] = luigi.LocalTarget, **kwargs: Any
-    ) -> luigi.LocalTarget:
+        self, base_filename: str, target_class: Type[FileSystemTarget] = LocalTarget, **kwargs: Any
+    ) -> LocalTarget:
         """
         Generates a Luigi file system target for the output file.
 
@@ -284,12 +284,12 @@ class Task(luigi.Task):
 
         Args:
             base_filename (str): The base name of the output file.
-            target_class (Type[luigi.target.FileSystemTarget], optional): The class of the file system target to use.
-                Defaults to :class:``luigi.LocalTarget``.
+            target_class (Type[FileSystemTarget], optional): The class of the file system target to use.
+                Defaults to :obj:`LocalTarget`.
             **kwargs (Any): Additional keyword arguments to customize the output file name.
 
         Returns:
-            luigi.LocalTarget: An instance of the specified file system target class pointing to the output file.
+            LocalTarget: An instance of the specified file system target class pointing to the output file.
         """
         file_name: str = create_output_file_name(self, base_filename, **kwargs)
         return target_class(file_name)
@@ -308,7 +308,7 @@ class Task(luigi.Task):
         Raises:
             NotImplementedError: If the target does not have a `remove` method.
         """
-        target: luigi.LocalTarget = self._get_output_file_target(base_filename)
+        target: LocalTarget = self._get_output_file_target(base_filename)
         if hasattr(target, "remove"):
             target.remove()
         else:
