@@ -48,7 +48,7 @@ doc = [
     "sphinx-autobuild"
 ]
 dev = [
-    "flit",
+    "pre_commit",
     "pytest",
     "pytest-cov",
     "python-coveralls"
