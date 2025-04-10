@@ -31,7 +31,7 @@ Now you can go on with the :ref:`quick-start-label`.
 
 
 Install ``b2luigi`` with the Belle II software
-------------------------------------------
+----------------------------------------------
 
 In the current versions of the Belle II software externals, ``b2luigi`` is not included.
 The main reason is to have a faster release cycle for ``b2luigi``.
