@@ -19,7 +19,7 @@ class Basf2Task(b2luigi.DispatchableTask):
 
         Attributes:
             git_hash (b2luigi.Parameter): A parameter representing the ``basf2`` git hash. It is set to the
-                current ``basf2`` git hash (see: :obj:`get_basf2_git_hash`) by default and marked as non-significant to avoid affecting the
+                current ``basf2`` git hash (see: :meth:`get_basf2_git_hash <b2luigi.basf2_helper.utils.get_basf2_git_hash>`) by default and marked as non-significant to avoid affecting the
                 task's unique ID.
         """
 
@@ -50,7 +50,7 @@ class Basf2Task(b2luigi.DispatchableTask):
 
     def get_serialized_parameters(self):
         """
-        Retrieve the serialized parameters of the current task. (see :obj:`get_serialized_parameters`)
+        Retrieve the serialized parameters of the current task. (see :meth:`get_serialized_parameters <b2luigi.core.utils.get_serialized_parameters>`)
 
         Returns:
             dict: A dictionary containing the serialized parameters of the task.
@@ -180,7 +180,7 @@ class MergerTask(Basf2Task):
         """
         Processes input files and generates output files by executing a command.
 
-        1. Creates necessary output directories using :obj:`create_output_dirs`.
+        1. Creates necessary output directories using :meth:`create_output_dirs <b2luigi.core.utils.create_output_dirs>`.
         2. Iterates over the input file names grouped by keys.
         3. Skips processing for keys not specified in ``self.keys`` (if ``self.keys`` exists).
         4. Constructs a command by appending the output file name and input file list to ``self.cmd``.
