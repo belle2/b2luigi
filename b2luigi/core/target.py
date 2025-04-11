@@ -109,7 +109,6 @@ class FileSystemTarget(luigi.target.FileSystemTarget):
             ```
         """
         # Use a temporary directory
-        # TODO: add scratch dir to list of settings in documentation
         with tempfile.TemporaryDirectory(
             dir=get_setting("scratch_dir", task=task, default="/tmp"), **tmp_file_kwargs
         ) as tmp_dir:
