@@ -38,7 +38,7 @@ class TemporaryFileContextManager(ExitStack):
 
         **Redefinitions**:
 
-        - **``get_output_file_name``**
+        - ``get_output_file_name``
 
           Retrieves or creates a temporary output file for the given key.
 
@@ -49,7 +49,8 @@ class TemporaryFileContextManager(ExitStack):
 
           Args:
               key (str): The unique identifier for the output file.
-              **tmp_file_kwargs: Additional keyword arguments to be passed to the :meth:`b2luigi.Target.temporary_path` method.
+
+              tmp_file_kwargs: Additional keyword arguments to be passed to the :meth:`b2luigi.Target.temporary_path` method.
 
           Returns:
               The opened temporary file associated with the given key.
@@ -57,12 +58,12 @@ class TemporaryFileContextManager(ExitStack):
         - ``get_input_file_names``
 
           Retrieves the input file names associated with a given key, ensuring that the files are
-          temporarily available for processing. Behaves the same as :method:`b2luigi.Task.get_input_file_names`.
+          temporarily available for processing. Behaves the same as :meth:`b2luigi.Task.get_input_file_names`.
 
           Args:
               key (str): The identifier for the input files to retrieve.
-              **tmp_file_kwargs: Additional keyword arguments to pass to the :meth:`b2luigi.Target.get_temporary_input`
-              method of the target.
+
+              tmp_file_kwargs: Additional keyword arguments to pass to the :meth:`b2luigi.Target.get_temporary_input` method of the target.
 
           Returns:
               list: A list of opened temporary input files corresponding to the given key.
@@ -75,14 +76,14 @@ class TemporaryFileContextManager(ExitStack):
         - ``get_input_file_names_from_dict``
 
           Retrieves input file names from a dictionary structure, handling temporary file paths.
-          Behaves the same as :method:`b2luigi.Task.get_input_file_names_from_dict`.
+          Behaves the same as :meth:`b2luigi.Task.get_input_file_names_from_dict`.
 
           Args:
               requirement_key (str): The key used to identify the required input in the task's input dictionary.
-              key (Optional[str], optional): A specific key to extract targets from the target dictionary.
-              If ``None``, all targets are retrieved. Defaults to ``None``.
-              **tmp_file_kwargs: Additional keyword arguments passed to the :meth:`b2luigi.Target.get_temporary_input`
-              method for generating temporary file paths.
+
+              key (Optional[str], optional): A specific key to extract targets from the target dictionary. If ``None``, all targets are retrieved. Defaults to ``None``.
+
+              tmp_file_kwargs: Additional keyword arguments passed to the :meth:`b2luigi.Target.get_temporary_input` method for generating temporary file paths.
 
           Returns:
               list: A list of temporary file paths corresponding to the input files.
