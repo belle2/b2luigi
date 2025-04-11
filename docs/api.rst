@@ -18,9 +18,14 @@ A few highlights are already included in the :ref:`luigi-features-label` section
     :maxdepth: 2
 
     api/top_level_functions
+    api/utilities
     api/tasks
-    api/parameters
+    api/target
     api/xrootdtargets
+    api/parameters
     api/settings
-    api/other_functions
-    api/b2luigi.basf2_helper
+    api/on_temporary
+    api/runner
+    api/batch_core
+    api/batch_processes
+    api/basf2_helper
