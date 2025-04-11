@@ -22,4 +22,6 @@ inherit without specific parameters.
 Core Utilities
 --------------
 
-.. automodule:: b2luigi.core
+.. automodule:: b2luigi.core.utils
+    :members:
+    :show-inheritance:

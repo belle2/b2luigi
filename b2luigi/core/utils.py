@@ -154,7 +154,7 @@ def task_iterator(task, only_non_complete=False):
 
     Args:
         task: The root task to start iterating from. This task should have methods
-              ``complete()`` to check if the task is complete and ``deps()` to retrieve
+              ``complete()`` to check if the task is complete and ``deps()`` to retrieve
               its dependencies.
         only_non_complete (bool, optional): If True, only tasks that are not complete
               (as determined by the ``complete()`` method) will be yielded. Defaults to ``False``.
@@ -239,6 +239,7 @@ def get_all_output_files_in_tree(root_module, key=None):
     Returns:
         dict: A dictionary where keys are file identifiers and values are lists
         of dictionaries containing:
+
             - ``exists`` (bool): Whether the file exists.
             - ``parameters`` (dict): Serialized parameters of the task.
             - ``file_name`` (str): Absolute path to the file.
@@ -620,6 +621,7 @@ def get_filled_params(task):
     """
     Retrieve a dictionary of parameter names and their corresponding values
     from a given task.
+
     Args:
         task: An object representing a task, which must have a `get_params`
               method that returns an iterable of parameter name and metadata
