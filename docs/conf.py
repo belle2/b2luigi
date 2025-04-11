@@ -81,7 +81,14 @@ release = _version
 # Add any Sphinx extension module names here, as strings. They can be
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom
 # ones.
-extensions = ["sphinx.ext.doctest", "sphinx.ext.autodoc", "sphinx.ext.napoleon", "sphinx_gallery.gen_gallery"]
+extensions = [
+    "sphinx.ext.doctest",
+    "sphinx.ext.autodoc",
+    "sphinx.ext.napoleon",
+    "sphinx_gallery.gen_gallery",
+    "sphinx.ext.viewcode",
+]
+
 sphinx_gallery_conf = {
     "examples_dirs": "../examples/tutorial",
     "gallery_dirs": "starterkit",
