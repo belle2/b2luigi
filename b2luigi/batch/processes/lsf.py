@@ -14,6 +14,18 @@ from b2luigi.core.settings import get_setting
 class LSFJobStatusCache(BatchJobStatusCache):
     @retry(subprocess.CalledProcessError, tries=3, delay=2, backoff=3)  # retry after 2,6,18 seconds
     def _ask_for_job_status(self, job_id=None):
+        """
+        Queries the job status from the LSF batch system and updates the internal job status mapping.
+
+        Args:
+            job_id (str, optional): The ID of the job to query. If not provided,
+                                    the status of all jobs will be queried.
+
+        Notes:
+            - This method uses the ``bjobs`` command-line tool to fetch job statuses in JSON format.
+            - The output is expected to contain a "RECORDS" key with a list of job records.
+            - Each job record should have "JOBID" and "STAT" keys, which are used to update the internal mapping.
+        """
         if job_id:
             output = subprocess.check_output(["bjobs", "-json", "-o", "jobid stat", str(job_id)])
         else:
