@@ -17,14 +17,6 @@ from b2luigi.core.utils import create_output_dirs
 class BatchSystems(enum.Enum):
     """
     An enumeration representing different batch systems.
-
-    Attributes:
-        lsf (str): Represents the LSF batch system.
-        htcondor (str): Represents the HTCondor batch system.
-        slurm (str): Represents the SLURM batch system.
-        gbasf2 (str): Represents the GBasf2 batch system.
-        local (str): Represents a local batch system for running tasks locally.
-        test (str): Represents a test batch system for testing purposes.
     """
 
     lsf = "lsf"
@@ -39,18 +31,6 @@ class SendJobWorker(luigi.worker.Worker):
     """
     A custom ``luigi`` worker that determines the appropriate batch system for a task
     and creates a task process accordingly.
-
-    Methods:
-        detect_batch_system(task):
-            Detects the batch system to use for the given task based on configuration
-            settings or available system commands. Defaults to ``local`` if no batch
-            system is detected.
-
-        _create_task_process(task):
-            Creates and returns a process instance for the given task based on the
-            detected batch system. Supports various batch systems such as LSF, HTCondor,
-            SLURM, GBASf2, and local execution. Raises ``NotImplementedError`` for unsupported
-            batch systems.
     """
 
     def detect_batch_system(self, task):
@@ -131,24 +111,18 @@ class SendJobWorker(luigi.worker.Worker):
 
 
 class SendJobWorkerSchedulerFactory(luigi.interface._WorkerSchedulerFactory):
-    class SendJobWorkerSchedulerFactory:
-        """
-        A factory class for creating instances of :obj:`SendJobWorker`.
+    """
+    A factory class for creating instances of :obj:`SendJobWorker`.
 
-        This class extends ``luigi.interface._WorkerSchedulerFactory`` and overrides the
-        :obj:`create_worker` method to return a :obj:`SendJobWorker` instance.
+    This class extends ``luigi.interface._WorkerSchedulerFactory`` and overrides the
+    :obj:`create_worker` method to return a :obj:`SendJobWorker` instance.
 
-        Methods:
-            create_worker(scheduler, worker_processes, assistant=False):
-                Creates and returns an instance of :obj:`SendJobWorker` with the specified
-                scheduler, number of worker processes, and assistant mode.
-
-        Args:
-            scheduler: The scheduler instance to be used by the worker.
-            worker_processes (int): The number of worker processes to be used.
-            assistant (bool, optional): Indicates whether the worker is in assistant mode.
-                Defaults to False.
-        """
+    Args:
+        scheduler: The scheduler instance to be used by the worker.
+        worker_processes (int): The number of worker processes to be used.
+        assistant (bool, optional): Indicates whether the worker is in assistant mode.
+            Defaults to False.
+    """
 
     def create_worker(self, scheduler, worker_processes, assistant=False):
         """
