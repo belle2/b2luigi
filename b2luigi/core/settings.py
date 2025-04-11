@@ -1,13 +1,16 @@
 import json
 import os
 import contextlib
+from typing import Any, Generator, List, Optional
 import warnings
 
 # The global object hosting the current settings
 _current_global_settings = {}
 
 
-def get_setting(key, default=None, task=None, deprecated_keys=None):
+def get_setting(
+    key: str, default: Any = None, task: Optional[object] = None, deprecated_keys: Optional[List[str]] = None
+) -> Any:
     """
     ``b2luigi`` adds a settings management to ``luigi``
     and also uses it at various places.
@@ -84,7 +87,7 @@ def get_setting(key, default=None, task=None, deprecated_keys=None):
     return default
 
 
-def set_setting(key, value):
+def set_setting(key: str, value: Any) -> None:
     """
     Updates the global settings dictionary with a specified key-value pair.
 
@@ -100,7 +103,7 @@ def set_setting(key, value):
     _current_global_settings[key] = value
 
 
-def clear_setting(key):
+def clear_setting(key: str) -> None:
     """
     Removes a setting from the global settings dictionary.
 
@@ -115,7 +118,7 @@ def clear_setting(key):
         pass
 
 
-def _setting_file_iterator():
+def _setting_file_iterator() -> Generator[str, None, None]:
     """
     A generator function that yields the path to a settings JSON file.
 
@@ -157,7 +160,7 @@ def with_new_settings():
     _current_global_settings = old_settings.copy()
 
 
-def _get_setting_implementation(key, task):
+def _get_setting_implementation(key: str, task: Optional[object] = None) -> Any:
     """
     Retrieve a setting value based on a specified key and task.
 
@@ -225,7 +228,7 @@ class DeprecatedSettingsWarning(DeprecationWarning):
     pass
 
 
-def _warn_deprecated_setting(setting_name, new_name):
+def _warn_deprecated_setting(setting_name: str, new_name: str) -> None:
     """
     Emit a warning indicating that a specific setting is deprecated and should be replaced.
 
