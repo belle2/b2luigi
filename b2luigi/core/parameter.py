@@ -9,12 +9,12 @@ def wrap_parameter():
     """
     Monkey patch the parameter base class (and with it all other parameters(
     of luigi to include two additional parameters in its constructor:
-    "hashed" and "hash_function".
+    ``hashed`` and ``hash_function``.
 
-    Enabling the "hashed" parameter will use a hashed version of the
+    Enabling the ``hashed`` parameter will use a hashed version of the
     parameter value when creating file paths our of the parameters of a task
     instead of the value itself. By default an md5 hash is used. A custom
-    hash function can be provided via the "hash_function" parameter. This
+    hash function can be provided via the ``hash_function`` parameter. This
     function should take one input, the value of the parameter. It is up
     to the user to ensure a unique string is created from the input.
 
