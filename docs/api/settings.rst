@@ -3,6 +3,6 @@
 Settings
 --------
 
-.. autofunction:: b2luigi.get_setting
-.. autofunction:: b2luigi.set_setting
-.. autofunction:: b2luigi.clear_setting
+.. automodule:: b2luigi.core.settings
+   :members:
+   :show-inheritance:
