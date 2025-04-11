@@ -25,3 +25,10 @@ Core Utilities
 .. automodule:: b2luigi.core.utils
     :members:
     :show-inheritance:
+
+Executable
+----------
+
+.. automodule:: b2luigi.core.executable
+    :members:
+    :show-inheritance:

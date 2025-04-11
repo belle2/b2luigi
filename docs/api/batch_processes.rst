@@ -6,31 +6,31 @@ Implemented Batch Processes
 LSF
 ---
 
-.. automodule:: b2luigi.batch.processes.lsf.LSFProcess
+.. automodule:: b2luigi.batch.processes.lsf
    :members:
-   :undoc-members:
+   :private-members:
    :show-inheritance:
 
 HTCondor
 --------
 
-.. automodule:: b2luigi.batch.processes.htcondor.HTCondorProcess
+.. automodule:: b2luigi.batch.processes.htcondor
    :members:
-   :undoc-members:
+   :private-members:
    :show-inheritance:
 
 Slurm
 -----
 
-.. automodule:: b2luigi.batch.processes.slurm.SlurmProcess
+.. automodule:: b2luigi.batch.processes.slurm
    :members:
-   :undoc-members:
+   :private-members:
    :show-inheritance:
 
 ``gbasf2``
 ----------
 
-.. automodule:: b2luigi.batch.processes.gbasf2.Gbasf2Process
+.. automodule:: b2luigi.batch.processes.gbasf2
    :members:
-   :undoc-members:
+   :private-members:
    :show-inheritance:
