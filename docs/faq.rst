@@ -152,3 +152,7 @@ With this in place, we can freely add our own additional arguments to the exec c
     b2luigi.set_setting("task_cmd_additional_args", ["--name", "foo", "--import-variable", "bar"])
 
 And with that, the exec function created by b2luigi for batch submission can be customised to suit your needs.
+
+Who made the beatuiful logo?
+----------------------------
+The logo was created by Lea Reuter! We are forever grateful to her!
