@@ -34,7 +34,9 @@ class FileSystemTarget(luigi.target.FileSystemTarget):
         while preserving the file extension.
 
         Returns:
-            str: A temporary filename in the format `"{original_name}-luigi-tmp-{random_number}.{extension}"`
+            str: A temporary filename in the format::
+
+                "{original_name}-luigi-tmp-{random_number}.{extension}"
 
         Warning:
             This method assumes the file has an extension. Files without extensions will raise an :obj:``IndexError``.
@@ -68,6 +70,7 @@ class FileSystemTarget(luigi.target.FileSystemTarget):
             when exiting the context manager, regardless of whether an exception occurred.
 
         Example:
+
             .. code-block:: python
 
                 with target.get_temporary_input() as tmp_input:
@@ -88,7 +91,7 @@ class FileSystemTarget(luigi.target.FileSystemTarget):
         and then moving the file to its final destination only after successful completion.
 
         Args:
-            **tmp_file_kwargs: Keyword arguments passed to tempfile.TemporaryDirectory()
+            **tmp_file_kwargs: Keyword arguments passed to ``tempfile.TemporaryDirectory()``
 
         Yields:
             str: Absolute path to the temporary file for writing
@@ -101,12 +104,12 @@ class FileSystemTarget(luigi.target.FileSystemTarget):
             - Parent directories of the target path will be created if they don't exist
 
         Example:
-            ```python
-            with target.temporary_path() as tmp_output:
-                with open(tmp_output, 'w') as f:
-                    f.write('result data')
-            # File is automatically moved to target location after context exit
-            ```
+            .. code-block:: python
+
+                with target.temporary_path() as tmp_output:
+                    with open(tmp_output, 'w') as f:
+                        f.write('result data')
+                # File is automatically moved to target location after context exit
         """
         # Use a temporary directory
         with tempfile.TemporaryDirectory(

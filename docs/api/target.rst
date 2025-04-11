@@ -3,7 +3,7 @@
 Target
 ======
 
-.. automodule:: b2luigi.target
+.. automodule:: b2luigi.core.target
    :members:
    :undoc-members:
    :show-inheritance:
