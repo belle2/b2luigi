@@ -15,22 +15,6 @@ class TemporaryFileContextManager(ExitStack):
     paths are used during the context's lifetime. Upon exiting the context, the original methods
     are restored.
 
-    Attributes:
-        _task (Task): The task instance for which temporary file paths are managed.
-        _task_output_function (Callable): The original `get_output_file_name` method of the task.
-        _task_input_function (Callable): The original `get_input_file_names` method of the task.
-        _task_input_function_from_dict (Callable): The original `get_input_file_names_from_dict` method of the task.
-        _open_output_files (dict): A dictionary to store open temporary output file paths.
-        _open_input_files (dict): A dictionary to store open temporary input file paths.
-
-    Methods:
-        __enter__():
-            Overrides the task's methods for retrieving input and output file names to use
-            temporary file paths. Initializes temporary file paths as needed.
-
-        __exit__(*exc_details):
-            Restores the task's original methods for retrieving input and output file names.
-
     Usage:
         This class is not meant to be used directly. Instead, it is used within the :obj:`on_temporary_files`
     """
@@ -47,22 +31,67 @@ class TemporaryFileContextManager(ExitStack):
         self._open_input_files = {}
 
     def __enter__(self):
+        """
+        This method is called when entering the context manager. It overrides the task's methods
+        for retrieving input and output file names, replacing them with custom implementations
+        that handle temporary file paths.
+
+        **Redefinitions**:
+
+        - **``get_output_file_name``**
+
+          Retrieves or creates a temporary output file for the given key.
+
+          If the file corresponding to the specified key is not already open, this method
+          generates a temporary file path using the task's :meth:`b2luigi.Task._get_output_target` and
+          :meth:`b2luigi.Target.temporary_path` methods, and opens the file within the context of the
+          task.
+
+          Args:
+              key (str): The unique identifier for the output file.
+              **tmp_file_kwargs: Additional keyword arguments to be passed to the :meth:`b2luigi.Target.temporary_path` method.
+
+          Returns:
+              The opened temporary file associated with the given key.
+
+        - ``get_input_file_names``
+
+          Retrieves the input file names associated with a given key, ensuring that the files are
+          temporarily available for processing. Behaves the same as :method:`b2luigi.Task.get_input_file_names`.
+
+          Args:
+              key (str): The identifier for the input files to retrieve.
+              **tmp_file_kwargs: Additional keyword arguments to pass to the :meth:`b2luigi.Target.get_temporary_input`
+              method of the target.
+
+          Returns:
+              list: A list of opened temporary input files corresponding to the given key.
+
+          Notes:
+              - If the ``n_download_threads`` setting is specified, the input files are fetched
+                concurrently using a thread pool.
+              - If ``n_download_threads`` is not specified, the input files are fetched sequentially.
+
+        - ``get_input_file_names_from_dict``
+
+          Retrieves input file names from a dictionary structure, handling temporary file paths.
+          Behaves the same as :method:`b2luigi.Task.get_input_file_names_from_dict`.
+
+          Args:
+              requirement_key (str): The key used to identify the required input in the task's input dictionary.
+              key (Optional[str], optional): A specific key to extract targets from the target dictionary.
+              If ``None``, all targets are retrieved. Defaults to ``None``.
+              **tmp_file_kwargs: Additional keyword arguments passed to the :meth:`b2luigi.Target.get_temporary_input`
+              method for generating temporary file paths.
+
+          Returns:
+              list: A list of temporary file paths corresponding to the input files.
+
+          Raises:
+              KeyError: If the specified `key` is not found in the target dictionary.
+        """
+
         def get_output_file_name(key: str, **tmp_file_kwargs):
-            """
-            Retrieves or creates a temporary output file for the given key.
-
-            If the file corresponding to the specified key is not already open, this method
-            generates a temporary file path using the task's :meth:`b2luigi.Task._get_output_target` and
-            :meth:`b2luigi.Target.temporary_path` methods, and opens the file within the context of the
-            task.
-
-            Args:
-                key (str): The unique identifier for the output file.
-                **tmp_file_kwargs: Additional keyword arguments to be passed to the :meth:`b2luigi.Target.temporary_path` method.
-
-            Returns:
-                The opened temporary file associated with the given key.
-            """
             if key not in self._open_output_files:
                 target = self._task._get_output_target(key)
                 temporary_path = target.temporary_path(task=self._task, **tmp_file_kwargs)
@@ -73,23 +102,7 @@ class TemporaryFileContextManager(ExitStack):
         self._task.get_output_file_name = get_output_file_name
 
         def get_input_file_names(key: str, **tmp_file_kwargs):
-            """
-            Retrieves the input file names associated with a given key, ensuring that the files are
-            temporarily available for processing. Behaves the same as :method:`b2luigi.Task.get_input_file_names`.
-
-            Args:
-                key (str): The identifier for the input files to retrieve.
-                **tmp_file_kwargs: Additional keyword arguments to pass to the :meth:`b2luigi.Target.get_temporary_input`
-                method of the target.
-
-            Returns:
-                list: A list of opened temporary input files corresponding to the given key.
-
-            Notes:
-                - If the ``n_download_threads`` setting is specified, the input files are fetched
-                  concurrently using a thread pool.
-                - If ``n_download_threads`` is not specified, the input files are fetched sequentially.
-            """
+            """ """
             if key not in self._open_input_files:
                 targets = self._task._get_input_targets(key)
                 self._open_input_files[key] = []
@@ -112,23 +125,6 @@ class TemporaryFileContextManager(ExitStack):
         self._task.get_input_file_names = get_input_file_names
 
         def get_input_file_names_from_dict(requirement_key: str, key: Optional[str] = None, **tmp_file_kwargs):
-            """
-            Retrieves input file names from a dictionary structure, handling temporary file paths.
-            Behaves the same as :method:`b2luigi.Task.get_input_file_names_from_dict`.
-
-            Args:
-                requirement_key (str): The key used to identify the required input in the task's input dictionary.
-                key (Optional[str], optional): A specific key to extract targets from the target dictionary.
-                If ``None``, all targets are retrieved. Defaults to ``None``.
-                **tmp_file_kwargs: Additional keyword arguments passed to the `get_temporary_input` method
-                for generating temporary file paths.
-
-            Returns:
-                list: A list of temporary file paths corresponding to the input files.
-
-            Raises:
-                KeyError: If the specified `key` is not found in the target dictionary.
-            """
             internal_key = f"{requirement_key}_{str(key)}"
             if internal_key not in self._open_input_files:
                 # Expected output of task.input is {key: [generators, ...]}
