@@ -1183,14 +1183,14 @@ class Gbasf2GridProjectTarget(Target):
         Checks the existence and status of a dataset or project on the grid.
 
         This method performs the following checks:
+
         1. Verifies if a dataset associated with the given project name exists on the grid. (see :obj:`check_dataset_exists_on_grid`)
         2. If a dataset exists, checks whether a project with the same name exists on the grid. (see :obj:`check_project_exists`)
         3. Ensures that no jobs are actively writing to the project by verifying that all jobs
            associated with the project have a status of "Done" and an application status of "Done".
 
         Returns:
-            bool: True if the dataset exists, the project exists, and no jobs are actively writing to it.
-                  False otherwise.
+            bool: ``True`` if the dataset exists, the project exists, and no jobs are actively writing to it. ``False`` otherwise.
         """
         if not check_dataset_exists_on_grid(
             self.project_name, dirac_user=self.dirac_user, gbasf2_setup_path=self.gbasf2_setup_path

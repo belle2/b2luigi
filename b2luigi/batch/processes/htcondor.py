@@ -27,6 +27,9 @@ class HTCondorJobStatusCache(BatchJobStatusCache):
         attributes, not the entire job ``ClassAd`` is returned, but only the necessary information to match a
         job to its :meth:`JobStatus <b2luigi.process.JobStatus>`. The output is given as string and cannot be directly parsed into a json
         dictionary. It has the following form:
+
+        .. code-block:: text
+
             [
                 {...}
                 ,
@@ -34,7 +37,8 @@ class HTCondorJobStatusCache(BatchJobStatusCache):
                 ,
                 {...}
             ]
-        The {...} are the different dictionaries including the specified attributes.
+
+        The ``{...}`` are the different dictionaries including the specified attributes.
         Sometimes it might happen that a job is completed in between the status checks. Then its final status
         can be found in the ``condor_history`` file (works mostly in the same way as ``condor_q``).
         Both commands are used in order to find out the :meth:`JobStatus <b2luigi.process.JobStatus>`.
