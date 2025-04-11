@@ -54,7 +54,7 @@ class Task(luigi.Task):
 
             <result-path>/param1=value1/param2=value2/.../<output-file-name.ext>
 
-        This function will by default use a :obj:`LocalTarget`, but you can also pass a different ``target_class`` as an argument.
+        This function will by default use a :class:`b2luigi.LocalTarget`, but you can also pass a different ``target_class`` as an argument.
         If you do not want this, you can override the :obj:`_get_output_file_target` function.
 
         Example:
@@ -71,7 +71,7 @@ class Task(luigi.Task):
                 Refer to this file name as a key when using :obj:`get_input_file_names`,
                 :obj:`get_output_file_names` or :obj:`get_output_file`.
             target_class: which class of :obj:`FileSystemTarget` to instantiate for this target.
-                defaults to :obj:`LocalTarget`
+                defaults to :class:`b2luigi.LocalTarget`
             **kwargs: kwargs to be passed to :obj:`create_output_file_name` via the :obj:`_get_output_file_target` function
 
         Returns:
@@ -285,7 +285,7 @@ class Task(luigi.Task):
         Args:
             base_filename (str): The base name of the output file.
             target_class (Type[FileSystemTarget], optional): The class of the file system target to use.
-                Defaults to :obj:`LocalTarget`.
+                Defaults to :class:`b2luigi.LocalTarget`.
             **kwargs (Any): Additional keyword arguments to customize the output file name.
 
         Returns:
