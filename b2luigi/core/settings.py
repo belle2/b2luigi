@@ -52,7 +52,7 @@ def get_setting(key, default=None, task=None, deprecated_keys=None):
 
     Settings can be of any type, but are mostly strings.
 
-    Parameters:
+    Args:
         key (:obj:`str`): The name of the parameter to query.
         task: (:obj:`b2luigi.Task`): If given, check if the task has a parameter
             with this name.
@@ -86,16 +86,28 @@ def get_setting(key, default=None, task=None, deprecated_keys=None):
 
 def set_setting(key, value):
     """
-    Set the setting with the specified name - overriding any ``setting.json``.
-    If you want to have task specific settings, create a
-    parameter with the given name or your task.
+    Updates the global settings dictionary with a specified key-value pair.
+
+    This function allows overriding any existing settings defined in
+    `setting.json`. It is particularly useful for dynamically updating
+    settings during runtime. For task-specific settings, consider creating
+    a parameter with the given name in your task instead.
+
+    Args:
+        key (str): The name of the setting to update or add.
+        value (Any): The value to associate with the specified key.
     """
     _current_global_settings[key] = value
 
 
 def clear_setting(key):
     """
-    Clear the setting with the given key
+    Removes a setting from the global settings dictionary.
+
+    If the key does not exist, the function silently handles the ``KeyError``.
+
+    Args:
+        key (str): The key of the setting to be removed.
     """
     try:
         del _current_global_settings[key]
@@ -104,6 +116,20 @@ def clear_setting(key):
 
 
 def _setting_file_iterator():
+    """
+    A generator function that yields the path to a settings JSON file.
+
+    This function first checks if the environment variable ``B2LUIGI_SETTINGS_JSON``
+    is set. If it is, the value of this environment variable (assumed to be a
+    file path) is yielded. If the environment variable is not set, the function
+    searches for a file named `settings.json` in the current working directory
+    and its parent directories, moving upwards in the directory hierarchy until
+    the root directory is reached.
+
+    Yields:
+        str: The path to the `settings.json` file if found, or the value of the
+        ``B2LUIGI_SETTINGS_JSON`` environment variable if it is set.
+    """
     # first, check if B2LUIGI_SETTINGS_JSON is set in the environment
     if "B2LUIGI_SETTINGS_JSON" in os.environ:
         yield os.environ["B2LUIGI_SETTINGS_JSON"]
@@ -133,11 +159,24 @@ def with_new_settings():
 
 def _get_setting_implementation(key, task):
     """
-    Implementation of the settings retrieval.
-    Either get it from the task,
-    or from the user-defined settings
-    or from the setting files.
-    If nothing is set, raise a KeyError.
+    Retrieve a setting value based on a specified key and task.
+
+    This function attempts to retrieve the value of a setting in the following order:
+    1. Check if the provided task object has an attribute matching the key.
+    2. Check if the setting is explicitly defined in the global settings.
+    3. Check the setting files for the key.
+
+    If the key is not found in any of these locations, a ``KeyError`` is raised.
+
+    Args:
+        key (str): The name of the setting to retrieve.
+        task (object): An optional task object that may contain the setting as an attribute.
+
+    Returns:
+        Any: The value of the setting corresponding to the given key.
+
+    Raises:
+        KeyError: If the setting cannot be found in the task, global settings, or setting files.
     """
     # First check if the task has an attribute with this name
     if task:
@@ -166,10 +205,38 @@ def _get_setting_implementation(key, task):
 
 
 class DeprecatedSettingsWarning(DeprecationWarning):
+    """
+    A custom warning class used to indicate deprecated settings.
+
+    This warning is a subclass of ``DeprecationWarning`` and can be used
+    to alert users about the usage of settings that are no longer supported
+    or will be removed in future versions.
+
+    Usage:
+        Raise this warning when a deprecated setting is accessed or used.
+
+    Example:
+
+        .. code-block:: python
+
+            warnings.warn("This setting is deprecated.", DeprecatedSettingsWarning)
+    """
+
     pass
 
 
 def _warn_deprecated_setting(setting_name, new_name):
+    """
+    Emit a warning indicating that a specific setting is deprecated and should be replaced.
+
+    Args:
+        setting_name (str): The name of the deprecated setting.
+        new_name (str): The name of the new setting that should be used instead.
+
+    Raises:
+        DeprecatedSettingsWarning: A warning to inform users about the deprecation
+        and encourage migration to the new setting.
+    """
     warnings.warn(
         f"The setting with the name {setting_name} is deprecated. "
         f"Please use {new_name} instead. Future versions might remove this setting.",
