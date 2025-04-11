@@ -38,7 +38,7 @@ class BatchProcess:
         Normally, luigi creates a process for each running task and runs them either directly
         or on a different core (if you have enabled more than one worker).
         In the batch case, this process is not a normal python multiprocessing process,
-        but this ``BatchProcess``, which has the same interface (one can check the status of the process,
+        but this :obj:`BatchProcess`, which has the same interface (one can check the status of the process,
         start or terminate it). The process does not need to wait for the batch job to finish but
         is asked repeatedly for the job status. By this, most of the core functionality of ``luigi``
         is kept and reused.
@@ -59,8 +59,8 @@ class BatchProcess:
 
         if the batch job should run the ``MyTask``. The implementation of the
         abstract functions is responsible for creating an running the executable file and writing the log of
-        the job into appropriate locations. You can use the functions ``create_executable_wrapper``
-        and ``get_log_file_dir`` to get the needed information.
+        the job into appropriate locations. You can use the functions :obj:`create_executable_wrapper`
+        and :obj:`get_log_file_dir` to get the needed information.
 
         Checkout the implementation of the ``lsf`` task for some implementation example.
     """
@@ -76,6 +76,16 @@ class BatchProcess:
 
     @property
     def exitcode(self):
+        """
+        Retrieves the exit code for the process.
+
+        This method always returns ``0``, which indicates successful execution.
+        By consistently setting the exit code to ``0``, the result queue can be
+        reliably used for delivering the result of the process.
+
+        Returns:
+            int: The exit code, always ``0``.
+        """
         # We cheat here a bit: if the exit code is set to 0 all the time, we can always use the result queue for
         # delivering the result
         return 0
@@ -129,13 +139,45 @@ class BatchProcess:
         raise NotImplementedError
 
     def run(self):
+        """
+        Executes the batch process.
+
+        This method logs the start of the batch process, including the class name
+        and associated task, and then initiates the job by calling ``start_job``.
+        """
         logger.info("Batch process %s running  %s", self.__class__.__name__, self.task)
         self.start_job()
 
     def terminate(self):
+        """
+        Terminates the current process by invoking the ``terminate_job`` method.
+
+        This method is responsible for ensuring that the associated job or process
+        is properly terminated. It acts as a wrapper around the ``terminate_job``
+        method, which contains the specific logic for termination.
+        """
         self.terminate_job()
 
     def is_alive(self):
+        """
+        Check if the job is still alive based on its current status.
+
+        Returns:
+            bool: ``True`` if the job is running, ``False`` if it has terminated
+                  (either successfully or due to failure).
+
+        Raises:
+            ValueError: If the job status returned by :obj:`get_job_status`
+                        is not recognized.
+
+        Behavior:
+            - If the job has terminated successfully, it updates the result queue
+              with a "DONE" status and marks the job as terminated.
+            - If the job has been aborted, it calls the `on_failure` handler,
+              updates the result queue with a "FAILED" status, and marks the job
+              as terminated.
+            - If the job is still running, it returns True.
+        """
         if self._terminated:
             return False
 
