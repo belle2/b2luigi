@@ -15,6 +15,18 @@ from b2luigi.core.utils import create_output_dirs
 
 
 class BatchSystems(enum.Enum):
+    """
+    An enumeration representing different batch systems.
+
+    Attributes:
+        lsf (str): Represents the LSF batch system.
+        htcondor (str): Represents the HTCondor batch system.
+        slurm (str): Represents the SLURM batch system.
+        gbasf2 (str): Represents the GBasf2 batch system.
+        local (str): Represents a local batch system for running tasks locally.
+        test (str): Represents a test batch system for testing purposes.
+    """
+
     lsf = "lsf"
     htcondor = "htcondor"
     slurm = "slurm"
@@ -24,7 +36,41 @@ class BatchSystems(enum.Enum):
 
 
 class SendJobWorker(luigi.worker.Worker):
+    """
+    A custom ``luigi`` worker that determines the appropriate batch system for a task
+    and creates a task process accordingly.
+
+    Methods:
+        detect_batch_system(task):
+            Detects the batch system to use for the given task based on configuration
+            settings or available system commands. Defaults to ``local`` if no batch
+            system is detected.
+
+        _create_task_process(task):
+            Creates and returns a process instance for the given task based on the
+            detected batch system. Supports various batch systems such as LSF, HTCondor,
+            SLURM, GBASf2, and local execution. Raises ``NotImplementedError`` for unsupported
+            batch systems.
+    """
+
     def detect_batch_system(self, task):
+        """
+        Detects the batch system to be used for task execution.
+
+        This method determines the batch system setting based on the provided task
+        or automatically detects the available batch system on the system if the
+        setting is ``auto``. The detection checks for the presence of specific
+        commands associated with known batch systems (e.g., ``bsub`` for LSF,
+        ``condor_submit`` for HTCondor, ``sbatch`` for SLURM). If no known batch system
+        is detected, it defaults to ``local``.
+
+        Args:
+            task: The task for which the batch system is being determined.
+
+        Returns:
+            BatchSystems: An instance of the :obj:`BatchSystems` enumeration representing
+            the detected or configured batch system.
+        """
         batch_system_setting = get_setting("batch_system", default=BatchSystems.lsf, task=task)
         if batch_system_setting == "auto":
             if shutil.which("bsub"):
@@ -39,6 +85,23 @@ class SendJobWorker(luigi.worker.Worker):
         return BatchSystems(batch_system_setting)
 
     def _create_task_process(self, task):
+        """
+        Creates and returns a process instance for the given task based on the detected batch system.
+
+        This method determines the appropriate process class to use for the task by detecting the batch
+        system associated with it. Depending on the batch system, it initializes and returns an instance
+        of the corresponding process class. If the batch system is not supported, a ``NotImplementedError``
+        is raised.
+
+        Args:
+            task: The task for which the process is to be created.
+
+        Returns:
+            An instance of the appropriate process class for the given task.
+
+        Raises:
+            NotImplementedError: If the batch system is not recognized or supported.
+        """
         batch_system = self.detect_batch_system(task)
         if batch_system == BatchSystems.lsf:
             process_class = LSFProcess
@@ -68,5 +131,35 @@ class SendJobWorker(luigi.worker.Worker):
 
 
 class SendJobWorkerSchedulerFactory(luigi.interface._WorkerSchedulerFactory):
+    class SendJobWorkerSchedulerFactory:
+        """
+        A factory class for creating instances of :obj:`SendJobWorker`.
+
+        This class extends ``luigi.interface._WorkerSchedulerFactory`` and overrides the
+        :obj:`create_worker` method to return a :obj:`SendJobWorker` instance.
+
+        Methods:
+            create_worker(scheduler, worker_processes, assistant=False):
+                Creates and returns an instance of :obj:`SendJobWorker` with the specified
+                scheduler, number of worker processes, and assistant mode.
+
+        Args:
+            scheduler: The scheduler instance to be used by the worker.
+            worker_processes (int): The number of worker processes to be used.
+            assistant (bool, optional): Indicates whether the worker is in assistant mode.
+                Defaults to False.
+        """
+
     def create_worker(self, scheduler, worker_processes, assistant=False):
+        """
+        Creates and returns an instance of  :obj:`SendJobWorker`.
+
+        Args:
+            scheduler: The scheduler instance to be used by the worker.
+            worker_processes (int): The number of worker processes to be used.
+            assistant (bool, optional): Indicates whether the worker should act as an assistant. Defaults to False.
+
+        Returns:
+            SendJobWorker: An instance of the :obj:`SendJobWorker` class configured with the provided parameters.
+        """
         return SendJobWorker(scheduler=scheduler, worker_processes=worker_processes, assistant=assistant)
