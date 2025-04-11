@@ -75,12 +75,6 @@ class Basf2PathTask(Basf2Task):
         Due to technical reasons, the path needs to be created within the :meth:`create_path <b2luigi.basf2_helper.tasks.Basf2PathTask.create_path>`
         method. The path can be used in further objects, however, it is not possible
         for it to originate from an outer scope.
-
-    Attributes:
-        num_processes (b2luigi.IntParameter): The number of processes passed to ``basf2.set_nprocesses``.
-            Defaults to ``0``.
-        max_event (b2luigi.IntParameter): The maximum number of events to process passed to ``basf2.process``.
-            Defaults to ``0``, which means all events will be processed.
     """
 
     num_processes = b2luigi.IntParameter(significant=False, default=0)
@@ -158,9 +152,6 @@ class SimplifiedOutputBasf2Task(Basf2PathTask):
 class MergerTask(Basf2Task):
     """
     A task class for merging input files using a specified command.
-
-    Attributes:
-        cmd (list): A list of command-line arguments to be used for merging files.
     """
 
     cmd = []
@@ -192,8 +183,7 @@ class MergerTask(Basf2Task):
         1. Creates necessary output directories using :obj:`create_output_dirs`.
         2. Iterates over the input file names grouped by keys.
         3. Skips processing for keys not specified in ``self.keys`` (if ``self.keys`` exists).
-        4. Constructs a command by appending the output file name and input file list
-        to ``self.cmd``.
+        4. Constructs a command by appending the output file name and input file list to ``self.cmd``.
         5. Executes the constructed command using ``subprocess.check_call``.
         """
         create_output_dirs(self)
@@ -210,11 +200,6 @@ class HaddTask(MergerTask):
     """
     :obj:`HaddTask` is a subclass of :obj:`MergerTask` that represents a task for merging ROOT files
     using the ``hadd`` command-line tool.
-
-    Attributes:
-        cmd (list): A list containing the ``hadd`` command and its default arguments.
-                    By default, it includes `["hadd", "-f"]`, where ``-f`` forces
-                    overwriting of the output file if it already exists.
     """
 
     cmd = ["hadd", "-f"]
@@ -224,11 +209,6 @@ class Basf2FileMergeTask(MergerTask):
     """
     :obj:`Basf2FileMergeTask` is a subclass of :obj:`MergerTask` that represents a task for merging ``basf2`` ROOT files
     using the ``b2file-merge`` command-line tool.
-
-    Attributes:
-        cmd (list): A list containing the ``b2file-merge`` command and its default arguments.
-                    By default, it includes `["b2file-merge", "-f"]`, where ``-f`` forces
-                    overwriting of the output file if it already exists.
     """
 
     cmd = ["b2file-merge", "-f"]
