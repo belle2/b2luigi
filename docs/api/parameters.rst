@@ -14,3 +14,5 @@ If you want to exclude certain parameters from the creation of the directory str
 See also one of our :ref:`faq-label`.
 
 For more information on ``luigi.Parameters`` and what types there are see `the Luigi Documentation <https://luigi.readthedocs.io/en/stable/parameters.html>`_
+
+.. autofunction:: b2luigi.wrap_parameter
