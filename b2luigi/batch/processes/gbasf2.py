@@ -338,9 +338,9 @@ class Gbasf2Process(BatchProcess):
 
         Returns:
             JobStatus: The overall status of the ``gbasf2`` project. Possible values are:
-                - :obj:`JobStatus.running`: If the project is still in progress.
-                - :obj:`JobStatus.successful`: If all jobs in the project are completed successfully.
-                - :obj:`JobStatus.aborted`: If any job in the project fails and cannot be rescheduled.
+                - :meth:`JobStatus.running <b2luigi.process.JobStatus.running>`: If the project is still in progress.
+                - :meth:`JobStatus.successful <b2luigi.process.JobStatus.successful>`: If all jobs in the project are completed successfully.
+                - :meth:`JobStatus.aborted <b2luigi.process.JobStatus.aborted>`: If any job in the project fails and cannot be rescheduled.
 
         Raises:
             RuntimeError: If the job status cannot be determined.

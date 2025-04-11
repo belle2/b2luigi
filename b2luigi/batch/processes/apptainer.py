@@ -73,9 +73,9 @@ class ApptainerProcess(BatchProcess):
 
         Returns:
             JobStatus: The current status of the job. Possible values are:
-                - :obj:`JobStatus.aborted`: If the process is not initialized or has a non-zero return code.
-                - :obj:`JobStatus.running`: If the process is still running.
-                - :obj:`JobStatus.successful`: If the process has finished successfully (return code is 0).
+                - :meth:`JobStatus.aborted <b2luigi.process.JobStatus.aborted>`: If the process is not initialized or has a non-zero return code.
+                - :meth:`JobStatus.running <b2luigi.process.JobStatus.running>`: If the process is still running.
+                - :meth:`JobStatus.running <b2luigi.process.JobStatus.running>`: If the process has finished successfully (return code is 0).
         """
         if self._process is None:
             return JobStatus.aborted

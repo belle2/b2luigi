@@ -268,9 +268,9 @@ class SlurmProcess(BatchProcess):
 
         Returns:
             JobStatus: The status of the job, which can be one of the following:
-                - :obj:`JobStatus.successful`: If the job has completed successfully.
-                - :obj:`JobStatus.running`: If the job is currently running, pending, suspended, preempted, or completing.
-                - :obj:`JobStatus.aborted`: If the job has failed, been cancelled, exceeded its deadline, encountered a node failure,
+                - :meth:`JobStatus.successful <b2luigi.process.JobStatus.successful>`: If the job has completed successfully.
+                - :meth:`JobStatus.running <b2luigi.process.JobStatus.running>`: If the job is currently running, pending, suspended, preempted, or completing.
+                - :meth:`JobStatus.aborted <b2luigi.process.JobStatus.aborted>`: If the job has failed, been cancelled, exceeded its deadline, encountered a node failure,
                   ran out of memory, timed out, or if the job ID is not found.
 
         Raises:

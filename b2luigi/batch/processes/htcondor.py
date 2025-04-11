@@ -25,7 +25,7 @@ class HTCondorJobStatusCache(BatchJobStatusCache):
         cluster, we can identify jobs by their ``ClusterId`` (The ``ProcId`` will be ``0`` for all submitted jobs).
         With the ``-json`` option, the ``condor_q`` output is returned in the JSON format. By specifying some
         attributes, not the entire job ``ClassAd`` is returned, but only the necessary information to match a
-        job to its :obj:`JobStatus`. The output is given as string and cannot be directly parsed into a json
+        job to its :meth:`JobStatus <b2luigi.process.JobStatus>`. The output is given as string and cannot be directly parsed into a json
         dictionary. It has the following form:
             [
                 {...}
@@ -37,7 +37,7 @@ class HTCondorJobStatusCache(BatchJobStatusCache):
         The {...} are the different dictionaries including the specified attributes.
         Sometimes it might happen that a job is completed in between the status checks. Then its final status
         can be found in the ``condor_history`` file (works mostly in the same way as ``condor_q``).
-        Both commands are used in order to find out the :obj:`JobStatus`.
+        Both commands are used in order to find out the :meth:`JobStatus <b2luigi.process.JobStatus>`.
         """
         # https://htcondor.readthedocs.io/en/latest/man-pages/condor_q.html
         q_cmd = ["condor_q", "-json", "-attributes", "ClusterId,JobStatus,ExitStatus"]
@@ -174,10 +174,10 @@ class HTCondorProcess(BatchProcess):
 
         Returns:
             JobStatus: The status of the job, which can be one of the following:
-                - :obj:`JobStatus.successful`: If the HTCondor job status is 'completed'.
-                - :obj:`JobStatus.running`: If the HTCondor job status is one of 'idle',
+                - :meth:`JobStatus.successful <b2luigi.process.JobStatus.successful>`: If the HTCondor job status is 'completed'.
+                - :meth:`JobStatus.running <b2luigi.process.JobStatus.running>`: If the HTCondor job status is one of 'idle',
                   'running', 'transferring_output', or 'suspended'.
-                - :obj:`JobStatus.aborted`: If the HTCondor job status is 'removed',
+                - :meth:`JobStatus.aborted <b2luigi.process.JobStatus.aborted>`: If the HTCondor job status is 'removed',
                   'held', 'failed', or if the job ID is not found in the cache.
 
         Raises:

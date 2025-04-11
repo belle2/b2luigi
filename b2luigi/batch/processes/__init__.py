@@ -59,8 +59,8 @@ class BatchProcess:
 
         if the batch job should run the ``MyTask``. The implementation of the
         abstract functions is responsible for creating an running the executable file and writing the log of
-        the job into appropriate locations. You can use the functions :obj:`create_executable_wrapper`
-        and :obj:`get_log_file_dir` to get the needed information.
+        the job into appropriate locations. You can use the functions :meth:`create_executable_wrapper <b2luigi.core.executable.create_executable_wrapper>`
+        and :meth:`get_log_file_dir <b2luigi.core.utils.get_log_file_dir>` to get the needed information.
 
         Checkout the implementation of the ``lsf`` task for some implementation example.
     """

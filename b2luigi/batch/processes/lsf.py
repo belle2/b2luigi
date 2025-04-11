@@ -85,9 +85,9 @@ class LSFProcess(BatchProcess):
 
         Returns:
             JobStatus: The status of the job, which can be one of the following:
-                - :obj:`JobStatus.successful`: If the job has completed successfully ("DONE").
-                - :obj:`JobStatus.aborted`: If the job has been aborted or is not found in the cache ("EXIT" or missing ID).
-                - :obj:`JobStatus.running`: If the job is still in progress.
+                - :meth:`JobStatus.successful <b2luigi.process.JobStatus.successful>`: If the job has completed successfully ("DONE").
+                - :meth:`JobStatus.aborted <b2luigi.process.JobStatus.aborted>`: If the job has been aborted or is not found in the cache ("EXIT" or missing ID).
+                - :meth:`JobStatus.running <b2luigi.process.JobStatus.running>`: If the job is still in progress.
         """
         if not self._batch_job_id:
             return JobStatus.aborted
