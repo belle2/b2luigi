@@ -358,7 +358,7 @@ class SlurmProcess(BatchProcess):
             - The Slurm settings are specified in the ``slurm_settings`` setting, which is a dictionary of key-value pairs.
             - The ``job_name`` setting can be used to specify a meaningful name for the job.
             - The executable is created with :obj:`create_executable_wrapper`.
-            - The submit file is named ``slurm_parameters.sh`` and is created in the task's output directory (:obj:`get_task_file_dir`).
+            - The submit file is named `slurm_parameters.sh` and is created in the task's output directory (:obj:`get_task_file_dir`).
         """
         submit_file_content = ["#!/usr/bin/bash"]
 
