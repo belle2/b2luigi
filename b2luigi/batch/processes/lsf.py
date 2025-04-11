@@ -68,6 +68,15 @@ class LSFProcess(BatchProcess):
         self._batch_job_id = None
 
     def get_job_status(self):
+        """
+        Retrieves the current status of the batch job associated with this instance.
+
+        Returns:
+            JobStatus: The status of the job, which can be one of the following:
+                - :obj:`JobStatus.successful`: If the job has completed successfully ("DONE").
+                - :obj:`JobStatus.aborted`: If the job has been aborted or is not found in the cache ("EXIT" or missing ID).
+                - :obj:`JobStatus.running`: If the job is still in progress.
+        """
         if not self._batch_job_id:
             return JobStatus.aborted
 
@@ -84,6 +93,22 @@ class LSFProcess(BatchProcess):
         return JobStatus.running
 
     def start_job(self):
+        """
+        Submits a batch job to the LSF system.
+
+        This method constructs a command to submit a job using the ``bsub`` command-line tool.
+        It dynamically configures the job submission parameters based on task-specific settings
+        and creates necessary log files for capturing standard output and error.
+
+        Raises:
+            RuntimeError: If the batch submission fails or the job ID cannot be extracted
+                          from the ``bsub`` command output.
+
+        Steps:
+            1. Retrieve optional settings for ``queue`` (``-q``), ``job_slots`` (``-n``), and ``job_name`` (``-J``).
+            2. The ``stdout`` and ``stderr`` log files are created in the task's log directory. See :obj:`get_log_file_dir`.
+            3. The executable is created with :obj:`create_executable_wrapper`.
+        """
         command = ["bsub", "-env all"]
 
         queue = get_setting("queue", task=self.task, default=False)
@@ -120,6 +145,11 @@ class LSFProcess(BatchProcess):
         self._batch_job_id = match.group(0)[1:-1]
 
     def terminate_job(self):
+        """
+        This method checks if a batch job ID is set. If it exists, it attempts to
+        terminate the job using the ``bkill`` command. The command's output is suppressed,
+        and errors during execution are not raised.
+        """
         if not self._batch_job_id:
             return
 
