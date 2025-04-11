@@ -173,7 +173,7 @@ def _get_setting_implementation(key: str, task: Optional[object] = None) -> Any:
 
     Args:
         key (str): The name of the setting to retrieve.
-        task (object): An optional task object that may contain the setting as an attribute.
+        task (object): An optional task that may contain the setting as an attribute.
 
     Returns:
         Any: The value of the setting corresponding to the given key.
