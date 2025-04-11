@@ -12,7 +12,7 @@ b2luigi - bringing batch 2 luigi
 
 .. image:: docs/b2luigi.png
    :alt: Project Logo
-   :height: 100px
+   :height: 20px
 
 ``b2luigi`` is a helper package constructed around ``luigi`` that helps you schedule working packages (so-called
 tasks) locally or on a batch system.
