@@ -76,12 +76,8 @@ Why are you still talking, lets use it!
 ---------------------------------------
 
 Have a look into the :ref:`quick-start-label` and/or the :ref:`starterkit_label`.
-
 You can also start reading the :ref:`api-documentation-label` or the code on GitHub_.
-
-If you find any bugs or want to improve the documentation, please send me a pull request.
-
-This project is in beta. Please be extra cautious when using in production mode.
+If you find any bugs or want to improve the documentation, please send us a pull request.
 You can help me by working with one of the todo items described in :ref:`development-label`.
 
 Content
