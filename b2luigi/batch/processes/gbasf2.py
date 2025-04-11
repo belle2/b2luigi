@@ -30,38 +30,39 @@ from retry import retry
 
 class Gbasf2Process(BatchProcess):
     """
-    Batch process for working with gbasf2 projects on the *LHC Computing Grid* (LCG).
+    Batch process for working with ``gbasf2`` projects on the *LHC Computing Grid* (LCG).
 
     Features
-        - **gbasf2 project submission**
+        - **``gbasf2`` project submission**
 
-          The gbasf2 batch process takes the basf2 path returned by the
-          ``create_path()`` method of the task, saves it into a pickle file to
+          The ``gbasf2`` batch process takes the ``basf2`` path returned by the
+          :meth:`create_path <b2luigi.basf2_helper.tasks.Basf2PathTask.create_path>` method of
+          the task, saves it into a pickle file to
           the disk and creates a wrapper steering file that executes the saved
-          path. Any basf2 variable aliases added in the ``Path()`` or ``create_path()`` method
+          path. Any ``basf2`` variable aliases added in the ``Path()`` or ``create_path()`` method
           are also stored in the pickle file. It then sends both the pickle file
           and the steering file wrapper to the grid via the Belle II-specific
-          DIRAC-wrapper gbasf2.
+          DIRAC-wrapper ``gbasf2``.
           However, ``b2luigi`` supports the submission of custom steering files with the setting
-          ``gbasf2_custom_steering_file``. This conserves the way that the basf2 path os still contained in the ``create_path()`` method. In this instance,
+          ``gbasf2_custom_steering_file``. This conserves the way that the ``basf2`` path os still contained in the ``create_path()`` method. In this instance,
           ``b2luigi``checks automatically if the corresponding file exists and copies it into the
-          active directory. The Gbasf2 task is then set to submit the unpickled file to the grid job
+          active directory. The ``gbasf2`` task is then set to submit the unpickled file to the grid job
           which allows the utilization of python-based basf2 modules.
 
         - **Project status monitoring**
 
           After the project submission, the gbasf batch process regularly checks the status
-          of all the jobs belonging to a gbasf2 project returns a success if
+          of all the jobs belonging to a ``gbasf2`` project returns a success if
           all jobs had been successful, while a single failed job results in a failed project.
           You can close a running ``b2luigi`` process and then start your script again and if a
-          task with the same project name is running, this ``b2luigi`` gbasf2 wrapper will recognize that
+          task with the same project name is running, this ``b2luigi`` ``gbasf2`` wrapper will recognize that
           and instead of resubmitting a new project, continue monitoring the running project.
 
           .. hint::
-            The outputs of gbasf2 tasks can be a bit overwhelming, so I recommend using the
+            The outputs of ``gbasf2`` tasks can be a bit overwhelming, so I recommend using the
             :ref:`central scheduler <central-scheduler-label>`
             which provides a nice overview of all tasks in the browser, including a status/progress
-            indicator how many jobs in a gbasf2 project are already done.
+            indicator how many jobs in a ``gbasf2`` project are already done.
 
         - **Automatic download of datasets and logs**
 
@@ -72,29 +73,32 @@ class Gbasf2Process(BatchProcess):
 
         - **Automatic rescheduling of failed jobs**
 
-          Whenever a job fails, gbasf2 reschedules it as long as the number of retries is below the
+          Whenever a job fails, ``gbasf2`` reschedules it as long as the number of retries is below the
           value of the setting ``gbasf2_max_retries``. It keeps track of the number of retries in a
           local file in the ``log_file_dir``, so that it does not change if you close ``b2luigi`` and start it again.
           Of course it does not persist if you remove that file or move to a different machine.
 
     .. note::
-       Despite all the automatization that this gbasf2 wrapper provides, the user is expected to
+       Despite all the automatization that this ``gbasf2`` wrapper provides, the user is expected to
        have a basic understanding of how the grid works and know the basics of working
-       with gbasf2 commands manually.
+       with ``gbasf2`` commands manually.
 
     Caveats
-        - The gbasf2 batch process for luigi can only be used for tasks
-          inheriting from ``Basf2PathTask`` or other tasks with a
-          ``create_path()`` method that returns a basf2 path.
-        - It can be used **only for picklable basf2 paths**, with only some limited global basf2 state
+        - The ``gbasf2`` batch process for luigi can only be used for tasks
+          inheriting from :class:`Basf2PathTask <b2luigi.basf2_helper.Basf2PathTask>` or other tasks with a
+          ``create_path()`` method that returns a ``basf2`` path.
+        - It can be used **only for picklable ``basf2`` paths**, with only some limited global ``basf2`` state
           saved (currently aliases and global tags). The batch process stores
           the path created by ``create_path`` in a python pickle file and runs that on the grid.
-          Therefore, **python basf2 modules are not yet supported**.
+          Therefore, **python ``basf2`` modules are not yet supported**.
           To see if the path produced by a steering file is picklable, you can try to dump it with
           ``basf2 --dump-path`` and execute it again with ``basf2 --execute-path``.
-          In case the steering file contains content (e.g. modules) that cannot be pickled, the feature setting ``gbasf2_custom_steering_file`` can be utilized which has to be set to the path of the steering file the user wishes to be used. This submits the custom steering file to the grid job. The specific use case for this is the usage and interaction with python-based basf2 modules that are not pickable.
-        - Output format: Changing the batch to gbasf2 means you also have to
-          adapt how you handle the output of your gbasf2 task in tasks depending
+          In case the steering file contains content (e.g. modules) that cannot be pickled, the feature setting
+          ``gbasf2_custom_steering_file`` can be utilized which has to be set to the path of the steering file
+          the user wishes to be used. This submits the custom steering file to the grid job. The specific use case
+          for this is the usage and interaction with python-based ``basf2`` modules that are not pickable.
+        - Output format: Changing the batch to ``gbasf2`` means you also have to
+          adapt how you handle the output of your ``gbasf2`` task in tasks depending
           on it, because the output will not be a single root file anymore (e.g.
           ``B_ntuple.root``), but a collection of root files, one for each file in
           the input data set, in a directory with the base name of the root
@@ -111,13 +115,13 @@ class Gbasf2Process(BatchProcess):
 
 
 
-    Settings for gbasf2 tasks:
-        To submit a task with the gbasf2 wrapper, you first you have to add the property
+    Settings for ``gbasf2`` tasks:
+        To submit a task with the ``gbasf2`` wrapper, you first you have to add the property
         ``batch_system = "gbasf2"``, which sets the ``batch_system`` setting.
         It is not recommended to set that setting globally, as not all tasks can be submitted to the grid,
         but only tasks with a ``create_path`` method.
 
-        For gbasf2 tasks it is further required to set the settings
+        For ``gbasf2`` tasks it is further required to set the settings
 
         - ``gbasf2_input_dataset``: String with the logical path of a dataset on the grid to use as an input to the task.
           You can provide multiple inputs by having multiple paths contained in this string, separated by commas without spaces.
@@ -125,14 +129,14 @@ class Gbasf2Process(BatchProcess):
           which input dataset had been used for the production of a specific output.
         - ``gbasf2_input_dslist``: Alternatively to ``gbasf2_input_dataset``, you can use this setting to provide a text file
           containing the logical grid path names, one per line.
-        - ``gbasf2_project_name_prefix``: A string with which your gbasf2 project names will start.
+        - ``gbasf2_project_name_prefix``: A string with which your ``gbasf2`` project names will start.
           To ensure the project associate with each unique task (i.e. for each of luigi parameters)
           is unique, the unique ``task.task_id`` is hashed and appended to the prefix
-          to create the actual gbasf2 project name.
+          to create the actual ``gbasf2`` project name.
           Should be below 22 characters so that the project name with the hash can remain
           under 32 characters.
 
-        The following example shows a minimal class with all required options to run on the gbasf2/grid batch:
+        The following example shows a minimal class with all required options to run on the ``gbasf2``/grid batch:
 
         .. code-block:: python
 
@@ -143,31 +147,31 @@ class Gbasf2Process(BatchProcess):
 
         Other not required, but noteworthy settings are:
 
-        - ``gbasf2_setup_path``: Path to gbasf2 environment setup script that needs so be sourced to run gbasf2 commands.
-          Defaults to ``/cvmfs/belle.kek.jp/grid/gbasf2/pro/bashrc``.
-        - ``gbasf2_release``: Defaults to the release of your currently set up basf2 release.
+        - ``gbasf2_setup_path``: Path to ``gbasf2`` environment setup script that needs so be sourced to run ``gbasf2`` commands.
+          Defaults to `/cvmfs/belle.kek.jp/grid/gbasf2/pro/bashrc`.
+        - ``gbasf2_release``: Defaults to the release of your currently set up ``basf2`` release.
           Set this if you want the jobs to use another release on the grid.
-        - ``gbasf2_proxy_lifetime``: Defaults to 24. When initializing a proxy, set the
+        - ``gbasf2_proxy_lifetime``: Defaults to ``24``. When initializing a proxy, set the
           lifetime to this number of hours.
-        - ``gbasf2_min_proxy_lifetime``: Defaults to 0. During processing, prompt user
+        - ``gbasf2_min_proxy_lifetime``: Defaults to ``0``. During processing, prompt user
           to reinitialize proxy if remaining proxy lifetime drops below this number of
           hours.
         - ``gbasf2_print_status_updates``: Defaults to ``True``. By setting it to ``False`` you can turn off the
-          printing of of the job summaries, that is the number of jobs in different states in a gbasf2 project.
-        - ``gbasf2_max_retries``: Default to 0. Maximum number of times that each job in the project can be automatically
+          printing of of the job summaries, that is the number of jobs in different states in a ``gbasf2`` project.
+        - ``gbasf2_max_retries``: Default to ``0``. Maximum number of times that each job in the project can be automatically
           rescheduled until the project is declared as failed.
-        - ``gbasf2_proxy_group``: Default to ``"belle"``. If provided, the gbasf2 wrapper will work with the custom gbasf2 group,
+        - ``gbasf2_proxy_group``: Default to ``"belle"``. If provided, the ``gbasf2`` wrapper will work with the custom ``gbasf2`` group,
           specified in this parameter. No need to specify this parameter in case of usual physics analysis at Belle II.
           If specified, one has to provide ``gbasf2_project_lpn_path`` parameter.
-        - ``gbasf2_project_lpn_path``: Path to the LPN folder for a specified gbasf2 group.
+        - ``gbasf2_project_lpn_path``: Path to the LPN folder for a specified ``gbasf2`` group.
           The parameter has no effect unless the ``gbasf2_proxy_group`` is used with non-default value.
         - ``gbasf2_jinja_template_path``: This parameter sets a custom basf2 steering template where the user can adapt the
           default template (e.g. for altering the pdg database, ...). Note that this is an expert option that should be treated with care.
         - ``gbasf2_additional_download_params``: Defaults to ``"--new"``. This parameter sets additional parameters that
-          are given to gb2_ds_get. Note that in case you override the parameter, the ``--new`` parameter is not automatically set,
+          are given to ``gb2_ds_get``. Note that in case you override the parameter, the ``--new`` parameter is not automatically set,
           so you might have to manually add ``--new`` if you want this parameter to be used.
         - ``gbasf2_download_dataset``: Defaults to ``True``. Disable this setting if you don't want to download the
-          output dataset from the grid on job success. As you can't use the downloaded dataset as an output target for luigi,
+          output dataset from the grid on job success. As you can't use the downloaded dataset as an output target for ``luigi``,
           you should then use the provided ``Gbasf2GridProjectTarget``, as shown in the following example:
 
           .. code-block:: python
@@ -180,7 +184,7 @@ class Gbasf2Process(BatchProcess):
                     project_name = get_unique_project_name(self)
                     return Gbasf2GridProjectTarget(project_name)
 
-          This is useful when chaining gbasf2 tasks together,
+          This is useful when chaining ``gbasf2`` tasks together,
           as they don't need the output locally but take the grid datasets as input. Also useful when you just want
           to produce data on the grid for other people to use.
 
@@ -190,12 +194,12 @@ class Gbasf2Process(BatchProcess):
           .. tip::
             Set only one global ``gbasf2_proxy_group`` setting.
 
-        - ``gbasf2_download_logs``: Whether to automatically download the log output of gbasf2 projects when the
+        - ``gbasf2_download_logs``: Whether to automatically download the log output of ``gbasf2`` projects when the
           task succeeds or fails. Having the logs is important for reproducibility.
-        - ``gbasf2_custom_steering_file``: Optional path to submit a custom steering file to gbasf2. This does not pickle the ``basf2.Path`` instance and allows the utilization of python-based basf2 modules. Named modules have to be contained either in the steering file itself or by additional files via the input sandbox.
+        - ``gbasf2_custom_steering_file``: Optional path to submit a custom steering file to ``gbasf2``. This does not pickle the ``basf2.Path`` instance and allows the utilization of python-based basf2 modules. Named modules have to be contained either in the steering file itself or by additional files via the input sandbox.
 
         The following optional settings correspond to the equally named ``gbasf`` command line options
-        (without the ``gbasf_`` prefix) that you can set to customize your gbasf2 project:
+        (without the ``gbasf_`` prefix) that you can set to customize your ``gbasf2`` project:
 
         ``gbasf2_noscout``,
         ``gbasf2_additional_files``,
@@ -219,21 +223,21 @@ class Gbasf2Process(BatchProcess):
 
     Example
         Here is an example file to submit an analysis path created by the script in
-        ``examples/gbasf2/example_mdst_analysis`` to grid via gbasf2:
+        `examples/gbasf2/example_mdst_analysis` to grid via ``gbasf2``:
 
         .. literalinclude:: ../../examples/gbasf2/gbasf2_example.py
            :caption: File: ``examples/gbasf2/gbasf2_example.py``
            :linenos:
 
     Handling failed jobs
-        The gbasf2 input wrapper considers the gbasf2 project as failed if any of
+        The ``gbasf2`` input wrapper considers the ``gbasf2`` project as failed if any of
         the jobs in the project failed and reached the maximum number of retries.
         It then automatically downloads the logs, so please look into them to see what the reason was.
         For example, it can be that only certain grid sites were affected, so you might want to exclude them
         by adding the ``"--banned_site ...`` to ``gbasf2_additional_params``.
 
         You also always reschedule jobs manually with the ``gb2_job_reschedule`` command or delete them with
-        ``gb2_job_delete`` so that the gbasf2 batch process doesn't know they ever
+        ``gb2_job_delete`` so that the ``gbasf2`` batch process doesn't know they ever
         existed. Then run just run your luigi task/script again and it will start monitoring the running project
         again.
     """
@@ -325,13 +329,13 @@ class Gbasf2Process(BatchProcess):
 
     def get_job_status(self):
         """
-        Get overall status of the gbasf2 project.
+        Get overall status of the ``gbasf2`` project.
 
-        First obtain the status of all (sub-) jobs in a gbasf2 project, similar
+        First obtain the status of all (sub-) jobs in a ``gbasf2`` project, similar
         to ``gb2_job_status``, and return an overall project status, e.g. when
-        all jobs are done, return ``JobStatus.successful`` to show that the
-        gbasf2 project succeeded.
-        The output of `gb2_job_status` get cached for 5 minutes.
+        all jobs are done, return :obj:`JobStatus.successful` to show that the
+        ``gbasf2`` project succeeded.
+        The output of ``gb2_job_status`` get cached for 5 minutes.
         """
         update_needed = (datetime.now() - self._last_job_status_update) > timedelta(seconds=self._job_status_max_age)
         job_status_dict = self._job_status_dict
