@@ -3,11 +3,21 @@ import warnings
 
 
 def get_basf2_git_hash():
-    """Return name of basf2 release or if local basf2 is used its version hash.
+    """
+    Retrieve the version or git hash of the ``basf2`` release being used.
 
-    The version is equivalent to the version returned by ``basf2 --version``.
+    This function determines the version of the ``basf2`` framework in use. If the
+    environment variable ``BELLE2_RELEASE`` is set to ``"head"`` or is not defined,
+    it attempts to import the ``basf2.version`` module to retrieve the version
+    information. If the import fails, a warning is issued, and the version is
+    set to ``"not_set"``.
 
-    Returns ``\"not set\"``, if no basf2 release is set and basf2 cannot be imported.
+    Returns:
+        str: The basf2 release name, its version hash, or "not_set" if basf2
+        cannot be imported or no release is configured.
+
+    Warnings:
+        ImportWarning: Raised if the `basf2.version` module cannot be imported.
     """
     basf2_release = os.getenv("BELLE2_RELEASE")
 

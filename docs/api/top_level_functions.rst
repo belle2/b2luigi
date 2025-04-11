@@ -1,3 +1,5 @@
+.. _`api-top-level-functions-label`:
+
 Top-Level Function
 ------------------
 

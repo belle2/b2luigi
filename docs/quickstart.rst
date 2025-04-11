@@ -14,7 +14,7 @@ Later, we will build the average of those numbers.
 
 1.  Open a code editor and create a new file ``simple-example.py`` with the following content:
 
-    .. literalinclude:: ../../tests/doc_examples/simple_example.py
+    .. literalinclude:: ../tests/doc_examples/simple_example.py
 
     Each building block in ``(b2)luigi`` is a :class:`b2luigi.Task`.
     It defines (which its run function), what should be done.
@@ -104,7 +104,7 @@ Later, we will build the average of those numbers.
     This code listing shows the same task, but this time written using the helper
     functions given by ``b2luigi``.
 
-    .. literalinclude:: ../../tests/doc_examples/simple_example_b2luigi.py
+    .. literalinclude:: ../tests/doc_examples/simple_example_b2luigi.py
 
     Before continuing, remove the output of the former calculation.
 
@@ -140,7 +140,7 @@ Later, we will build the average of those numbers.
         Instead, you can also add a ``settings.json`` with the following content
         in the folder where your script lives:
 
-        .. literalinclude:: ../../tests/doc_examples/settings.json
+        .. literalinclude:: ../tests/doc_examples/settings.json
             :language: json
 
         The ``settings.json`` will be used by all tasks in this folder and in each sub-folder.
@@ -167,7 +167,7 @@ Later, we will build the average of those numbers.
     and add them all together to an average number.
     So edit your example file to include the following content:
 
-    .. literalinclude:: ../../tests/doc_examples/simple_example_b2luigi_2.py
+    .. literalinclude:: ../tests/doc_examples/simple_example_b2luigi_2.py
 
     See how we defined dependencies in line 19 with the ``requires`` function.
     By calling ``clone`` we make sure that any parameters from the current task (which are none in our case)
@@ -186,5 +186,6 @@ Later, we will build the average of those numbers.
     from before (the random numbers) and will not run the task again!
     It will only output a file in `results/average.txt` with a number near 0.5.
 
-You are now ready to read some more documentation in :ref:`api-documentation-label` or have a look into the :ref:`faq-label`.
+You are now ready to easily work through the starter-kit :ref:`starterkit_label`, read some more documentation in :ref:`api-documentation-label`
+or have a look into the :ref:`faq-label`.
 Please also check out the different :ref:`run-modes-label`.

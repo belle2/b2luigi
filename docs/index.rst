@@ -29,12 +29,6 @@ Jump right into it with out :ref:`quick-start-label`.
 If you have never worked with ``luigi`` before, you may want to have a look into the `luigi documentation`_.
 But you can learn most of the nice features also from this documentation!
 
-.. attention::
-
-    The API of ``b2luigi`` is still under construction.
-    Please remember this when using the package in production!
-
-
 Why not use the already created batch tasks?
 --------------------------------------------
 
@@ -42,16 +36,19 @@ Why not use the already created batch tasks?
 But for thousands of tasks in very large projects with different task-defining libraries, you have some problems:
 
 *   **You want to run many (many many!) batch jobs in parallel**
+
     In other ``luigi`` batch implementations, for every running batch job you also need a running task that monitors it.
     On most of the systems, the maximal number of processes is limited per user, so you will not be able to run more
     batch jobs than this.
     But what do you do if you have thousands of tasks to do?
 *   **You have already a large set of luigi tasks in your project**
+
     In other implementations you either have to override a ``work`` function (and you are not allowed to touch
     the ``run`` function) or they can only run an external command, which you need to define.
     The first approach plays not well when mixing non-batch and batch task libraries and the second
     has problems when you need to pass complex arguments to the external command (via command line).
 *   **You do not know which batch system you will run on**
+
     Currently, the batch tasks are mostly defined for a specific batch system. But what if you want to
     switch from AWS to Azure? From LSF to SGE?
 
@@ -78,13 +75,9 @@ that we have learned with time.
 Why are you still talking, lets use it!
 ---------------------------------------
 
-Have a look into the :ref:`quick-start-label`.
-
+Have a look into the :ref:`quick-start-label` and/or the :ref:`starterkit_label`.
 You can also start reading the :ref:`api-documentation-label` or the code on GitHub_.
-
-If you find any bugs or want to improve the documentation, please send me a pull request.
-
-This project is in beta. Please be extra cautious when using in production mode.
+If you find any bugs or want to improve the documentation, please send us a pull request.
 You can help me by working with one of the todo items described in :ref:`development-label`.
 
 Content
@@ -93,14 +86,14 @@ Content
 .. toctree::
     :maxdepth: 2
 
-    usage/installation
-    usage/quickstart
-    usage/batch
-    advanced/basf2-examples
-    documentation/api
-    documentation/run_modes
-    advanced/faq
-    advanced/development
+    installation
+    quickstart
+    starterkit/index
+    features
+    examples
+    api
+    faq
+    development
 
 
 The name
@@ -117,63 +110,15 @@ The team
 --------
 
 Current developer and maintainer
-    The Belle II Collaboration (`belle2`_)
+    The Belle II Collaboration (`belle2`_) since November 2023
 
 Original author
     Nils Braun (`nils-braun`_)
-
-Former developer and maintainer
-    Michael Eliachevitch (`meliache`_)
-
-Features, fixing, help and testing
-    * Felix Metzner (`FelixMetzner`_)
-    * Patrick Ecker (`eckerpatrick`_)
-    * Jochen Gemmler
-    * Maximilian Welsch (`welschma`_)
-    * Kilian Lieret (`klieret`_)
-    * Sviatoslav Bilokin (`bilokin`_)
-    * Phil Grace (`philiptgrace`_)
-    * Anselm Baur (`anselmbaur`_)
-    * Moritz Bauer (`sognetic`_)
-    * Matthias Schnepf  (`mschnepf`_)
-    * Artur Gottmann (`ArturAkh`_)
-    * Caspar Schmitt (`schmitca`_)
-    * Marcel Hohmann (`MarcelHoh`_)
-    * Giacomo De Pietro (`GiacomoXT`_)
-    * Alex Heidelbach (`AlexanderHeidelbach`_)
-    * Tristan Fillinger (`0ctagon`_)
-    * Jonas Eppelt (`JonasEppelt`_)
-
-Stolen ideas
-    * Implementation of SGE batch system (`sge`_).
-    * Implementation of LSF batch system (`lsf`_).
-
 
 .. _github: https://github.com/belle2/b2luigi
 .. _`luigi documentation`: https://luigi.readthedocs.io/en/stable
 .. _`Belle II`: https://www.belle2.org
 .. _`belle2`: https://github.com/belle2
 .. _`nils-braun`: https://github.com/nils-braun
-.. _`meliache`: https://github.com/meliache
-.. _`welschma`: https://github.com/welschma
-.. _`FelixMetzner`: https://github.com/FelixMetzner
-.. _`eckerpatrick`: https://github.com/eckerpatrick
-.. _`klieret`: https://github.com/klieret
-.. _`bilokin`: https://github.com/bilokin
-.. _`philiptgrace`: https://github.com/philiptgrace
-.. _`anselmbaur`: https://github.com/anselm-baur
-.. _`sognetic`: https://github.com/sognetic
-.. _`ArturAkh`: https://github.com/ArturAkh
-.. _`mschnepf`: https://github.com/mschnepf
-.. _`schmitca`: https://github.com/schmitca
-.. _`MarcelHoh`: https://github.com/MarcelHoh
-.. _`GiacomoXT`: https://github.com/GiacomoXT
-.. _`AlexanderHeidelbach`: https://github.com/AlexanderHeidelbach
-.. _`JonasEppelt`: https://github.com/JonasEppelt
-.. _`0ctagon`: https://github.com/0ctagon
-.. _`sge`: https://github.com/spotify/luigi/blob/master/luigi/contrib/sge.py
-.. _`lsf`: https://github.com/spotify/luigi/pull/2373/files
-
-
 
 .. [1] https://github.com/spotify/luigi/blob/master/luigi/contrib/sge.py

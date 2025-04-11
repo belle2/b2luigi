@@ -45,9 +45,9 @@ class requires(object):
             def output(self):
                 yield self.add_to_output("out.dat")
 
-    TaskB will not require TaskA, where some_parameter is already set to 3.
-    This also means, that TaskB only has the parameters another_parameter
-    and some_other_parameter (because some_parameter is already fixed).
+    TaskB will not require TaskA, where ``some_parameter`` is already set to ``3``.
+    This also means, that TaskB only has the parameters ``another_parameter``
+    and ``some_other_parameter`` (because ``some_parameter`` is already fixed).
 
     It is also possible to require multiple tasks, e.g.
 
@@ -109,12 +109,12 @@ class requires(object):
 
 class inherits(object):
     """
-    This copies the luigi.inherits functionality but allows specifying parameters you
+    This copies the ``luigi.inherits`` functionality but allows specifying parameters you
     don't want to inherit.
 
     It can e.g. be used in tasks that merge the output of the tasks they require. These merger tasks don't need
     the parameter they resolve anymore but should keep the same order of parameters, therefore simplifying the directory
-    structure created by `b2luigi.Task.add_to_output`.
+    structure created by :meth:`b2luigi.Task.add_to_output`.
 
     Usage can be similar to this:
 
@@ -145,7 +145,7 @@ class inherits(object):
     Parameters:
         without: Either a string or a collection of strings
 
-    See also: `b2luigi.requires` which extends ``luigi.requires``.
+    See also: :obj:`b2luigi.requires` which extends ``luigi.requires``.
 
     """
 

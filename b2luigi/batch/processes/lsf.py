@@ -14,6 +14,18 @@ from b2luigi.core.settings import get_setting
 class LSFJobStatusCache(BatchJobStatusCache):
     @retry(subprocess.CalledProcessError, tries=3, delay=2, backoff=3)  # retry after 2,6,18 seconds
     def _ask_for_job_status(self, job_id=None):
+        """
+        Queries the job status from the LSF batch system and updates the internal job status mapping.
+
+        Args:
+            job_id (str, optional): The ID of the job to query. If not provided,
+                                    the status of all jobs will be queried.
+
+        Notes:
+            - This method uses the ``bjobs`` command-line tool to fetch job statuses in JSON format.
+            - The output is expected to contain a "RECORDS" key with a list of job records.
+            - Each job record should have "JOBID" and "STAT" keys, which are used to update the internal mapping.
+        """
         if job_id:
             output = subprocess.check_output(["bjobs", "-json", "-o", "jobid stat", str(job_id)])
         else:
@@ -31,6 +43,7 @@ _batch_job_status_cache = LSFJobStatusCache()
 class LSFProcess(BatchProcess):
     """
     Reference implementation of the batch process for a LSF batch system.
+    Heavily inspired by `this post <https://github.com/spotify/luigi/pull/2373/files>`_.
 
     Additional to the basic batch setup (see :ref:`batch-label`), there are
     LSF-specific :meth:`settings <b2luigi.set_setting>`. These are:
@@ -67,6 +80,15 @@ class LSFProcess(BatchProcess):
         self._batch_job_id = None
 
     def get_job_status(self):
+        """
+        Retrieves the current status of the batch job associated with this instance.
+
+        Returns:
+            JobStatus: The status of the job, which can be one of the following:
+                - :meth:`JobStatus.successful <b2luigi.process.JobStatus.successful>`: If the job has completed successfully ("DONE").
+                - :meth:`JobStatus.aborted <b2luigi.process.JobStatus.aborted>`: If the job has been aborted or is not found in the cache ("EXIT" or missing ID).
+                - :meth:`JobStatus.running <b2luigi.process.JobStatus.running>`: If the job is still in progress.
+        """
         if not self._batch_job_id:
             return JobStatus.aborted
 
@@ -83,6 +105,22 @@ class LSFProcess(BatchProcess):
         return JobStatus.running
 
     def start_job(self):
+        """
+        Submits a batch job to the LSF system.
+
+        This method constructs a command to submit a job using the ``bsub`` command-line tool.
+        It dynamically configures the job submission parameters based on task-specific settings
+        and creates necessary log files for capturing standard output and error.
+
+        Raises:
+            RuntimeError: If the batch submission fails or the job ID cannot be extracted
+                          from the ``bsub`` command output.
+
+        Steps:
+            1. Retrieve optional settings for ``queue`` (``-q``), ``job_slots`` (``-n``), and ``job_name`` (``-J``).
+            2. The ``stdout`` and ``stderr`` log files are created in the task's log directory. See :obj:`get_log_file_dir`.
+            3. The executable is created with :obj:`create_executable_wrapper`.
+        """
         command = ["bsub", "-env all"]
 
         queue = get_setting("queue", task=self.task, default=False)
@@ -119,6 +157,11 @@ class LSFProcess(BatchProcess):
         self._batch_job_id = match.group(0)[1:-1]
 
     def terminate_job(self):
+        """
+        This method checks if a batch job ID is set. If it exists, it attempts to
+        terminate the job using the ``bkill`` command. The command's output is suppressed,
+        and errors during execution are not raised.
+        """
         if not self._batch_job_id:
             return
 

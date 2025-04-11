@@ -9,7 +9,7 @@ The run mode can be chosen by calling your python file with
 
     python file.py --mode
 
-or by calling ``b2luigi.process`` with a given mode set to ``True``
+or by calling :meth:`b2luigi.process` with a given mode set to ``True``
 
 .. code-block:: python
 
@@ -19,7 +19,7 @@ where mode can be one of:
 
 *   **batch**: Run the tasks on a batch system, as described in :ref:`quick-start-label`. The maximal number of
     batch jobs to run in parallel (jobs in flight) is equal to the number of workers.
-    This is 1 by default, so you probably want to change this.
+    This is ``1`` by default, so you probably want to change this.
     By default, LSF is used as a batch system. If you want to change this, set the corresponding ``batch_system``
     (see :ref:`batch-label`) to one of the supported systems.
 
@@ -36,8 +36,8 @@ where mode can be one of:
                 do_some_stuff_in_dry_run_mode()
 
     This feature can be easily used for e.g. file name debugging, i.e. to print out the file names ``b2luigi``
-    will create when running the actual task. The exit code of the ``dry-run`` mode is 1 in case a task needs
-    to run and 0 otherwise.
+    will create when running the actual task. The exit code of the ``dry-run`` mode is ``1`` in case a task needs
+    to run and ``0`` otherwise.
 
 *   **show-output**: List all output files that this has produced/will produce. Files which already exist
     (where the targets define, what exists mean in this case) are marked as green whereas missing targets are
@@ -93,7 +93,7 @@ b. If you have a local installation, luigid is installed into your home director
 
      ~/.local/bin/luigid --port PORT
 
-The default port is 8082, but you can choose any non-occupied port.
+The default port is ``8082``, but you can choose any non-occupied port.
 
 The central scheduler will register the tasks you want to process and keep track of which tasks are already done.
 
@@ -104,5 +104,5 @@ To use this scheduler, call ``b2luigi`` by giving the connection details:
     python simple-task.py [--batch] --scheduler-host HOST --scheduler-port PORT
 
 which works for batch as well as non-batch jobs.
-You can now visit the url http://HOST:PORT with your browser and see a nice summary of the current progress
+You can now visit the url `http://HOST:PORT` with your browser and see a nice summary of the current progress
 of your tasks.

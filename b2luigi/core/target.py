@@ -9,7 +9,7 @@ from b2luigi.core.settings import get_setting
 
 
 class FileSystemTarget(luigi.target.FileSystemTarget):
-    """A local file system target that extends luigi.LocalTarget with temporary file handling.
+    """A local file system target that extends :class:`luigi.LocalTarget` with temporary file handling.
 
     This target provides additional functionality for handling temporary files during task execution,
     including support for temporary input and output paths with proper cleanup and atomic file operations.
@@ -19,8 +19,8 @@ class FileSystemTarget(luigi.target.FileSystemTarget):
 
     Args:
         _scratch_dir (str): Directory path where temporary files will be created
-        *args: Additional positional arguments passed to luigi.LocalTarget
-        **kwargs: Additional keyword arguments passed to luigi.LocalTarget
+        *args: Additional positional arguments passed to :obj:`LocalTarget`
+        **kwargs: Additional keyword arguments passed to :obj:`LocalTarget`
     """
 
     def __init__(self, *args, **kwargs):
@@ -34,14 +34,16 @@ class FileSystemTarget(luigi.target.FileSystemTarget):
         while preserving the file extension.
 
         Returns:
-            str: A temporary filename in the format "{original_name}-luigi-tmp-{random_number}.{extension}"
+            str: A temporary filename in the format::
+
+                "{original_name}-luigi-tmp-{random_number}.{extension}"
 
         Warning:
-            This method assumes the file has an extension. Files without extensions will raise an IndexError.
+            This method assumes the file has an extension. Files without extensions will raise an :obj:``IndexError``.
             This limitation should be addressed in future versions.
 
         Example:
-            If self.path is "data.txt", might return "data-luigi-tmp-1234567890.txt"
+            If ``self.path`` is `"data.txt"`, might return `"data-luigi-tmp-1234567890.txt"`
         """
         num = random.randrange(0, 10_000_000_000)
         filename_parts = os.path.basename(self.path).split(".")
@@ -58,7 +60,7 @@ class FileSystemTarget(luigi.target.FileSystemTarget):
         safe concurrent access to the same input file by multiple tasks.
 
         Args:
-            **tmp_file_kwargs: Keyword arguments passed to tempfile.TemporaryDirectory()
+            **tmp_file_kwargs: Keyword arguments passed to :class:`tempfile.TemporaryDirectory`
 
         Yields:
             str: Absolute path to the temporary copy of the input file
@@ -68,10 +70,11 @@ class FileSystemTarget(luigi.target.FileSystemTarget):
             when exiting the context manager, regardless of whether an exception occurred.
 
         Example:
-            ```python
-            with target.get_temporary_input() as tmp_input:
-                process_file(tmp_input)
-            ```
+
+            .. code-block:: python
+
+                with target.get_temporary_input() as tmp_input:
+                    process_file(tmp_input)
         """
         with tempfile.TemporaryDirectory(
             dir=get_setting("scratch_dir", task=task, default="/tmp"), **tmp_file_kwargs
@@ -88,7 +91,7 @@ class FileSystemTarget(luigi.target.FileSystemTarget):
         and then moving the file to its final destination only after successful completion.
 
         Args:
-            **tmp_file_kwargs: Keyword arguments passed to tempfile.TemporaryDirectory()
+            **tmp_file_kwargs: Keyword arguments passed to ``tempfile.TemporaryDirectory()``
 
         Yields:
             str: Absolute path to the temporary file for writing
@@ -101,15 +104,14 @@ class FileSystemTarget(luigi.target.FileSystemTarget):
             - Parent directories of the target path will be created if they don't exist
 
         Example:
-            ```python
-            with target.temporary_path() as tmp_output:
-                with open(tmp_output, 'w') as f:
-                    f.write('result data')
-            # File is automatically moved to target location after context exit
-            ```
+            .. code-block:: python
+
+                with target.temporary_path() as tmp_output:
+                    with open(tmp_output, 'w') as f:
+                        f.write('result data')
+                # File is automatically moved to target location after context exit
         """
         # Use a temporary directory
-        # TODO: add scratch dir to list of settings in documentation
         with tempfile.TemporaryDirectory(
             dir=get_setting("scratch_dir", task=task, default="/tmp"), **tmp_file_kwargs
         ) as tmp_dir:
@@ -120,7 +122,7 @@ class FileSystemTarget(luigi.target.FileSystemTarget):
 
 
 class LocalTarget(FileSystemTarget, luigi.LocalTarget):
-    """A local file system target that extends luigi.LocalTarget with temporary file handling.
+    """A local file system target that extends :class:`luigi.LocalTarget` with temporary file handling.
 
     This target provides additional functionality for handling temporary files during task execution,
     including support for temporary input and output paths with proper cleanup and atomic file operations.
@@ -130,8 +132,8 @@ class LocalTarget(FileSystemTarget, luigi.LocalTarget):
 
     Args:
         _scratch_dir (str): Directory path where temporary files will be created
-        *args: Additional positional arguments passed to luigi.LocalTarget
-        **kwargs: Additional keyword arguments passed to luigi.LocalTarget
+        *args: Additional positional arguments passed to :class:`luigi.LocalTarget`
+        **kwargs: Additional keyword arguments passed to :class:`luigi.LocalTarget`
     """
 
     def __init__(self, *args, **kwargs):

@@ -10,7 +10,7 @@ def dispatch(run_function):
     """
     In cases you have a run function calling external, probably insecure functionalities,
     use this function wrapper around your run function.
-    It basically `emulates` a batch submission on your local computer (without any
+    It basically "emulates" a batch submission on your local computer (without any
     batch system) with the benefit of having a totally separate execution path.
     If your called task fails miserably (e.g. segfaults), it does not crash your main application.
 
@@ -37,7 +37,7 @@ def dispatch(run_function):
         If you want to control it in more detail, please check out :ref:`batch-label`.
 
     Implementation note:
-        In the subprocess we are calling the current executable (which should by python)
+        In the ``subprocess`` we are calling the current executable
         with the current input file as a parameter, but let it only run this
         specific task (by handing over the task id and the ``--batch-worker`` option).
         The run function notices this and actually runs the task instead of dispatching again.
