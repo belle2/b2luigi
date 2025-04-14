@@ -81,7 +81,28 @@ release = _version
 # Add any Sphinx extension module names here, as strings. They can be
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom
 # ones.
-extensions = ["sphinx.ext.doctest", "sphinx.ext.autodoc", "sphinx.ext.napoleon"]
+extensions = [
+    "sphinx.ext.doctest",
+    "sphinx.ext.autodoc",
+    "sphinx.ext.napoleon",
+    "sphinx_gallery.gen_gallery",
+    "sphinx.ext.viewcode",
+]
+
+sphinx_gallery_conf = {
+    "examples_dirs": "../examples/tutorial",
+    "gallery_dirs": "starterkit",
+    "filename_pattern": r"Ex\d+.*\.py",
+    "ignore_pattern": r"^.*\.txt$|.*\.sh$",
+    "plot_gallery": False,
+    "show_memory": False,
+    "min_reported_time": 0,
+    "remove_config_comments": True,
+    "backreferences_dir": None,
+    "download_all_examples": False,
+    "notebook_extensions": {},  # Don't create notebook download
+    "within_subsection_order": "FileNameSortKey",
+}
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ["_templates"]
@@ -90,7 +111,7 @@ templates_path = ["_templates"]
 # You can specify multiple suffix as a list of string:
 #
 # source_suffix = ['.rst', '.md']
-source_suffix = ".rst"
+source_suffix = {".rst": "restructuredtext"}
 
 # The master toctree document.
 master_doc = "index"
@@ -100,7 +121,7 @@ master_doc = "index"
 #
 # This is also used if you do content translation via gettext catalogs.
 # Usually you set "language" from the command line for these cases.
-language = None
+language = "en"
 
 # List of patterns, relative to source directory, that match files and
 # directories to ignore when looking for source files.
@@ -110,6 +131,7 @@ exclude_patterns = ["_build", "Thumbs.db", ".DS_Store"]
 # The name of the Pygments (syntax highlighting) style to use.
 pygments_style = "sphinx"
 
+autodoc_member_order = "bysource"
 
 # -- Options for HTML output -------------------------------------------------
 
@@ -128,7 +150,8 @@ html_theme = "sphinx_book_theme"
 # Add any paths that contain custom static files (such as style sheets) here,
 # relative to this directory. They are copied after the builtin static files,
 # so a file named "default.css" will overwrite the builtin "default.css".
-# html_static_path = ['_static']
+# html_static_path = ["_static"]
+html_logo = "b2luigi.png"
 
 # Custom sidebar templates, must be a dictionary that maps document names
 # to template names.

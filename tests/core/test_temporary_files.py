@@ -32,3 +32,28 @@ class TemporaryWrapperTestCase(B2LuigiTestCase):
         task = MyTask()
 
         self.assertNotIn("tmp", task.get_output_file_name("test.txt"))
+
+    def test_reset_input(self):
+        class TaskA(b2luigi.Task):
+            parameter_a = b2luigi.IntParameter()
+
+            def output(self):
+                yield self.add_to_output("resA.txt")
+
+            @b2luigi.on_temporary_files
+            def run(self):
+                with open(self.get_output_file_name("resA.txt"), "w") as f:
+                    f.write(f"TaskA: {self.parameter_a}")
+
+        class MyTask(b2luigi.Task):
+            def requires(self):
+                return TaskA(parameter_a=1)
+
+            @b2luigi.on_temporary_files
+            def run(self):
+                with open(self.get_input_file_names("resA.txt")[0], "r") as f:
+                    self.assertEqual(f.read(), "TaskA: 1")
+
+        task = MyTask()
+
+        self.assertNotIn("tmp", task.get_input_file_names("resA.txt")[0])

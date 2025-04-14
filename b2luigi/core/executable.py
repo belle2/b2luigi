@@ -15,9 +15,26 @@ from b2luigi.core.utils import (
 
 def create_executable_wrapper(task):
     """
-    To incorporate all settings (environment, working paths, remote or locally)
-    we create an executable bash script which is called instead of the application
-    and which will setup everything accordingly before doing the actual work.
+    Creates a bash script wrapper to execute a task with the appropriate environment
+    and settings. The wrapper script sets up the working directory, environment
+    variables, and optionally uses an Apptainer image for execution.
+
+    Args:
+        task: The task containing configuration and settings.
+
+    Returns:
+        str: The file path to the generated executable wrapper script.
+
+    The wrapper script performs the following steps:
+        1. Changes to the ``working_dir`` directory.
+        2. Sets up the environment:
+            - Sources ``env_script`` if provided.
+            - Overrides environment variables based on task or settings from ``env``.
+        3. Constructs the command to execute the task, see :obj:`create_cmd_from_task`.
+        4. Executes the command:
+            - If an Apptainer image is specified in ``apptainer_image``, runs the command within the image.
+            - Otherwise, executes the command directly with ``exec``.
+        5. Writes the generated script to a file and makes it executable.
     """
     shell = get_setting("shell", task=task, default="bash")
     executable_wrapper_content = [f"#!/bin/{shell}", "set -e"]
@@ -82,9 +99,22 @@ def create_executable_wrapper(task):
 
 def run_task_remote(task):
     """
-    Run a given task "remotely", which means
-    create an executable script and call it via a subprocess
-    call.
+    Executes a given task remotely by creating an executable script
+    and running it via a subprocess call. The standard output and
+    error streams are redirected to log files.
+
+    Args:
+        task: The task to be executed
+
+    Raises:
+        RuntimeError: If the subprocess call returns a non-zero
+                      exit code, indicating a failure during
+                      execution.
+
+    Side Effects:
+        - Creates a directory for log files if it does not already exist.
+        - Writes the standard output and error of the subprocess
+          execution to separate log files.
     """
     log_file_dir = get_log_file_dir(task)
     os.makedirs(log_file_dir, exist_ok=True)

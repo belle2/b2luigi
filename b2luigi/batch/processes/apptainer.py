@@ -59,8 +59,6 @@ class ApptainerProcess(BatchProcess):
             apptainer_additional_params = "--cleanenv"
 
             <rest of the task definition>
-
-
     """
 
     def __init__(self, *args, **kwargs):
@@ -70,6 +68,15 @@ class ApptainerProcess(BatchProcess):
         self._stderr = None
 
     def get_job_status(self):
+        """
+        Determine the current status of the job associated with this process.
+
+        Returns:
+            JobStatus: The current status of the job. Possible values are:
+                - :meth:`JobStatus.aborted <b2luigi.process.JobStatus.aborted>`: If the process is not initialized or has a non-zero return code.
+                - :meth:`JobStatus.running <b2luigi.process.JobStatus.running>`: If the process is still running.
+                - :meth:`JobStatus.running <b2luigi.process.JobStatus.running>`: If the process has finished successfully (return code is 0).
+        """
         if self._process is None:
             return JobStatus.aborted
 
@@ -83,6 +90,20 @@ class ApptainerProcess(BatchProcess):
             return JobStatus.successful if self._process.returncode == 0 else JobStatus.aborted
 
     def start_job(self):
+        """
+        Starts a job by constructing and executing an Apptainer command.
+
+        This method generates the necessary command to execute a task using
+        Apptainer, starts the job as a subprocess, and captures the process
+        information for further management.
+
+        The command is constructed by combining the task-specific command (see :meth:`create_cmd_from_task`)
+        and the Apptainer execution wrapper (see :obj:`create_apptainer_command`).
+
+        Attributes:
+            self.task: The task containing the details required to
+                       construct the command.
+        """
         command = " ".join(create_cmd_from_task(self.task))
         exec_command = create_apptainer_command(command, task=self.task)
 
@@ -90,10 +111,24 @@ class ApptainerProcess(BatchProcess):
         self._process = subprocess.Popen(exec_command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 
     def terminate_job(self):
+        """
+        Terminates the currently running process if it exists.
+
+        This method checks if a process is associated with the instance
+        and terminates it by calling the `terminate` method on the process.
+        """
         if self._process is not None:
             self._process.terminate()
 
     def _write_output(self):
+        """
+        Writes the captured standard output and standard error of the task to
+        separate log files in the task's log directory (see :obj:`get_log_file_dir`).
+
+        The method creates two files, "stdout" and "stderr", in the log directory
+        obtained from the task. If the standard output or standard error is not
+        None, their contents are decoded and written to the respective files.
+        """
         log_file_dir = get_log_file_dir(self.task)
 
         with open(os.path.join(log_file_dir, "stdout"), "w") as f:

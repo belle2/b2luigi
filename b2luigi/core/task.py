@@ -1,10 +1,11 @@
 from typing import Iterable, Iterator
 from b2luigi.core import utils
-from typing import Any, Union, List, Dict, Optional
+from typing import Any, Union, List, Dict, Optional, Type
 
 import luigi
 
 from b2luigi.core.utils import create_output_file_name
+from b2luigi.core.target import LocalTarget, FileSystemTarget
 
 
 class Task(luigi.Task):
@@ -41,7 +42,9 @@ class Task(luigi.Task):
                       f.write(f"{average}\\n")
     """
 
-    def add_to_output(self, output_file_name: str) -> Dict[str, luigi.LocalTarget]:
+    def add_to_output(
+        self, output_file_name: str, target_class: Type[FileSystemTarget] = LocalTarget, **kwargs
+    ) -> Dict[str, LocalTarget]:
         """
         Call this in your ``output()`` function to add a target to the list of files,
         this task will output.
@@ -51,7 +54,7 @@ class Task(luigi.Task):
 
             <result-path>/param1=value1/param2=value2/.../<output-file-name.ext>
 
-        This function will automatically use a ``LocalTarget``.
+        This function will by default use a :class:`b2luigi.LocalTarget`, but you can also pass a different ``target_class`` as an argument.
         If you do not want this, you can override the :obj:`_get_output_file_target` function.
 
         Example:
@@ -67,11 +70,17 @@ class Task(luigi.Task):
             output_file_name (:obj:`str`): the file name of the output file.
                 Refer to this file name as a key when using :obj:`get_input_file_names`,
                 :obj:`get_output_file_names` or :obj:`get_output_file`.
+            target_class: which class of :obj:`FileSystemTarget` to instantiate for this target.
+                defaults to :class:`b2luigi.LocalTarget`
+            **kwargs: kwargs to be passed to :obj:`create_output_file_name` via the :obj:`_get_output_file_target` function
+
+        Returns:
+            A dictionary with the output file name as key and the target as value.
         """
-        return {output_file_name: self._get_output_file_target(output_file_name)}
+        return {output_file_name: self._get_output_file_target(output_file_name, target_class, **kwargs)}
 
     @staticmethod
-    def _transform_io(input_generator: Iterable[luigi.target.FileSystemTarget]) -> Dict[str, List[str]]:
+    def _transform_io(input_generator: Iterable[FileSystemTarget]) -> Dict[str, List[str]]:
         file_paths: Dict[str, List[str]] = utils.flatten_to_file_paths(input_generator)
 
         return file_paths
@@ -89,6 +98,8 @@ class Task(luigi.Task):
                       for name in self.get_all_output_file_names():
                           print(f"\t\toutput:\t{name}")
 
+        Yields:
+            Iterator[str]: An iterator over the input file paths as strings.
         """
         for file_names in self._transform_io(self.input()).values():
             for file_name in file_names:
@@ -164,6 +175,29 @@ class Task(luigi.Task):
             return self._transform_io(self.input()[requirement_key])[key]
         return self._transform_io(self.input()[requirement_key])
 
+    def get_input_file_name(self, key: Optional[str] = None):
+        """
+        Wraps :obj:`get_input_file_names` and asserts there is only one input file.
+
+        Args:
+            key (:obj:`str`, optional): Return the file path with this given key.
+
+        Return:
+            File path for the given key.
+        """
+        input_obj = self.get_input_file_names(key)
+        if isinstance(input_obj, list):
+            if len(input_obj) == 1:
+                return input_obj[0]
+        elif isinstance(input_obj, dict):
+            if len(input_obj) == 1:
+                value = next(iter(input_obj.values()))
+                if isinstance(value, list) and len(value) == 1:
+                    return value[0]
+        raise ValueError(
+            f"Found more than 1 input file for the key '{key}'. If this is expected use self.get_input_file_names instead."
+        )
+
     def get_all_output_file_names(self) -> Iterator[str]:
         """
         Return all file paths created by this task.
@@ -176,6 +210,9 @@ class Task(luigi.Task):
                   def dry_run(self):
                       for name in self.get_all_output_file_names():
                           print(f"\t\toutput:\t{name}")
+
+        Yields:
+            str: The file path of each output file.
         """
         for file_names in self._transform_io(self.output()).values():
             for file_name in file_names:
@@ -202,18 +239,115 @@ class Task(luigi.Task):
         return file_path
 
     def _get_input_targets(self, key: str) -> luigi.Target:
-        """Shortcut to get the input targets for a given key. Will return a luigi target."""
+        """
+        Retrieve the input targets associated with a specific key.
+
+        This method acts as a shortcut to access the input targets for a given key
+        from the task's input.
+
+        Args:
+            key (str): The key for which to retrieve the corresponding input targets.
+
+        Returns:
+            luigi.Target: The luigi target(s) associated with the specified key.
+
+        Raises:
+            KeyError: If the specified key is not found in the input dictionary.
+        """
         input_dict = utils.flatten_to_dict_of_lists(self.input())
         return input_dict[key]
 
     def _get_output_target(self, key: str) -> luigi.Target:
-        """Shortcut to get the output target for a given key. Will return a luigi target."""
-        output_dict: Dict[str, luigi.target.FileSystemTarget] = utils.flatten_to_dict(self.output())
+        """
+        Retrieves the output target associated with a specific key.
+
+        This method acts as a shortcut to access a ``luigi`` target from the task's output.
+
+        Args:
+            key (str): The key for which the output target is to be retrieved.
+
+        Returns:
+            luigi.Target: The ``luigi`` target associated with the specified key.
+        """
+        output_dict: Dict[str, FileSystemTarget] = utils.flatten_to_dict(self.output())
         return output_dict[key]
 
-    def _get_output_file_target(self, base_filename: str, **kwargs: Any) -> luigi.LocalTarget:
+    def _get_output_file_target(
+        self, base_filename: str, target_class: Type[FileSystemTarget] = LocalTarget, **kwargs: Any
+    ) -> LocalTarget:
+        """
+        Generates a Luigi file system target for the output file.
+
+        This method constructs the output file name using the provided base filename
+        and additional keyword arguments, and then returns a file system target
+        instance of the specified target class.
+
+        Args:
+            base_filename (str): The base name of the output file.
+            target_class (Type[FileSystemTarget], optional): The class of the file system target to use.
+                Defaults to :class:`b2luigi.LocalTarget`.
+            **kwargs (Any): Additional keyword arguments to customize the output file name.
+
+        Returns:
+            LocalTarget: An instance of the specified file system target class pointing to the output file.
+        """
         file_name: str = create_output_file_name(self, base_filename, **kwargs)
-        return luigi.LocalTarget(file_name)
+        return target_class(file_name)
+
+    def _remove_output_file_target(self, base_filename: str) -> None:
+        """
+        Removes the output file target associated with the given base filename.
+
+        This method retrieves the output file target using the provided base filename
+        and attempts to remove it. If the target does not have a `remove` method,
+        a `NotImplementedError` is raised.
+
+        Args:
+            base_filename (str): The base filename used to identify the output file target.
+
+        Raises:
+            NotImplementedError: If the target does not have a `remove` method.
+        """
+        target: LocalTarget = self._get_output_file_target(base_filename)
+        if hasattr(target, "remove"):
+            target.remove()
+        else:
+            raise NotImplementedError(
+                f"Cannot remove output file target for {base_filename}. " "The target does not have a remove method."
+            )
+
+    def _remove_output(self) -> None:
+        """
+        Removes all output file targets associated with the task.
+
+        This method iterates through all output file names retrieved from
+        :obj:`get_all_output_file_names` and removes each corresponding output
+        file target by calling :obj:`_remove_output_file_target`.
+
+        .. warning::
+            Be very careful with this method!
+            It will remove all output files of this task!
+            This is not reversible.
+
+        .. hint::
+            If you are very sure in what you are doing, you can use this method
+            to remove all output files of this task by calling it in the
+            :obj:`remove_output` method of your task.
+
+        Example:
+            .. code-block:: python
+
+              class TheSuperFancyTask(b2luigi.Task):
+                  def remove_output(self):
+                      self._remove_output()
+        Returns:
+            None
+        """
+        for key in self.get_all_output_file_names():
+            try:
+                self._remove_output_file_target(key)
+            except Exception as ex:
+                print(f"Could not remove output file {key}: {ex}")
 
 
 class ExternalTask(Task, luigi.ExternalTask):
@@ -229,13 +363,47 @@ class WrapperTask(Task, luigi.WrapperTask):
 
 
 class NotCompletedTask(Task):
+    """
+    A custom task class that extends the base Task class and provides a
+    specialized `complete` method to determine task completion status.
+    This class introduces an additional `check_complete` attribute to
+    control whether child tasks are checked for completion.
+
+    Attributes:
+        check_complete (bool): A flag indicating whether to check the
+            completion status of child tasks. Defaults to True.
+
+    Methods:
+        complete() -> bool:
+            Determines if the task is complete. This method checks the
+            completion status of the current task and its child tasks
+            (if `check_complete` is True). If any child task is incomplete,
+            the method returns False. If `check_complete` is False, the
+            method assumes the task is complete regardless of child task
+            statuses.
+    """
+
     def __init__(self, *args: Any, **kwargs: Any):
         super().__init__(*args, **kwargs)
 
         self.check_complete: bool = True
 
     def complete(self) -> bool:
-        """Custom complete function checking also the child tasks until a check_complete = False is reached"""
+        """
+        Determines whether the task and its dependencies are complete.
+
+        This method overrides the default ``complete`` method to include a custom
+        check for child tasks. It recursively checks the completion status of
+        required tasks until a task with ``check_complete = False`` is encountered.
+
+        Returns:
+            bool: True if the task and all its dependencies are complete,
+                  False otherwise.
+
+        Raises:
+            AttributeError: If the ``requires`` method does not return a single task
+                            or an iterable of tasks.
+        """
         if not super().complete():
             return False
 

@@ -65,6 +65,9 @@ instance/
 
 # Sphinx documentation
 docs/_build/
+# Sphinx auto-generated
+docs/sg_execution_times.rst
+docs/starterkit/**
 
 # PyBuilder
 target/
@@ -85,7 +88,7 @@ celerybeat-schedule
 .env
 .venv
 env/
-venv/
+venv*
 ENV/
 env.bak/
 venv.bak/

@@ -1,8 +1,5 @@
 """
-Test helper functions for :py:class:`Gbasf2Process`.
-
-Utilities that require a running gbasf2 or Dirac environment will not net
-tested in this test case, only the functions that can be run independently.
+Test helper functions for :py:class:`HTCondorProcess`.
 """
 
 import json

@@ -1,0 +1,15 @@
+Decay Upsilon(4S)
+0.5   B+sig	B-	VSS;
+0.5   B-sig	B+	VSS;
+Enddecay
+
+Decay B+sig
+1.0   J/psisig	K+	SVS;
+Enddecay
+CDecay B-sig
+
+Decay J/psisig
+1.0   mu+	mu-	VLL;
+Enddecay
+
+End
