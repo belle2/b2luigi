@@ -43,7 +43,11 @@ class Task(luigi.Task):
     """
 
     def add_to_output(
-        self, output_file_name: str, target_class: Type[FileSystemTarget] = LocalTarget, **kwargs
+        self, 
+        output_file_name: str, 
+        target_class: Type[FileSystemTarget] = LocalTarget, 
+        result_dir: Optional[str] = None, 
+        **kwargs
     ) -> Dict[str, LocalTarget]:
         """
         Call this in your ``output()`` function to add a target to the list of files,
@@ -72,7 +76,9 @@ class Task(luigi.Task):
                 :obj:`get_output_file_names` or :obj:`get_output_file`.
             target_class: which class of :obj:`FileSystemTarget` to instantiate for this target.
                 defaults to :class:`b2luigi.LocalTarget`
-            **kwargs: kwargs to be passed to :obj:`create_output_file_name` via the :obj:`_get_output_file_target` function
+            result_dir: Optionally pass a `result_dir` to the :obj:`create_output_file_name`.
+
+            **kwargs: kwargs to be passed to the `__init__` of the Target_class via the :obj:`_get_output_file_target` function
 
         Returns:
             A dictionary with the output file name as key and the target as value.
@@ -273,7 +279,11 @@ class Task(luigi.Task):
         return output_dict[key]
 
     def _get_output_file_target(
-        self, base_filename: str, target_class: Type[FileSystemTarget] = LocalTarget, **kwargs: Any
+        self, 
+        base_filename: str, 
+        target_class: Type[FileSystemTarget] = LocalTarget, 
+        result_dir: Optional[str]=None, 
+        **kwargs: Any
     ) -> LocalTarget:
         """
         Generates a Luigi file system target for the output file.
@@ -286,13 +296,14 @@ class Task(luigi.Task):
             base_filename (str): The base name of the output file.
             target_class (Type[FileSystemTarget], optional): The class of the file system target to use.
                 Defaults to :class:`b2luigi.LocalTarget`.
-            **kwargs (Any): Additional keyword arguments to customize the output file name.
+            result_dir: Optionally pass a `result_dir` to the :obj:`create_output_file_name`.
+            **kwargs (Any): Additional keyword arguments passed to the target_class' `__init__`
 
         Returns:
             LocalTarget: An instance of the specified file system target class pointing to the output file.
         """
-        file_name: str = create_output_file_name(self, base_filename, **kwargs)
-        return target_class(file_name)
+        file_name: str = create_output_file_name(self, base_filename, )
+        return target_class(file_name, **kwargs)
 
     def _remove_output_file_target(self, base_filename: str) -> None:
         """
