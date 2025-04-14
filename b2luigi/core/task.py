@@ -43,11 +43,11 @@ class Task(luigi.Task):
     """
 
     def add_to_output(
-        self, 
-        output_file_name: str, 
-        target_class: Type[FileSystemTarget] = LocalTarget, 
-        result_dir: Optional[str] = None, 
-        **kwargs
+        self,
+        output_file_name: str,
+        target_class: Type[FileSystemTarget] = LocalTarget,
+        result_dir: Optional[str] = None,
+        **kwargs,
     ) -> Dict[str, LocalTarget]:
         """
         Call this in your ``output()`` function to add a target to the list of files,
@@ -279,11 +279,11 @@ class Task(luigi.Task):
         return output_dict[key]
 
     def _get_output_file_target(
-        self, 
-        base_filename: str, 
-        target_class: Type[FileSystemTarget] = LocalTarget, 
-        result_dir: Optional[str]=None, 
-        **kwargs: Any
+        self,
+        base_filename: str,
+        target_class: Type[FileSystemTarget] = LocalTarget,
+        result_dir: Optional[str] = None,
+        **kwargs: Any,
     ) -> LocalTarget:
         """
         Generates a Luigi file system target for the output file.
@@ -302,7 +302,10 @@ class Task(luigi.Task):
         Returns:
             LocalTarget: An instance of the specified file system target class pointing to the output file.
         """
-        file_name: str = create_output_file_name(self, base_filename, )
+        file_name: str = create_output_file_name(
+            self,
+            base_filename,
+        )
         return target_class(file_name, **kwargs)
 
     def _remove_output_file_target(self, base_filename: str) -> None:
