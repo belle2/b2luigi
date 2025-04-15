@@ -120,7 +120,7 @@ LSF
 
 .. autoclass:: b2luigi.batch.processes.lsf.LSFProcess
     :show-inheritance:
-    :no-index:
+    :noindex:
 
 .. _htcondor:
 
@@ -129,7 +129,7 @@ HTCondor
 
 .. autoclass:: b2luigi.batch.processes.htcondor.HTCondorProcess
     :show-inheritance:
-    :no-index:
+    :noindex:
 
 .. _slurm:
 
@@ -138,7 +138,7 @@ Slurm
 
 .. autoclass:: b2luigi.batch.processes.slurm.SlurmProcess
     :show-inheritance:
-    :no-index:
+    :noindex:
 
 .. _gbasf2:
 
@@ -147,7 +147,7 @@ GBasf2 Wrapper for LCG
 
 .. autoclass:: b2luigi.batch.processes.gbasf2.Gbasf2Process
     :show-inheritance:
-    :no-index:
+    :noindex:
 
 .. _apptainer:
 
@@ -156,7 +156,7 @@ Apptainer
 
 .. autoclass:: b2luigi.batch.processes.apptainer.ApptainerProcess
     :show-inheritance:
-    :no-index:
+    :noindex:
 
 Add your own batch system
 -------------------------
@@ -166,4 +166,4 @@ abstract functions of ``BatchProcess`` for your system:
 
 .. autoclass:: b2luigi.batch.processes.BatchProcess
     :members: get_job_status, start_job, terminate_job
-    :no-index:
+    :noindex:

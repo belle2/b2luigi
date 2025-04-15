@@ -1,3 +1,5 @@
+.. _`api-on-temporary-label`:
+
 Temporary File Context Manager
 ------------------------------
 

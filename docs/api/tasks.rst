@@ -1,3 +1,5 @@
+.. _`api-tasks-label`:
+
 Super-hero Task Classes
 -----------------------
 
