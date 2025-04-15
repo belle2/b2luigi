@@ -76,9 +76,8 @@ class Task(luigi.Task):
                 :obj:`get_output_file_names` or :obj:`get_output_file`.
             target_class: which class of :obj:`FileSystemTarget` to instantiate for this target.
                 defaults to :class:`b2luigi.LocalTarget`
-            result_dir: Optionally pass a `result_dir` to the :obj:`create_output_file_name`.
-
-            **kwargs: kwargs to be passed to the `__init__` of the Target_class via the :obj:`_get_output_file_target` function
+            result_dir (:obj:`str`, optional): Optionally pass a `result_dir` to the :obj:`create_output_file_name`.
+            kwargs: kwargs to be passed to the `__init__` of the Target_class via the :obj:`_get_output_file_target` function
 
         Returns:
             A dictionary with the output file name as key and the target as value.
@@ -252,7 +251,7 @@ class Task(luigi.Task):
         from the task's input.
 
         Args:
-            key (str): The key for which to retrieve the corresponding input targets.
+            key (:obj:`str`): The key for which to retrieve the corresponding input targets.
 
         Returns:
             luigi.Target: The luigi target(s) associated with the specified key.
@@ -270,7 +269,7 @@ class Task(luigi.Task):
         This method acts as a shortcut to access a ``luigi`` target from the task's output.
 
         Args:
-            key (str): The key for which the output target is to be retrieved.
+            key (:obj:`str`): The key for which the output target is to be retrieved.
 
         Returns:
             luigi.Target: The ``luigi`` target associated with the specified key.
@@ -293,11 +292,11 @@ class Task(luigi.Task):
         instance of the specified target class.
 
         Args:
-            base_filename (str): The base name of the output file.
-            target_class (Type[FileSystemTarget], optional): The class of the file system target to use.
+            base_filename (:obj:`str`): The base name of the output file.
+            target_class (:obj:`Type`[FileSystemTarget], optional): The class of the file system target to use.
                 Defaults to :class:`b2luigi.LocalTarget`.
-            result_dir: Optionally pass a `result_dir` to the :obj:`create_output_file_name`.
-            **kwargs (Any): Additional keyword arguments passed to the target_class' `__init__`
+            result_dir (:obj:`str`, optional): Optionally pass a `result_dir` to the :obj:`create_output_file_name`.
+            kwargs (Any): Additional keyword arguments passed to the target_class' `__init__`
 
         Returns:
             LocalTarget: An instance of the specified file system target class pointing to the output file.
@@ -317,7 +316,7 @@ class Task(luigi.Task):
         a `NotImplementedError` is raised.
 
         Args:
-            base_filename (str): The base filename used to identify the output file target.
+            base_filename (:obj:`str`): The base filename used to identify the output file target.
 
         Raises:
             NotImplementedError: If the target does not have a `remove` method.
