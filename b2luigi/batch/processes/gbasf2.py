@@ -695,6 +695,10 @@ class Gbasf2Process(BatchProcess):
         if input_sandboxfiles:
             gbasf2_command_str += f"-f {' '.join(input_sandboxfiles)}"
 
+        gbasf2_lfn_sandboxfiles = get_setting("gbasf2_lfn_sandboxfiles", default=False, task=self.task)
+        if gbasf2_lfn_sandboxfiles is not False:
+            gbasf2_command_str += " --lfn_sandboxfiles "
+
         gbasf2_noscout = get_setting("gbasf2_noscout", default=False, task=self.task)
         if gbasf2_noscout:
             gbasf2_command_str += " --noscout "
@@ -755,10 +759,6 @@ class Gbasf2Process(BatchProcess):
         basf2opt = get_setting("gbasf2_basf2opt", default=False, task=self.task)
         if basf2opt is not False:
             gbasf2_command_str += f" --basf2opt='{basf2opt}' "
-
-        gbasf2_lfn_sandboxfiles = get_setting("gbasf2_lfn_sandboxfiles", default=False, task=self.task)
-        if gbasf2_lfn_sandboxfiles is not False:
-            gbasf2_command_str += " --lfn_sandboxfiles "
 
         gbasf2_input_grouping = get_setting("gbasf2_input_grouping", default=False, task=self.task)
         if gbasf2_input_grouping is not False:
