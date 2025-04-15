@@ -63,6 +63,15 @@ General settings
     The number of parallel threads used to download input targets with the :meth:`Task.get_input_file_names` function.
     Defaults to `2`. Set it to `None` to disable the usage of a ThreadPool.
 
+- ``default_task_target_class``: Object
+    The default target class to use when creating targets.
+    This is used when the task uses :meth:`b2luigi.Task.add_to_output` to define a target and no ``target_class`` is set.
+    Defaults to :class:`b2luigi.LocalTarget`.
+
+- ``target_class_kwargs``: Dict
+    The default target kwargs to use when creating targets.
+    This is used when the task uses :meth:`b2luigi.Task.add_to_output` to define a target and no ``target_kwargs`` is set.
+
 Apptainer settings
 ++++++++++++++++++
 
