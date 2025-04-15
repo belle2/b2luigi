@@ -10,11 +10,11 @@ How to set settings
 These settings can be set in the following ways, where each way overwrites the previous one:
 
 1. Via a settings file (e.g. `settings.json`). This file can be given via the environment variable ``B2LUIGI_SETTINGS_JSON``.
-   If this variable is not set, b2luigi will look for a file named `settings.json` in the current working directory.
-2. You can set a setting in your script via the function :meth:`b2luigi.set_setting`.
+   If this variable is not set, ``b2luigi`` will look for a file named `settings.json` in the current working directory.
+2. You can set a setting in your script via the function :func:`b2luigi.set_setting <b2luigi.core.settings.set_setting>`.
 3. You can use give a task the setting as a property.
 
-For more details, check the API documentation of :meth:`b2luigi.get_setting`.
+For more details, check the API documentation of :func:`b2luigi.get_setting <b2luigi.core.settings.get_setting>`.
 
 Available settings
 ------------------
@@ -35,8 +35,8 @@ General settings
     It is recommended to set this path per project via the settings file.
 
 - ``scratch_dir``: String
-    The directory, where temporary files are written to when using the :meth:`on_temporary_files` context.
-    This is used when targets are created with the :meth:`Task.add_to_output` method.
+    The directory, where temporary files are written to when using the :meth:`b2luigi.on_temporary_files` context.
+    This is used when targets are created with the :meth:`b2luigi.Task.add_to_output` method.
 
 - ``batch_system``: String
     The batch system to use when executed in batch mode. Currently, ``htcondor``, ``lsf``, ``gbasf2``, ``auto`` and ``local`` are supported.
@@ -60,8 +60,17 @@ General settings
     The string used to separate parameter names and parameter values in the output path.
 
 - ``n_download_threads``: int
-    The number of parallel threads used to download input targets with the :meth:`Task.get_input_file_names` function.
-    Defaults to `2`. Set it to `None` to disable the usage of a ThreadPool.
+    The number of parallel threads used to download input targets with the :meth:`b2luigi.Task.get_input_file_names` function.
+    Defaults to ``2``. Set it to ``None`` to disable the usage of a ThreadPool.
+
+- ``default_task_target_class``: Object
+    The default target class to use when creating targets.
+    This is used when the task uses :meth:`b2luigi.Task.add_to_output` to define a target and no ``target_class`` is set.
+    Defaults to :class:`b2luigi.LocalTarget`.
+
+- ``target_class_kwargs``: Dict
+    The default target kwargs to use when creating targets.
+    This is used when the task uses :meth:`b2luigi.Task.add_to_output` to define a target and no ``target_kwargs`` is set.
 
 Apptainer settings
 ++++++++++++++++++
@@ -158,7 +167,7 @@ Slurm specific settings
 
 ``gbasf2`` specific settings
 ++++++++++++++++++++++++++++
-To see a list of b2luigi settings mapped to ``gbasf2`` command line options, see :class:`Gbasf2Process <b2luigi.batch.processes.Gbasf2Process>`.
+To see a list of b2luigi settings mapped to ``gbasf2`` command line options, see :class:`Gbasf2Process <b2luigi.batch.processes.gbasf2.Gbasf2Process>`.
 
 Custom settings
 ---------------

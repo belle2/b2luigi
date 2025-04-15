@@ -49,7 +49,7 @@ class FileSystemTarget(luigi.target.FileSystemTarget):
         filename_parts = os.path.basename(self.path).split(".")
         prefix = filename_parts[0]
         extension = "".join(filename_parts[1:]) if len(filename_parts) > 1 else ""
-        _temp_path = f"{prefix}-luigi-tmp-{num:010}{extension}{self._trailing_slash()}"
+        _temp_path = f"{prefix}-luigi-tmp-{num:010}.{extension}{self._trailing_slash()}"
         return _temp_path
 
     @contextmanager
