@@ -82,7 +82,11 @@ class Task(luigi.Task):
         Returns:
             A dictionary with the output file name as key and the target as value.
         """
-        return {output_file_name: self._get_output_file_target(output_file_name, target_class, **kwargs)}
+        return {
+            output_file_name: self._get_output_file_target(
+                output_file_name, target_class, result_dir=result_dir, **kwargs
+            )
+        }
 
     @staticmethod
     def _transform_io(input_generator: Iterable[FileSystemTarget]) -> Dict[str, List[str]]:
@@ -304,6 +308,7 @@ class Task(luigi.Task):
         file_name: str = create_output_file_name(
             self,
             base_filename,
+            result_dir=result_dir,
         )
         return target_class(file_name, **kwargs)
 
