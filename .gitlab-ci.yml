@@ -36,6 +36,7 @@ default:
     - echo ${BASF2_RELEASE_VERSION}
     - b2venv ${BASF2_RELEASE_VERSION}
     - source venv/bin/activate
+    - pip install flit
 
 pre_commit:
   stage: pre_commit
@@ -46,8 +47,7 @@ pre_commit:
 test:
   stage: test
   script:
-    - pip install pytest pytest-cov python-coveralls flit
-    - flit install -s
+    - flit install -s --deps=develop
     - echo "Running tests"
     - pytest -v --cov b2luigi --junitxml=$ARTIFACTS_TEST_PATH --cov-report=xml --cov-report=html --cov-report=term tests
     - mv htmlcov $ARTIFACTS_COV_PATH
@@ -72,8 +72,7 @@ docs:
     - job: test
       artifacts: false
   script:
-    - pip install flit
-    - flit install -s
+    - flit install -s --deps=develop
     - sphinx-build docs/ $ARTIFACTS_DOCS_PATH
   artifacts:
     paths:
@@ -90,18 +89,17 @@ publish:
     - job: docs
       artifacts: false
   script:
-    - pip install setuptools wheel twine flit
+    - pip install setuptools wheel twine
     - flit publish
   only:
     - tags
 
 prepare_release:
   stage: publish
-  image: alpine:latest
   rules:
   - if: '$CI_COMMIT_TAG =~ /^v?\d+\.\d+\.\d+$/'
   script:
-    - dnf install -y curl jq
+    - yum install -y jq
     - 'curl --header "JOB-TOKEN: ${CI_JOB_TOKEN}" "$CI_API_V4_URL/projects/$CI_PROJECT_ID/repository/changelog?version=$CI_COMMIT_TAG" | jq -r .notes > release_notes.md'
   artifacts:
     paths:
@@ -110,6 +108,7 @@ prepare_release:
 publish_release:
   stage: publish
   image: registry.gitlab.com/gitlab-org/release-cli:latest
+  before_script: []
   needs:
     - job: prepare_release
       artifacts: true

@@ -3,7 +3,7 @@
 Belle II specific examples
 ==========================
 
-The following examples are not of interest to the general audience, but only for basf2 users.
+The following examples are not of interest to the general audience, but only for ``basf2`` users.
 
 
 Running at the NAF
@@ -12,7 +12,7 @@ Running at the NAF
 The environment on the workers is different than on the scheduling machine, so we can not
 just copy the environment variables as on KEKCC.
 
-You can use setup script (e.g. called ``setup_basf2.sh``) with the following content
+You can use setup script (e.g. called `setup_basf2.sh`) with the following content
 
 .. code-block:: bash
 
@@ -71,8 +71,8 @@ executable explicitly.
 
         b2luigi.process(Wrapper(), batch=True, workers=100)
 
-Of course it is also possible to set those settings in the ``settings.json`` or as task-specific parameters.
-Please check out :func:`b2luigi.get_setting` for more information.
+Of course it is also possible to set those settings in the `settings.json` or as task-specific parameters.
+Please check out :meth:`b2luigi.get_setting` for more information.
 
 Please note that the called script as well as the results folder need to be accessible from both
 the scheduler and the worker machines.
@@ -149,24 +149,6 @@ nTuple Generation
 
     if __name__ == "__main__":
         luigi.process(AnalysisWrapperTask(), workers=500)
-
-
-Ensuring the basf2 version
---------------------------
-
-One can also use the the parameters and automatically generated directory structure to ensure that the same basf2 version is used across Tasks.
-For that, you can simply add this parameter to your Task:
-
-.. code-block:: python
-
-    from b2luigi.basf2_helper import Basf2PathTask,
-    from b2luigi.basf2_helper.utils import get_basf2_git_hash
-
-    class MyBasf2PathTask():
-
-        git_hash = b2luigi.Parameter(default=get_basf2_git_hash())
-
-The `get_basf2_git_hash` function will automatically detect your basf2 version.
 
 
 Standard Simulation, Reconstruction and some nTuple Generation

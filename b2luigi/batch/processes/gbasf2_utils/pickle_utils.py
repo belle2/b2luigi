@@ -7,8 +7,17 @@ from variables import variables as vm
 
 def get_alias_dict_from_variable_manager():
     """
-    Extracts a dictionary with the alias names as keys and their values from the
-    internal state of the variable manager and returns it.
+    Extracts a dictionary of alias names and their corresponding variable names from the
+    internal state of the variable manager.
+
+    This function iterates over all alias names managed by the variable manager, retrieves
+    the associated variable for each alias, and constructs a dictionary where the keys
+    are the alias names (as strings) and the values are the names of the corresponding
+    variables.
+
+    Returns:
+        dict: A dictionary where keys are alias names (str) and values are the names of
+        the corresponding variables (str).
     """
     alias_dictionary = {str(alias_name): vm.getVariable(str(alias_name)).name for alias_name in vm.getAliasNames()}
     return alias_dictionary
@@ -16,17 +25,17 @@ def get_alias_dict_from_variable_manager():
 
 def write_path_and_state_to_file(basf2_path, file_path):
     """
-    Serialize basf2 path, aliases and log_level to file.
+    Serialize a ``basf2`` path, variable aliases, and global tags to a file.
 
-    Variant of ``basf2.pickle_path.write_path_to_file``, only with additional
-    serialization of the basf2 variable aliases and global tags.
+    This function is a variant of ``basf2.pickle_path.write_path_to_file`` with
+    additional serialization of ``basf2`` variable aliases and global tags. The aliases
+    are extracted from the current state of the variable manager singleton, and the
+    global tags are taken from the `b2conditions` module. Both must be set in the
+    python/``basf2`` process before calling this function.
 
-    The aliases are extracted from the current state of the variable manager singleton
-    and thus have to be added in the python/basf2 process before calling this function.
-    Likewise for the global tags.
-
-    :param path: Basf2 path object to serialize
-    :param file_path: File path to write the serialized pickle object to.
+    Args:
+        basf2_path: The ``basf2`` path object to serialize.
+        file_path: The file path where the serialized pickle object will be written.
     """
     with open(file_path, "bw") as pickle_file:
         serialized = serialize_path(basf2_path)

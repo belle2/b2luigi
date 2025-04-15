@@ -17,16 +17,19 @@ class HTCondorJobStatusCache(BatchJobStatusCache):
     @retry(subprocess.CalledProcessError, tries=3, delay=2, backoff=3)  # retry after 2,6,18 seconds
     def _ask_for_job_status(self, job_id: int = None):
         """
-        With HTCondor, you can check the progress of your jobs using the `condor_q` command.
-        If no `JobId` is given as argument, this command shows you the status of all queued jobs
+        With HTCondor, you can check the progress of your jobs using the ``condor_q`` command.
+        If no ``JobId`` is given as argument, this command shows you the status of all queued jobs
         (usually only your own by default).
 
-        Normally the HTCondor `JobID` is stated as `ClusterId.ProcId`. Since only on job is queued per
-        cluster, we can identify jobs by their `ClusterId` (The `ProcId` will be 0 for all submitted jobs).
-        With the `-json` option, the `condor_q` output is returned in the JSON format. By specifying some
-        attributes, not the entire job ClassAd is returned, but only the necessary information to match a
-        job to its `JobStatus`. The output is given as `string` and cannot be directly parsed into a json
+        Normally the HTCondor ``JobID`` is stated as ``ClusterId.ProcId``. Since only on job is queued per
+        cluster, we can identify jobs by their ``ClusterId`` (The ``ProcId`` will be ``0`` for all submitted jobs).
+        With the ``-json`` option, the ``condor_q`` output is returned in the JSON format. By specifying some
+        attributes, not the entire job ``ClassAd`` is returned, but only the necessary information to match a
+        job to its :meth:`JobStatus <b2luigi.process.JobStatus>`. The output is given as string and cannot be directly parsed into a json
         dictionary. It has the following form:
+
+        .. code-block:: text
+
             [
                 {...}
                 ,
@@ -34,10 +37,11 @@ class HTCondorJobStatusCache(BatchJobStatusCache):
                 ,
                 {...}
             ]
-        The {...} are the different dictionaries including the specified attributes.
+
+        The ``{...}`` are the different dictionaries including the specified attributes.
         Sometimes it might happen that a job is completed in between the status checks. Then its final status
-        can be found in the `condor_history` file (works mostly in the same way as `condor_q`).
-        Both commands are used in order to find out the `JobStatus`.
+        can be found in the ``condor_history`` file (works mostly in the same way as ``condor_q``).
+        Both commands are used in order to find out the :meth:`JobStatus <b2luigi.process.JobStatus>`.
         """
         # https://htcondor.readthedocs.io/en/latest/man-pages/condor_q.html
         q_cmd = ["condor_q", "-json", "-attributes", "ClusterId,JobStatus,ExitStatus"]
@@ -66,6 +70,15 @@ class HTCondorJobStatusCache(BatchJobStatusCache):
             self._fill_from_output(output)
 
     def _fill_from_output(self, output):
+        """
+        Processes the output from an HTCondor job query and updates the job statuses.
+
+        Args:
+            output (bytes): The raw output from the HTCondor job query, encoded as bytes.
+
+        Returns:
+            set: A set of ``ClusterId`` values representing the jobs seen in the output.
+        """
         output = output.decode()
 
         seen_ids = set()
@@ -160,6 +173,20 @@ class HTCondorProcess(BatchProcess):
         self._batch_job_id = None
 
     def get_job_status(self):
+        """
+        Determines the status of a batch job based on its HTCondor job status.
+
+        Returns:
+            JobStatus: The status of the job, which can be one of the following:
+                - :meth:`JobStatus.successful <b2luigi.process.JobStatus.successful>`: If the HTCondor job status is 'completed'.
+                - :meth:`JobStatus.running <b2luigi.process.JobStatus.running>`: If the HTCondor job status is one of 'idle',
+                  'running', 'transferring_output', or 'suspended'.
+                - :meth:`JobStatus.aborted <b2luigi.process.JobStatus.aborted>`: If the HTCondor job status is 'removed',
+                  'held', 'failed', or if the job ID is not found in the cache.
+
+        Raises:
+            ValueError: If the HTCondor job status is unknown.
+        """
         if not self._batch_job_id:
             return JobStatus.aborted
 
@@ -182,6 +209,16 @@ class HTCondorProcess(BatchProcess):
         raise ValueError(f"Unknown HTCondor Job status: {job_status}")
 
     def start_job(self):
+        """
+        Starts a job by creating and submitting an HTCondor submit file.
+
+        This method generates an HTCondor submit file using the :obj:`_create_htcondor_submit_file`
+        method, then submits the job using the ``condor_submit`` command.
+
+        Raises:
+            RuntimeError: If the batch submission fails or the job ID cannot be extracted
+                          from the ``condor_submit`` output.
+        """
         submit_file = self._create_htcondor_submit_file()
 
         # HTCondor submit needs to be called in the folder of the submit file
@@ -196,12 +233,40 @@ class HTCondorProcess(BatchProcess):
         self._batch_job_id = int(match.group(0)[:-1])
 
     def terminate_job(self):
+        """
+        Terminates a batch job managed by HTCondor.
+
+        This method checks if a batch job ID is available. If a valid job ID exists,
+        it executes the ``condor_rm`` command to remove the job from the HTCondor queue.
+        """
         if not self._batch_job_id:
             return
 
         subprocess.run(["condor_rm", str(self._batch_job_id)], stdout=subprocess.DEVNULL)
 
     def _create_htcondor_submit_file(self):
+        """
+        Creates an HTCondor submit file for the current task.
+
+        This method generates the content of an HTCondor submit file based on the
+        task's configuration and writes it to a file.
+
+        Returns:
+            str: The path to the generated HTCondor submit file.
+
+        Raises:
+            ValueError: If ``transfer_files`` contains non-absolute file paths or if
+                        ``working_dir`` is not explicitly set to '.' when using
+                        ``transfer_files``.
+
+        Note:
+            - The ``stdout`` and ``stderr`` log files are created in the task's log directory. See :obj:`get_log_file_dir`.
+            - The HTCondor settings are specified in the ``htcondor_settings`` setting, which is a dictionary of key-value pairs.
+            - The executable is created with :obj:`create_executable_wrapper`.
+            - The ``transfer_files`` setting can be used to specify files or directories to be transferred to the worker node.
+            - The ``job_name`` setting can be used to specify a meaningful name for the job.
+            - The submit file is named `job.submit` and is created in the task's output directory (:obj:`get_task_file_dir`).
+        """
         submit_file_content = []
 
         # Specify where to write the log to

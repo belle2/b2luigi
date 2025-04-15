@@ -20,18 +20,18 @@ class SlurmJobStatusCache(BatchJobStatusCache):
     @retry(subprocess.CalledProcessError, tries=3, delay=2, backoff=3)  # retry after 2,6,18 seconds
     def _ask_for_job_status(self, job_id: int = None):
         """
-        With Slurm, you can check the progress of your jobs using the `squeue` command.
-        If no `jobID` is given as argument, this command shows you the status of all queued jobs.
+        With Slurm, you can check the progress of your jobs using the ``squeue`` command.
+        If no ``jobID`` is given as argument, this command shows you the status of all queued jobs.
 
         Sometimes it might happen that a job is completed in between the status checks. Then its final status
-        can be found using `sacct` (works mostly in the same way as `squeue`).
+        can be found using ``sacct`` (works mostly in the same way as ``squeue``).
 
         If in the unlikely case the server has the Slurm accounting disabled, then the `scontrol` command is used as a last
         resort to access the jobs history. This is the fail safe command as the scontrol by design only holds onto a jobs
         information for a short period of time after completion. The time between status checks is sufficiently short however
         so the scontrol command should still have the jobs information on hand.
 
-        All three commands are used in order to find out the `JobStatus`.
+        All three commands are used in order to find out the :obj:`SlurmJobStatus`.
         """
         # https://slurm.schedmd.com/squeue.html
         user = getpass.getuser()
@@ -79,6 +79,28 @@ class SlurmJobStatusCache(BatchJobStatusCache):
             self[job_id] = SlurmJobStatus.failed
 
     def _fill_from_output(self, output: str) -> set:
+        """
+        Parses the output of a Slurm command to extract job IDs and their states,
+        updating the internal job status mapping and returning a set of seen job IDs.
+
+        Args:
+            output (str): The output string from a Slurm command, expected to be
+                          formatted as '<job id> <state>' per line.
+
+        Returns:
+            set: A set of job IDs that were parsed from the output.
+
+        Raises:
+            AssertionError: If a line in the output does not contain exactly two
+                            entries (job ID and state).
+
+        Notes:
+            - If the output is empty, an empty set is returned.
+            - Lines in the output that are empty or contain unexpected formatting
+              are skipped.
+            - Job states with a '+' suffix (e.g., 'CANCELLED+') are normalized by
+              stripping the '+' character.
+        """
         seen_ids = set()
 
         # If the output is empty return an empty set
@@ -106,6 +128,18 @@ class SlurmJobStatusCache(BatchJobStatusCache):
         return seen_ids
 
     def _get_SlurmJobStatus_from_string(self, state_string: str) -> str:
+        """
+        Converts a state string into a :obj:`SlurmJobStatus` enumeration value.
+
+        Args:
+            state_string (str): The state string to be converted.
+
+        Returns:
+            str: The corresponding :obj:`SlurmJobStatus` value.
+
+        Raises:
+            KeyError: If the provided state string does not match any valid :obj:`SlurmJobStatus`.
+        """
         try:
             state = SlurmJobStatus(state_string)
         except KeyError:
@@ -114,7 +148,14 @@ class SlurmJobStatusCache(BatchJobStatusCache):
 
     def _check_if_sacct_is_disabled_on_server(self) -> bool:
         """
-        Returns True if sacct is disabled on system
+        Checks if the Slurm accounting command ``sacct`` is disabled on the system.
+
+        This method determines whether the ``sacct`` command is unavailable or
+        disabled by attempting to execute it and analyzing the output. The result
+        is cached in the ``self.sacct_disabled`` attribute to avoid repeated checks.
+
+        Returns:
+            bool: True if ``sacct`` is disabled on the system, ``False`` otherwise.
         """
         if self.sacct_disabled is None:
             # Don't continually call the function, instead call it once and set self.sacct_disabled
@@ -132,7 +173,21 @@ class SlurmJobStatus(enum.Enum):
     See https://slurm.schedmd.com/job_state_codes.html
     TODO: make this a StrEnum with python>=3.11
 
-    The following are the possible states of a job in Slurm:
+    Attributes:
+        completed (str): The job has completed successfully.
+        pending (str): The job is waiting to be scheduled.
+        running (str): The job is currently running.
+        suspended (str): The job has been suspended.
+        preempted (str): The job has been preempted by another job.
+        completing (str): The job is in the process of completing.
+
+        boot_fail (str): The job failed during the boot process.
+        cancelled (str): The job was cancelled by the user or system.
+        deadline (str): The job missed its deadline.
+        node_fail (str): The job failed due to a node failure.
+        out_of_memory (str): The job ran out of memory.
+        failed (str): The job failed for an unspecified reason.
+        timeout (str): The job exceeded its time limit.
     """
 
     # successful:
@@ -174,14 +229,23 @@ class SlurmProcess(BatchProcess):
     Additional to the basic batch setup (see :ref:`batch-label`), additional
     Slurm-specific things are:
 
-    * Please note that most of the Slurm batch farms by default copy the user environment from the submission node to the worker machine. As this can lead to different results when running the same tasks depending on your active environment, you probably want to pass the argument `export=NONE`. This ensures that a reproducible environment is used. You can provide an ``env_script``, an ``env`` :meth:`setting <b2luigi.set_setting>`, and/or a different ``executable`` to create the environment necessary for your task.
+    * Please note that most of the Slurm batch farms by default copy the user environment from
+      the submission node to the worker machine. As this can lead to different results when running
+      the same tasks depending on your active environment, you probably want to pass the argument
+      ``export=NONE``. This ensures that a reproducible environment is used. You can provide an
+      ``env_script``, an ``env`` :meth:`setting <b2luigi.set_setting>`, and/or a different
+      ``executable`` to create the environment necessary for your task.
 
-    * Via the ``slurm_settings`` setting you can provide a dict for additional options, such as requested memory etc. Its value has to be a dictionary
+    * Via the ``slurm_settings`` setting you can provide a dict for additional options, such as
+      requested memory etc. Its value has to be a dictionary
       containing Slurm settings as key/value pairs. These options will be written into the job
       submission file. For an overview of possible settings refer to the `Slurm documentation
       <https://slurm.schedmd.com/sbatch.html#>_` and the documentation of the cluster you are using.
 
-    * Same as for the :ref:`lsf` and :ref:`htcondor`, the ``job_name`` setting allows giving a meaningful name to a group of jobs. If you want to be task-instance-specific, you can provide the ``job-name`` as an entry in the ``slurm_settings`` dict, which will override the global ``job_name`` setting. This is useful for manually checking the status of specific jobs with
+    * Same as for the :ref:`lsf` and :ref:`htcondor`, the ``job_name`` setting allows giving a meaningful
+      name to a group of jobs. If you want to be task-instance-specific, you can provide the ``job-name``
+      as an entry in the ``slurm_settings`` dict, which will override the global ``job_name`` setting.
+      This is useful for manually checking the status of specific jobs with
 
       .. code-block:: bash
 
@@ -199,6 +263,19 @@ class SlurmProcess(BatchProcess):
         self._batch_job_id = None
 
     def get_job_status(self):
+        """
+        Determine the status of a batch job based on its Slurm job status.
+
+        Returns:
+            JobStatus: The status of the job, which can be one of the following:
+                - :meth:`JobStatus.successful <b2luigi.process.JobStatus.successful>`: If the job has completed successfully.
+                - :meth:`JobStatus.running <b2luigi.process.JobStatus.running>`: If the job is currently running, pending, suspended, preempted, or completing.
+                - :meth:`JobStatus.aborted <b2luigi.process.JobStatus.aborted>`: If the job has failed, been cancelled, exceeded its deadline, encountered a node failure,
+                  ran out of memory, timed out, or if the job ID is not found.
+
+        Raises:
+            ValueError: If the Slurm job status is unknown or not handled.
+        """
         if not self._batch_job_id:
             return JobStatus.aborted
         try:
@@ -230,6 +307,18 @@ class SlurmProcess(BatchProcess):
         raise ValueError(f"Unknown Slurm Job status: {job_status}")
 
     def start_job(self):
+        """
+        Starts a job by submitting the Slurm submission script.
+
+        This method creates a Slurm submit file and submits it using the ``sbatch`` command.
+        After submission, it parses the output to extract the batch job ID.
+
+        Raises:
+            RuntimeError: If the batch submission fails or the job ID cannot be extracted.
+
+        Attributes:
+            self._batch_job_id (int): The ID of the submitted Slurm batch job.
+        """
         submit_file = self._create_slurm_submit_file()
 
         # Slurm submit needs to be called in the folder of the submit file
@@ -243,11 +332,34 @@ class SlurmProcess(BatchProcess):
         self._batch_job_id = int(match.group(0))
 
     def terminate_job(self):
+        """
+        Terminates a batch job if a job ID is available.
+
+        This method checks if a batch job ID is set. If it is, it executes the
+        ``scancel`` command to terminate the job associated with the given batch
+        job ID. The command's output is suppressed.
+        """
         if not self._batch_job_id:
             return
         subprocess.run(["scancel", str(self._batch_job_id)], stdout=subprocess.DEVNULL)
 
     def _create_slurm_submit_file(self):
+        """
+        Creates a Slurm submit file for the current task.
+
+        This method generates a Slurm batch script that specifies the necessary
+        configurations for submitting a job to a Slurm workload manager.
+
+        Returns:
+            pathlib.Path: The path to the generated Slurm submit file.
+
+        Note:
+            - The ``stdout`` and ``stderr`` log files are created in the task's log directory. See :obj:`get_log_file_dir`.
+            - The Slurm settings are specified in the ``slurm_settings`` setting, which is a dictionary of key-value pairs.
+            - The ``job_name`` setting can be used to specify a meaningful name for the job.
+            - The executable is created with :obj:`create_executable_wrapper`.
+            - The submit file is named `slurm_parameters.sh` and is created in the task's output directory (:obj:`get_task_file_dir`).
+        """
         submit_file_content = ["#!/usr/bin/bash"]
 
         # Specify where to write the log to

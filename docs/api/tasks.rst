@@ -28,7 +28,7 @@ without the need to change anything!
     :members:
     :undoc-members:
     :show-inheritance:
-    :private-members: _remove_output
+    :private-members:
 
 .. autoclass:: b2luigi.ExternalTask
     :members:
