@@ -22,15 +22,15 @@ Check the `luigi parameter documentation <https://luigi.readthedocs.io/en/stable
 
 Logging
 -------
-``luigi`` has some `logging features <https://luigi.readthedocs.io/en/stable/logging.html>`_` built in.
+``luigi`` has some `logging features <https://luigi.readthedocs.io/en/stable/logging.html>`_ built in.
 
 Even more settings
 ------------------
-Many aspects of ``luigi``s scheduling mechanism can be controlled via the `luigi configuration <https://luigi.readthedocs.io/en/stable/configuration.html>`_.
+Many aspects of ``luigi``'s scheduling mechanism can be controlled via the `luigi configuration <https://luigi.readthedocs.io/en/stable/configuration.html>`_.
 Please be aware, that these settings is are a separate configuration from the settings in ``b2luigi``.
 Yes, this is very confusing, but historically grown. In one point in the future, this might get changed.
 
 Resource Management
 -------------------
-Using the central scheduler, ``luigi`` can do some simple `resource management <https://luigi.readthedocs.io/en/stable/configuration.html#resources> `_.
+Using the central scheduler, ``luigi`` can do some simple `resource management <https://luigi.readthedocs.io/en/stable/configuration.html#resources>`_.
 Just set the available resources in the `luigi.cfg` and set the amount used as a task property.
