@@ -266,7 +266,7 @@ class Task(luigi.Task):
         input_dict = utils.flatten_to_dict_of_lists(self.input())
         return input_dict[key]
 
-    def _get_output_target(self, key: str) -> luigi.Target:
+    def _get_output_target(self, key: str) -> FileSystemTarget:
         """
         Retrieves the output target associated with a specific key.
 
@@ -287,7 +287,7 @@ class Task(luigi.Task):
         target_class: Type[FileSystemTarget] = LocalTarget,
         result_dir: Optional[str] = None,
         **kwargs: Any,
-    ) -> LocalTarget:
+    ) -> FileSystemTarget:
         """
         Generates a Luigi file system target for the output file.
 
@@ -326,7 +326,7 @@ class Task(luigi.Task):
         Raises:
             NotImplementedError: If the target does not have a `remove` method.
         """
-        target: LocalTarget = self._get_output_file_target(base_filename)
+        target: FileSystemTarget = self._get_output_file_target(base_filename)
         if hasattr(target, "remove"):
             target.remove()
         else:
