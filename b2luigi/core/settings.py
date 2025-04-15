@@ -6,6 +6,7 @@ import warnings
 
 # The global object hosting the current settings
 _current_global_settings = {}
+_no_value = object()
 
 
 def get_setting(
