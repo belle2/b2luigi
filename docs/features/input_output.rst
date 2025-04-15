@@ -11,13 +11,17 @@ Outputs
 A tasks output can easily be defined using the task's ``output`` method in combination with its :meth:`b2luigi.Task.add_to_output` method.
 :meth:`add_to_output <b2luigi.Task.add_to_output>` create a ``luigi`` target with a unique path depending on the tasks parameter.
 This way the book keeping of all output files of a task tree is already taken care of.
-To access the output target, the task class has the :meth:`b2luigi.Task.get_output_file` method.
+To access the output target filename, the task class has the :meth:`b2luigi.Task.get_output_file_name` method.
 This method always returns the full path of the output file.
 
 .. attention::
-    Only use the :meth:`get_output_file <b2luigi.Task.get_output_file>` method to access the output file.
+    Only use the :meth:`get_output_file <b2luigi.Task.get_output_file_name>` method to access the output file.
     This will ensure, that the correct file us used.
-    If you want to work with temporary files, use the :meth:`b2luigi.on_temporary_file` decorator.
+    If you want to work with temporary files, use the :meth:`b2luigi.on_temporary_files` decorator.
+    As long as you fully commit to these tasks own methods, you do not have to change any of your code when working with temporary files.
+
+To find out more about the task and its methods, check the :class:`b2luigi.Task` documentation.
+The temporary file decorator is documented in the :ref:`Temporary File Context Manager <api-on-temporary-label>` section.
 
 Inputs
 ------
