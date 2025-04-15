@@ -10,7 +10,7 @@ b2luigi - bringing batch 2 luigi
 .. image:: https://zenodo.org/badge/726161674.svg
 	   :target: https://zenodo.org/doi/10.5281/zenodo.10853220
 
-.. image:: https://github.com/belle2/b2luigi/blob/main/docs/b2luigi.png
+.. image:: https://github.com/belle2/b2luigi/blob/853ad487e7c5efd24c3b5fa1e2dfd32423d93128/docs/b2luigi.png
    :alt: b2luigi logo
    :height: 100px
 
