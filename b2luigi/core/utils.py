@@ -407,7 +407,8 @@ def get_task_file_dir(task):
         task_file_dir = task.get_task_file_dir()
         return task_file_dir
 
-    task_file_dir = create_output_file_name(task, task.get_task_family() + "/")
+    base_task_file_dir = map_folder(get_setting("task_file_dir", task=task, default="task_files"))
+    task_file_dir = create_output_file_name(task, task.get_task_family() + "/", result_dir=base_task_file_dir)
 
     return task_file_dir
 
@@ -574,7 +575,7 @@ def create_cmd_from_task(task):
           setting is enabled. (Default: ``True``)
         -
     """
-    filename = get_filename() if get_setting("add_filename_to_cmd", task=task, default=True) else ""
+    filename = os.path.basename(get_filename()) if get_setting("add_filename_to_cmd", task=task, default=True) else ""
     task_cmd_additional_args = get_setting("task_cmd_additional_args", task=task, default=[])
 
     if isinstance(task_cmd_additional_args, str):

@@ -34,6 +34,11 @@ General settings
     If not set, a folder named ``logs`` in the current working directory is used.
     It is recommended to set this path per project via the settings file.
 
+- ``task_file_dir``: String
+    The directory where additional files for the task, e.g. the executable wrapper, is stored.
+    If not set, a folder named ``task_files`` in the current working directory is used.
+    It is recommended to set this path per project via the settings file.
+
 - ``scratch_dir``: String
     The directory, where temporary files are written to when using the :meth:`b2luigi.on_temporary_files` context.
     This is used when targets are created with the :meth:`b2luigi.Task.add_to_output` method.
