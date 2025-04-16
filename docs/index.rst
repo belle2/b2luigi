@@ -14,10 +14,10 @@ It is as simple as
 
     class MyTask(b2luigi.Task):
         def output(self):
-            return b2luigi.LocalTarget("output_file.txt")
+            return self.add_to_output("output_file.txt")
 
         def run(self):
-            with self.output().open("w") as f:
+            with open(self.get_output_file_name("output_file.txt"), "w") as f:
                 f.write("This is a test\n")
 
 
