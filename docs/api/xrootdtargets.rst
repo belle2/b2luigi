@@ -39,7 +39,45 @@ A full task using XRootDTargets could look like this:
 
             def output(self):
                 fs = XRootDSystem("root://eospublic.cern.ch")
-                yield self.add_to_output("Hello_world.txt", XRootDTarget, file_system  =fs)
+                yield self.add_to_output("Hello_world.txt", XRootDTarget, file_system=fs)
+
+Another example could be:
+
+.. code-block:: python
+
+    import b2luigi
+
+    class MyTask(b2luigi.Task):
+        @property
+        def task_file_dir(self):
+            return "/path/on/local"
+
+        @property
+        def result_dir(self):
+            return "/path/on/server"
+
+        @property
+        def xrootdsystem(self):
+            return b2luigi.XRootDSystem("root://eospublic.cern.ch")
+
+        @property
+        def default_task_target_class(self):
+            return b2luigi.XRootDTarget
+
+        @property
+        def target_class_kwargs(self):
+            return {
+                "file_system": self.xrootdsystem,
+            }
+
+        def output(self):
+            yield self.add_to_output("Hello_world.txt")
+
+        @b2luigi.on_temporary_files
+        def run(self):
+            with open(self.get_output_file_name("Hello_world.txt"), "w") as f:
+                f.write("Hello World")
+
 
 .. autoclass:: b2luigi.XRootDSystem
     :members:
