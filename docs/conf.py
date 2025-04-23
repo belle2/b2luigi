@@ -87,6 +87,7 @@ extensions = [
     "sphinx.ext.napoleon",
     "sphinx_gallery.gen_gallery",
     "sphinx.ext.viewcode",
+    "sphinx_sitemap",
 ]
 
 sphinx_gallery_conf = {
@@ -167,7 +168,7 @@ html_logo = "b2luigi.png"
 # -- Options for HTMLHelp output ---------------------------------------------
 
 # Output file base name for HTML help builder.
-htmlhelp_basename = "b2luigidoc"
+html_baseurl = "https://b2luigi.belle2.org/"
 
 
 # -- Options for LaTeX output ------------------------------------------------
