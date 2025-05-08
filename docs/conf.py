@@ -88,6 +88,7 @@ extensions = [
     "sphinx_gallery.gen_gallery",
     "sphinx.ext.viewcode",
     "sphinx_sitemap",
+    "notfound.extension",
 ]
 
 sphinx_gallery_conf = {
@@ -164,6 +165,8 @@ html_logo = "b2luigi.png"
 #
 # html_sidebars = {}
 
+# Notfound extension options
+notfound_context = {"title": "Redirecting...", "body": '<meta http-equiv="refresh" content="0; url=/" />'}
 
 # -- Options for HTMLHelp output ---------------------------------------------
 

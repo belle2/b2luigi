@@ -46,7 +46,8 @@ doc = [
     "sphinxcontrib-serializinghtml",
     "sphinx-gallery",
     "sphinx-autobuild",
-    "sphinx-sitemap"
+    "sphinx-sitemap",
+    "sphinx-notfound-page"
 ]
 dev = [
     "pre_commit",
