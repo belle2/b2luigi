@@ -1,17 +1,17 @@
-import itertools
-import os
 import collections
+import colorama
+import copy
+from functools import lru_cache
+import itertools
+import logging
+import os
+import shlex
+import shutil
 import sys
 import types
 from typing import Any, Dict, List, Optional, Iterator, Iterable
-import shlex
-import copy
-import shutil
-import logging
 
 import luigi
-
-import colorama
 
 from b2luigi.core.settings import get_setting
 
@@ -203,19 +203,27 @@ def find_dependents(task_iterator, target_task):
         - The ``requires()`` method of each task is used to determine dependencies.
     """
     dependents = set()
+    target_cls_name = target_task
 
-    def depends_on(task, target):
+    # Memoization to avoid recomputing for the same task instance
+    @lru_cache(maxsize=None)
+    def depends_on(task_id):
+        task = task_map[task_id]
         for dep in luigi.task.flatten(task.requires()):
-            if dep.__class__.__name__ == target:
+            dep_id = dep.task_id
+            if dep.__class__.__name__ == target_cls_name:
                 return True
-            if depends_on(dep, target):
+            if depends_on(dep_id):
                 return True
         return False
 
+    # Create a task_id -> task instance map to ensure hashability for caching
+    task_map = {}
     for task in task_iterator:
-        if task.__class__.__name__ == target_task:
-            dependents.add(task)
-        if depends_on(task, target_task):
+        task_map[task.task_id] = task
+
+    for task_id, task in task_map.items():
+        if task.__class__.__name__ == target_cls_name or depends_on(task_id):
             dependents.add(task)
 
     return dependents
