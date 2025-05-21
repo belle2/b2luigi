@@ -35,6 +35,9 @@ requires = [
 requires-python = ">=3.8"
 description-file = "README.rst"
 
+[tool.flit.scripts]
+b2luigi = "b2luigi.cli:main"
+
 [tool.flit.metadata.requires-extra]
 # Use the same versions of sphinx and sphinx-book-theme
 # as in the latest version of the basf2 externals
