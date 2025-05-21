@@ -206,7 +206,7 @@ def find_dependents(task_iterator, target_task):
     target_cls_name = target_task
 
     # Memoization to avoid recomputing for the same task instance
-    @lru_cache(maxsize=None)
+    @lru_cache(maxsize=5000)
     def depends_on(task_id):
         task = task_map[task_id]
         for dep in luigi.task.flatten(task.requires()):
