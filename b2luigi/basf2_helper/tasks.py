@@ -11,17 +11,16 @@ from b2luigi.core.utils import create_output_dirs, get_serialized_parameters
 
 
 class Basf2Task(b2luigi.DispatchableTask):
-    class Basf2Task:
-        """
-        A custom task class for handling ``basf2``-related tasks in the ``b2luigi`` framework. This class extends
-        :class:`b2luigi.DispatchableTask` and provides additional functionality for managing output file targets
-        and serialized parameters.
+    """
+    A custom task class for handling ``basf2``-related tasks in the ``b2luigi`` framework. This class extends
+    :class:`b2luigi.DispatchableTask` and provides additional functionality for managing output file targets
+    and serialized parameters.
 
-        Attributes:
-            git_hash (b2luigi.Parameter): A parameter representing the ``basf2`` git hash. It is set to the
-                current ``basf2`` git hash (see: :meth:`get_basf2_git_hash <b2luigi.basf2_helper.utils.get_basf2_git_hash>`) by default and marked as non-significant to avoid affecting the
-                task's unique ID.
-        """
+    Attributes:
+        git_hash (b2luigi.Parameter): A parameter representing the ``basf2`` git hash. It is set to the
+            current ``basf2`` git hash (see: :meth:`get_basf2_git_hash <b2luigi.basf2_helper.utils.get_basf2_git_hash>`) by default and marked as non-significant to avoid affecting the
+            task's unique ID.
+    """
 
     git_hash = b2luigi.Parameter(default=get_basf2_git_hash(), significant=False)
 
