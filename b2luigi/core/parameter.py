@@ -49,7 +49,7 @@ def wrap_parameter():
 
     old_init = parameter_class.__init__
 
-    def __init__(self, hashed=False, hash_function=None, display=True, *args, **kwargs):
+    def __init__(self, hashed=False, hash_function=None, display=None, *args, **kwargs):
         old_init(self, *args, **kwargs)
 
         if hash_function is not None:
@@ -61,7 +61,10 @@ def wrap_parameter():
         if hashed:
             self.serialize_hashed = lambda x: serialize_hashed(self, x)
 
-        self.display = display
+        self.display = display if display is not None else self.significant
+
+        if not self.significant and self.display:
+            raise ValueError("Parameter cannot be both displayable and not significant.")
 
     parameter_class.__init__ = __init__
 
