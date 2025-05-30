@@ -63,7 +63,7 @@ def wrap_parameter():
 
         self.hidden = hidden if hidden is not None else not self.significant
 
-        if not self.significant and self.hidden:
+        if not self.significant and not self.hidden:
             raise ValueError("Parameter cannot be both hiddenable and not significant.")
 
     parameter_class.__init__ = __init__
