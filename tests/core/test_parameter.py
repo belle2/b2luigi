@@ -52,23 +52,23 @@ class HashedParameterTestCase(B2LuigiTestCase):
         )
         self.assertTrue(task.get_output_file_name("test.txt").endswith(expected_path))
 
-    def test_with_task_and_display(self):
+    def test_with_task_and_hidden(self):
         class MyTask(b2luigi.Task):
             my_parameter = b2luigi.ListParameter(hashed=True)
             custom_hashed_parameter = b2luigi.ListParameter(hashed=True, hash_function=custom_hash_function)
-            undisplayed_parameter = b2luigi.Parameter(display=False)
+            hiddened_parameter = b2luigi.Parameter(hidden=True)
 
             def run(self):
-                with open(self.get_output_file_name(f"test_{self.undisplayed_parameter}.txt"), "w") as f:
+                with open(self.get_output_file_name(f"test_{self.hiddened_parameter}.txt"), "w") as f:
                     f.write("test")
 
             def output(self):
-                yield self.add_to_output(f"test_{self.undisplayed_parameter}.txt")
+                yield self.add_to_output(f"test_{self.hiddened_parameter}.txt")
 
         task = MyTask(
             my_parameter=["Some", "strange", "items", "with", "bad / signs"],
             custom_hashed_parameter=[0, 1, 2],
-            undisplayed_parameter="foo",
+            hiddened_parameter="foo",
         )
 
         expected_path = (

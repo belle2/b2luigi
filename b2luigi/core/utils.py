@@ -294,7 +294,7 @@ def get_serialized_parameters(task):
     serialized_parameters = collections.OrderedDict()
 
     for key, parameter in task.get_params():
-        if not parameter.significant or not parameter.display:
+        if not parameter.significant or parameter.hidden:
             continue
 
         value = getattr(task, key)
