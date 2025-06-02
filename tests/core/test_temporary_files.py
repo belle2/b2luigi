@@ -6,6 +6,28 @@ import b2luigi
 
 
 class TemporaryWrapperTestCase(B2LuigiTestCase):
+    def test_temporary_file_name(self):
+        base_name = "a-complex_^name&114%"
+
+        targetA = b2luigi.LocalTarget(f"{base_name}.foo")
+        tmp_nameA = targetA.tmp_name
+        self.assertTrue(tmp_nameA.startswith(f"{base_name}-luigi-tmp-"))
+        self.assertTrue(tmp_nameA.endswith(".foo"))
+        self.assertFalse(tmp_nameA.endswith("..foo"))
+        self.assertFalse(tmp_nameA.endswith("foo."))
+
+        targetB = b2luigi.LocalTarget(f"{base_name}.foo.bar")
+        tmp_nameB = targetB.tmp_name
+        self.assertTrue(tmp_nameB.startswith(f"{base_name}-luigi-tmp-"))
+        self.assertTrue(tmp_nameB.endswith(".foo.bar"))
+        self.assertFalse(tmp_nameB.endswith("..foo.bar"))
+        self.assertFalse(tmp_nameB.endswith(".foo..bar"))
+
+        targetC = b2luigi.LocalTarget(f"{base_name}")
+        tmp_nameC = targetC.tmp_name
+        self.assertTrue(tmp_nameC.startswith(f"{base_name}-luigi-tmp-"))
+        self.assertFalse(tmp_nameC.endswith("."))
+
     def test_failed_temporary_files(self):
         self.call_file("core/temporary_task_1.py")
 
