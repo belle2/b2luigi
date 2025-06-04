@@ -51,7 +51,7 @@ class SendJobWorker(luigi.worker.Worker):
             BatchSystems: An instance of the :obj:`BatchSystems` enumeration representing
             the detected or configured batch system.
         """
-        batch_system_setting = get_setting("batch_system", default=BatchSystems.lsf, task=task)
+        batch_system_setting = get_setting("batch_system", default="auto", task=task)
         if batch_system_setting == "auto":
             if shutil.which("bsub"):
                 batch_system_setting = "lsf"
