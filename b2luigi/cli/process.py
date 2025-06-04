@@ -70,11 +70,11 @@ def process(
             or dispatched (see :obj:`DispatchableTask`) but directly on the machine for
             debugging reasons. Does output all logs to the console.
 
-        batch (bool, optional): If set to `False`, the global settings of `batch_system` 
-            will be set to `local`. If set to `True`, task with no batch_system set, 
-            will be executed with the globally set `batch_system`. 
+        batch (bool, optional): If set to `False`, the global settings of `batch_system`
+            will be set to `local`. If set to `True`, task with no batch_system set,
+            will be executed with the globally set `batch_system`.
             Refer to :ref:`quick-start-label` for more information.
-            The default global batch system is LSF, but this can be changed with the 
+            By default, the global batch system uses the `auto` setting, but this can be changed with the
             `batch_system` settings. See :obj:`get_setting` on how to define settings.
 
         remove (list, optional): If a single task is given, remove the output of this task.
