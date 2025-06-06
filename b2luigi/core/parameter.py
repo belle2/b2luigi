@@ -54,3 +54,8 @@ class BoolParameter(luigi.BoolParameter):
     def __init__(self, **kwargs):
         kwargs.setdefault("default", _no_value)
         luigi.Parameter.__init__(self, **kwargs)
+
+
+class BatchIntParameter(luigi.IntParameter):
+    def next_in_enumeration(self, value):
+        return None

@@ -170,9 +170,10 @@ class HTCondorProcess(BatchProcess):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-        self._batch_job_id = None
+        self._batch_job_ids = []
 
-    def get_job_status(self):
+    @staticmethod
+    def get_job_status_for_id(job_id):
         """
         Determines the status of a batch job based on its HTCondor job status.
 
@@ -187,11 +188,11 @@ class HTCondorProcess(BatchProcess):
         Raises:
             ValueError: If the HTCondor job status is unknown.
         """
-        if not self._batch_job_id:
+        if not job_id:
             return JobStatus.aborted
 
         try:
-            job_status = _batch_job_status_cache[self._batch_job_id]
+            job_status = _batch_job_status_cache[job_id]
         except KeyError:
             return JobStatus.aborted
 
@@ -208,6 +209,15 @@ class HTCondorProcess(BatchProcess):
             return JobStatus.aborted
         raise ValueError(f"Unknown HTCondor Job status: {job_status}")
 
+    def get_job_status(self):
+        job_status_list = [self.get_job_status_for_id(job_id=job_id) for job_id in self._batch_job_ids]
+        if any([s == JobStatus.running for s in job_status_list]):
+            return JobStatus.running
+        elif any([s == JobStatus.aborted for s in job_status_list]):
+            return JobStatus.aborted
+        else:
+            return JobStatus.successful
+
     def start_job(self):
         """
         Starts a job by creating and submitting an HTCondor submit file.
@@ -219,18 +229,17 @@ class HTCondorProcess(BatchProcess):
             RuntimeError: If the batch submission fails or the job ID cannot be extracted
                           from the ``condor_submit`` output.
         """
-        submit_file = self._create_htcondor_submit_file()
+        for i, submit_file in enumerate(self.create_submit_files()):
+            # HTCondor submit needs to be called in the folder of the submit file
+            submit_file_dir, submit_file = os.path.split(submit_file)
+            output = subprocess.check_output(["condor_submit", submit_file], cwd=submit_file_dir)
 
-        # HTCondor submit needs to be called in the folder of the submit file
-        submit_file_dir, submit_file = os.path.split(submit_file)
-        output = subprocess.check_output(["condor_submit", submit_file], cwd=submit_file_dir)
+            output = output.decode()
+            match = re.search(r"[0-9]+\.", output)
+            if not match:
+                raise RuntimeError("Batch submission failed with output " + output)
 
-        output = output.decode()
-        match = re.search(r"[0-9]+\.", output)
-        if not match:
-            raise RuntimeError("Batch submission failed with output " + output)
-
-        self._batch_job_id = int(match.group(0)[:-1])
+            self._batch_job_ids.append(int(match.group(0)[:-1]))
 
     def terminate_job(self):
         """
@@ -239,12 +248,13 @@ class HTCondorProcess(BatchProcess):
         This method checks if a batch job ID is available. If a valid job ID exists,
         it executes the ``condor_rm`` command to remove the job from the HTCondor queue.
         """
-        if not self._batch_job_id:
+        if not self._batch_job_ids:
             return
 
-        subprocess.run(["condor_rm", str(self._batch_job_id)], stdout=subprocess.DEVNULL)
+        subprocess.run(["condor_rm", str(self._batch_job_ids)], stdout=subprocess.DEVNULL)
 
-    def _create_htcondor_submit_file(self):
+    @staticmethod
+    def _create_htcondor_submit_file(task):
         """
         Creates an HTCondor submit file for the current task.
 
@@ -267,10 +277,11 @@ class HTCondorProcess(BatchProcess):
             - The ``job_name`` setting can be used to specify a meaningful name for the job.
             - The submit file is named `job.submit` and is created in the task's output directory (:obj:`get_task_file_dir`).
         """
+
         submit_file_content = []
 
         # Specify where to write the log to
-        log_file_dir = get_log_file_dir(self.task)
+        log_file_dir = get_log_file_dir(task)
         os.makedirs(log_file_dir, exist_ok=True)
 
         stdout_log_file = os.path.abspath(os.path.join(log_file_dir, "stdout"))
@@ -283,16 +294,16 @@ class HTCondorProcess(BatchProcess):
         submit_file_content.append(f"log = {job_log_file}")
 
         # Specify the executable
-        executable_file = create_executable_wrapper(self.task)
+        executable_file = create_executable_wrapper(task)
         submit_file_content.append(f"executable = {os.path.basename(executable_file)}")
 
         # Specify additional settings
         general_settings = get_setting("htcondor_settings", dict())
-        general_settings.update(get_setting("htcondor_settings", task=self.task, default=dict()))
+        general_settings.update(get_setting("htcondor_settings", task=task, default=dict()))
 
-        transfer_files = get_setting("transfer_files", task=self.task, default=[])
+        transfer_files = get_setting("transfer_files", task=task, default=[])
         if transfer_files:
-            working_dir = get_setting("working_dir", task=self.task, default="")
+            working_dir = get_setting("working_dir", task=task, default="")
             if not working_dir or working_dir != ".":
                 raise ValueError("If using transfer_files, the working_dir must be explicitly set to '.'")
 
@@ -308,14 +319,14 @@ class HTCondorProcess(BatchProcess):
                         + f"{os.path.abspath(transfer_file)} != {transfer_file}"
                     )
 
-            env_setup_script = get_setting("env_script", task=self.task, default="")
+            env_setup_script = get_setting("env_script", task=task, default="")
             if env_setup_script:
                 # TODO: make sure to call it relatively
                 transfer_files.add(os.path.abspath(env_setup_script))
 
             general_settings.setdefault("transfer_input_files", ",".join(transfer_files))
 
-        job_name = get_setting("job_name", task=self.task, default=False)
+        job_name = get_setting("job_name", task=task, default=False)
         if job_name is not False:
             general_settings.setdefault("JobBatchName", job_name)
 
@@ -326,7 +337,7 @@ class HTCondorProcess(BatchProcess):
         submit_file_content.append("queue 1")
 
         # Now we can write the submit file
-        output_path = get_task_file_dir(self.task)
+        output_path = get_task_file_dir(task)
         submit_file_path = os.path.join(output_path, "job.submit")
 
         os.makedirs(output_path, exist_ok=True)
@@ -335,3 +346,34 @@ class HTCondorProcess(BatchProcess):
             submit_file.write("\n".join(submit_file_content))
 
         return submit_file_path
+
+    def create_submit_files(self):
+        batched_params = self.task.batch_param_names()
+        if len(batched_params) == 0:
+            return [self._create_htcondor_submit_file(task=self.task)]
+        else:
+            submit_file_paths = []
+
+            len_combinations = len(self.task.param_kwargs[batched_params[0]])
+
+            batched_param_dicts = [
+                {param: value[i] for param, value in self.task.param_kwargs.items() if param in batched_params}
+                for i in range(len_combinations)
+            ]
+            for param_dict in batched_param_dicts:
+                sub_task = self.task.clone(None, **param_dict)
+
+                # If a sub_task was already successful do not resubmit it
+                if sub_task.complete():
+                    continue
+
+                # print("New Task", sub_task.__repr__())
+
+                submit_file_path = self._create_htcondor_submit_file(task=sub_task)
+                submit_file_paths.append(submit_file_path)
+
+            # print(self.task.batch_param_names())
+            # print(self.task.__repr__())
+            # print(self.task.param_kwargs)
+
+            return submit_file_paths
