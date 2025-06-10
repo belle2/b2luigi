@@ -3,6 +3,7 @@ import os
 import random
 import luigi
 import tempfile
+from typing import Generator, Optional
 
 from b2luigi.core.settings import get_setting
 
