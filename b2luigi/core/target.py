@@ -1,7 +1,6 @@
 from contextlib import contextmanager
 import os
 import random
-from typing import Generator, Optional
 import luigi
 import tempfile
 
