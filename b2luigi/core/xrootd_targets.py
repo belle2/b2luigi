@@ -361,7 +361,7 @@ class XRootDTarget(FileSystemTarget):
             - The temporary file and its parent directory are automatically cleaned up
               when exiting the context manager.
             - Files are downloaded to the scratch directory specified in settings
-              (defaults to /tmp if not set).
+              (defaults to the path returned by ``tempfile.gettempdir()`` if not set).
 
         Example:
             .. code-block:: python
@@ -371,7 +371,7 @@ class XRootDTarget(FileSystemTarget):
                     process_local_file(tmp_input)
                 # Temporary file is automatically cleaned up.
         """
-        with tempfile.TemporaryDirectory(dir=get_setting("scratch_dir", task=task, default="/tmp")) as tmp_dir:
+        with tempfile.TemporaryDirectory(dir=get_setting("scratch_dir", task=task, default=tempfile.gettempdir())) as tmp_dir:
             tmp_path = os.path.join(tmp_dir, self.base_name)
             self.fs.copy_file_from_remote(self.path, tmp_path)
             yield tmp_path

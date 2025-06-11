@@ -18,7 +18,7 @@ class FileSystemTarget(luigi.target.FileSystemTarget):
         scratch_dir (str): Directory path where temporary files will be created
 
     Args:
-        _scratch_dir (str): Directory path where temporary files will be created
+        _scratch_dir (str): Directory path where temporary files will be created.
         *args: Additional positional arguments passed to :obj:`LocalTarget`
         **kwargs: Additional keyword arguments passed to :obj:`LocalTarget`
     """
@@ -77,7 +77,7 @@ class FileSystemTarget(luigi.target.FileSystemTarget):
                     process_file(tmp_input)
         """
         with tempfile.TemporaryDirectory(
-            dir=get_setting("scratch_dir", task=task, default="/tmp"), **tmp_file_kwargs
+            dir=get_setting("scratch_dir", task=task, default=tempfile.gettempdir()), **tmp_file_kwargs
         ) as tmp_path:
             tmp_path = os.path.join(tmp_path, self.tmp_name)
             self.fs.copy(self.path, tmp_path)
@@ -113,7 +113,7 @@ class FileSystemTarget(luigi.target.FileSystemTarget):
         """
         # Use a temporary directory
         with tempfile.TemporaryDirectory(
-            dir=get_setting("scratch_dir", task=task, default="/tmp"), **tmp_file_kwargs
+            dir=get_setting("scratch_dir", task=task, default=tempfile.gettempdir()), **tmp_file_kwargs
         ) as tmp_dir:
             tmp_path = os.path.join(tmp_dir, self.tmp_name)
             os.makedirs(os.path.dirname(tmp_path), exist_ok=True)
