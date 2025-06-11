@@ -8,8 +8,8 @@ from inspect import signature
 def wrap_parameter():
     """
     Monkey patch the parameter base class (and with it all other parameters(
-    of luigi to include two additional parameters in its constructor:
-    ``hashed`` and ``hash_function``.
+    of luigi to include three additional parameters in its constructor:
+    ``hashed``, ``hash_function`` and ``hidden``.
 
     Enabling the ``hashed`` parameter will use a hashed version of the
     parameter value when creating file paths our of the parameters of a task
@@ -20,6 +20,22 @@ def wrap_parameter():
 
     This is especially useful when you have list, string or dict parameters,
     where the resulting file path may include "/" or "{}".
+
+    With the ``hidden`` parameter, you can control whether the parameter
+    should be hiddened in the task's output directory structure when using
+    :meth:`add_to_output <b2luigi.Task.add_to_output>`.
+
+    .. caution::
+        This will remove the parameter from the unique output of the task,
+        so be sure to add it back, e.g. into the output file name:
+
+        .. code-block:: python
+
+            class MyTask(b2luigi.Task):
+                iddened_parameter = b2luigi.Parameter(hidden=True)
+
+                def output(self):
+                    yield self.add_to_output(f"test_{self.hiddened_parameter}.txt")
     """
     import b2luigi
 
@@ -33,7 +49,7 @@ def wrap_parameter():
 
     old_init = parameter_class.__init__
 
-    def __init__(self, hashed=False, hash_function=None, *args, **kwargs):
+    def __init__(self, hashed=False, hash_function=None, hidden=None, *args, **kwargs):
         old_init(self, *args, **kwargs)
 
         if hash_function is not None:
@@ -44,6 +60,11 @@ def wrap_parameter():
 
         if hashed:
             self.serialize_hashed = lambda x: serialize_hashed(self, x)
+
+        self.hidden = hidden if hidden is not None else not self.significant
+
+        if not self.significant and not self.hidden:
+            raise ValueError("Parameter cannot be both hidden=False and significant=False.")
 
     parameter_class.__init__ = __init__
 

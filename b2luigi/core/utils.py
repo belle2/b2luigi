@@ -283,7 +283,7 @@ def get_all_output_files_in_tree(root_module, key=None):
     return all_output_files
 
 
-def get_serialized_parameters(task):
+def get_serialized_parameters(task, need_hidden=False):
     """
     Retrieve a string-typed ordered dictionary of significant parameters in the format ``key=value``.
 
@@ -302,7 +302,7 @@ def get_serialized_parameters(task):
     serialized_parameters = collections.OrderedDict()
 
     for key, parameter in task.get_params():
-        if not parameter.significant:
+        if not parameter.significant or (parameter.hidden and not need_hidden):
             continue
 
         value = getattr(task, key)
@@ -316,7 +316,9 @@ def get_serialized_parameters(task):
     return serialized_parameters
 
 
-def create_output_file_name(task, base_filename: str, result_dir: Optional[str] = None) -> str:
+def create_output_file_name(
+    task, base_filename: str, result_dir: Optional[str] = None, need_hidden: bool = False
+) -> str:
     """
     Generates an output file path based on the task's parameters, a base filename,
     and an optional result directory.
@@ -344,7 +346,7 @@ def create_output_file_name(task, base_filename: str, result_dir: Optional[str] 
         - If ``parameter_separator`` is set to a non-empty string, it will be used to separate
           parameter names and values in the output path.
     """
-    serialized_parameters = get_serialized_parameters(task)
+    serialized_parameters = get_serialized_parameters(task, need_hidden=need_hidden)
 
     if not result_dir:
         # Be sure to evaluate things relative to the current executed file, not to where we are now
@@ -416,7 +418,9 @@ def get_task_file_dir(task):
         return task_file_dir
 
     base_task_file_dir = map_folder(get_setting("task_file_dir", task=task, default="task_files"))
-    task_file_dir = create_output_file_name(task, task.get_task_family() + "/", result_dir=base_task_file_dir)
+    task_file_dir = create_output_file_name(
+        task, task.get_task_family() + "/", result_dir=base_task_file_dir, need_hidden=True
+    )
 
     return task_file_dir
 
