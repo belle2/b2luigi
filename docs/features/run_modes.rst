@@ -22,7 +22,7 @@ where mode can be one of:
     This is ``1`` by default, so you probably want to change this.
     If set to `False` only the global setting for the `batch_system` will be set to `local`.
     Tasks with their own `batch_system` setting will be unaffected.
-    By default, LSF is used as a batch system. If you want to change this, set the corresponding ``batch_system``
+    By default, the batch system is automatically detected. If you want to change this, set the corresponding ``batch_system``
     (see :ref:`batch-label`) to one of the supported systems.
 
 *   **dry-run**: Similar to the dry-run functionality of ``luigi``, this will not start any tasks but just tell

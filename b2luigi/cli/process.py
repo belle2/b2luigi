@@ -74,7 +74,7 @@ def process(
             will be set to `local`. If set to `True`, task with no batch_system set,
             will be executed with the globally set `batch_system`.
             Refer to :ref:`quick-start-label` for more information.
-            The default global batch system is LSF, but this can be changed with the
+            By default, the global batch system uses the `auto` setting, but this can be changed with the
             `batch_system` settings. See :meth:`get_setting <b2luigi.core.settings.get_setting>` on how to define settings.
 
         remove (list, optional): If a single task is given, remove the output of this task.

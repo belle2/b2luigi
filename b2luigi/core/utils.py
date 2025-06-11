@@ -738,7 +738,7 @@ def create_apptainer_command(command, task=None):
     apptainer_image = get_setting("apptainer_image", task=task, default="")
 
     # If the batch system is gbasf2, we cannot use apptainer
-    if get_setting("batch_system", default="lsf", task=task) == "gbasf2":
+    if get_setting("batch_system", default="auto", task=task) == "gbasf2":
         raise ValueError("Invalid batch system for apptainer usage. Apptainer is not supported for gbasf2.")
 
     exec_command = [get_apptainer_or_singularity(task=task), "exec"]

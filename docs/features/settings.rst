@@ -48,7 +48,7 @@ General settings
     In case of ``auto``, b2luigi will try to detect the batch system automatically by checking for the executables of ``htcondor`` and ``lsf``.
     If none of them is found, the local mode is used.
     Please note, that this setting does not activate the batch mode. For that, use the ``--batch`` flag when calling your script.
-    Default setting is ``lsf``.
+    Default setting is ``auto``.
 
 - ``_dispatch_local_execution``: Boolean
     Whether to use batch submission for ``local`` batch mode.
