@@ -5,13 +5,16 @@ basf2\_helper package
     :members:
     :undoc-members:
     :show-inheritance:
+    :noindex:
 
 .. automodule:: b2luigi.basf2_helper.tasks
     :members:
     :undoc-members:
     :show-inheritance:
+    :noindex:
 
 .. automodule:: b2luigi.basf2_helper.utils
     :members:
     :undoc-members:
     :show-inheritance:
+    :noindex:

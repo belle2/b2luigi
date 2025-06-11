@@ -153,6 +153,33 @@ With this in place, we can freely add our own additional arguments to the exec c
 
 And with that, the exec function created by b2luigi for batch submission can be customised to suit your needs.
 
-Who made the beatuiful logo?
+Can I check how the `gbasf2` command will be build before the submission?
+-------------------------------------------------------------------------
+
+Yes! You can use the :meth:`build_gbasf2_submit_command <b2luigi.batch.processes.gbasf2.build_gbasf2_submit_command>` method to check for the submission command.
+This method rebuilds as closley as possible the submission command. An example usage is:
+
+.. code-block:: python
+
+    import shlex
+    import b2luigi
+
+    class MyTask(b2luigi.Task):
+        parameter = b2luigi.IntParameter()
+
+        @property
+        def gbasf2_project_name_prefix(self):
+            return "my_project"
+
+        @property
+        def gbasf2_input_dataset(self):
+            return "my_input_dataset"
+
+        def dry_run(self):
+            gbasf2_command = b2luigi.batch.processes.gbasf2.build_gbasf2_submit_command(self)
+            print(shlex.join(gbasf2_command)) # shlex.join is used to create a shell-friendly command string
+
+
+Who made the beautiful logo?
 ----------------------------
 The logo was created by Lea Reuter! We are forever grateful to her!

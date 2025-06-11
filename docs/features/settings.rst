@@ -41,14 +41,16 @@ General settings
 
 - ``scratch_dir``: String
     The directory, where temporary files are written to when using the :meth:`b2luigi.on_temporary_files` context.
-    This is used when targets are created with the :meth:`b2luigi.Task.add_to_output` method.
+    This is used when targets are created with the :meth:`b2luigi.Task.add_to_output` method. If not set, the path
+    returned by ``tempfile.gettempdir()`` is used to write temporary files (very likely ``/tmp`` is used unless
+    the environment variables ``TMPDIR``, ``TEMP`` or ``TMP`` are set).
 
 - ``batch_system``: String
     The batch system to use when executed in batch mode. Currently, ``htcondor``, ``lsf``, ``gbasf2``, ``auto`` and ``local`` are supported.
     In case of ``auto``, b2luigi will try to detect the batch system automatically by checking for the executables of ``htcondor`` and ``lsf``.
     If none of them is found, the local mode is used.
     Please note, that this setting does not activate the batch mode. For that, use the ``--batch`` flag when calling your script.
-    Default setting is ``lsf``.
+    Default setting is ``auto``.
 
 - ``_dispatch_local_execution``: Boolean
     Whether to use batch submission for ``local`` batch mode.

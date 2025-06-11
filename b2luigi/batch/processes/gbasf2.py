@@ -649,140 +649,15 @@ class Gbasf2Process(BatchProcess):
 
     def _build_gbasf2_submit_command(self):
         """
-        Constructs the ``gbasf2`` submit command string based on task options and attributes.
-
-        This method generates a command string to submit a ``gbasf2`` job, incorporating various
-        settings and parameters. It validates inputs, handles optional parameters, and ensures
-        the command is properly formatted for execution.
-
-        Returns:
-            list: A list of command-line arguments for the ``gbasf2`` submission command.
-
-        Raises:
-            ValueError: If ``gbasf2_additional_files`` is not an iterable or is a string.
-            RuntimeError: If both ``gbasf2_input_dataset`` and ``gbasf2_input_dslist`` are set,
-                          or if neither is set.
-            FileNotFoundError: If the file specified in ``gbasf2_input_dslist`` does not exist.
-            ValueError: If ``priority`` is not an integer between `0` and `10`.
-            ValueError: If ``gbasf2_proxy_group`` is non-default and ``gbasf2_project_lpn_path`` is not provided.
-
-        Notes:
-            - The method uses various task settings to construct the command, such as:
-              ``gbasf2_release``, ``gbasf2_additional_files``, ``gbasf2_input_dataset``,
-              ``gbasf2_input_dslist``, ``gbasf2_n_repition_job``, ``gbasf2_input_datafiles``,
-              ``gbasf2_force_submission``, ``gbasf2_cputime``, ``gbasf2_evtpersec``,
-              ``gbasf2_priority``, ``gbasf2_jobtype``, ``gbasf2_basf2opt``, and
-              ``gbasf2_additional_params``.
-            - If the proxy group is not ``"belle"``, an output dataset path must be specified.
+        Calls :obj:`build_gbasf2_submit_command` to create the command to submit the gbasf2 project.
         """
-        gbasf2_release = get_setting("gbasf2_release", default=get_basf2_git_hash(), task=self.task)
-
-        gbasf2_command_str = f"gbasf2 {self.wrapper_file_path} -p {self.gbasf2_project_name} -s {gbasf2_release} "
-
-        gbasf2_additional_files = get_setting("gbasf2_additional_files", default=[], task=self.task)
-
-        if not isinstance(gbasf2_additional_files, Iterable) or isinstance(gbasf2_additional_files, str):
-            raise ValueError("``gbasf2_additional_files`` is not an iterable or strings.")
-
-        input_sandboxfiles = []
-
-        if self.gbasf2_custom_steering_file:
-            input_sandboxfiles.extend(gbasf2_additional_files)
-        else:
-            gbasf2_input_sandbox_files = [os.path.basename(self.pickle_file_path)] + list(gbasf2_additional_files)
-            input_sandboxfiles.extend(gbasf2_input_sandbox_files)
-
-        if input_sandboxfiles:
-            gbasf2_command_str += f"-f {' '.join(input_sandboxfiles)}"
-
-        gbasf2_lfn_sandboxfiles = get_setting("gbasf2_lfn_sandboxfiles", default=False, task=self.task)
-        if gbasf2_lfn_sandboxfiles is not False:
-            gbasf2_command_str += " --lfn_sandboxfiles "
-
-        gbasf2_noscout = get_setting("gbasf2_noscout", default=False, task=self.task)
-        if gbasf2_noscout:
-            gbasf2_command_str += " --noscout "
-
-        gbasf2_input_dataset = get_setting("gbasf2_input_dataset", default=False, task=self.task)
-        gbasf2_input_dslist = get_setting("gbasf2_input_dslist", default=False, task=self.task)
-
-        if gbasf2_input_dataset is not False and gbasf2_input_dslist is not False:
-            raise RuntimeError("Can't use both `gbasf2_input_dataset` and `gbasf2_input_dslist` simultaneously.")
-
-        if gbasf2_input_dataset is not False:
-            gbasf2_command_str += f" -i {gbasf2_input_dataset} "
-        elif gbasf2_input_dslist is not False:
-            if not os.path.isfile(gbasf2_input_dslist):
-                raise FileNotFoundError(errno.ENOTDIR, os.strerror(errno.ENOTDIR), gbasf2_input_dslist)
-            gbasf2_command_str += f" --input_dslist {os.path.abspath(gbasf2_input_dslist)} "
-        else:
-            raise RuntimeError("Must set either `gbasf2_input_dataset` or `gbasf2_input_dslist`.")
-
-        gbasf2_n_repition_jobs = get_setting("gbasf2_n_repition_job", default=False, task=self.task)
-        if gbasf2_n_repition_jobs is not False:
-            gbasf2_command_str += f" --repetition {gbasf2_n_repition_jobs} "
-
-        gbasf2_input_datafiles = get_setting("gbasf2_input_datafiles", default=[], task=self.task)
-        if gbasf2_input_datafiles:
-            gbasf2_command_str += f" --input_datafiles {' '.join(gbasf2_input_datafiles)}"
-
-        # now add some additional optional options to the gbasf2 job submission string
-
-        # whether to ask user for confirmation before submitting job
-        force_submission = get_setting("gbasf2_force_submission", default=True, task=self.task)
-        if force_submission:
-            gbasf2_command_str += " --force "
-
-        # estimated cpu time per sub-job in minutes
-        cpu_minutes = get_setting("gbasf2_cputime", default=False, task=self.task)
-        if cpu_minutes is not False:
-            gbasf2_command_str += f" --cputime {cpu_minutes} "
-
-        # estimated number or processed events per second
-        evtpersec = get_setting("gbasf2_evtpersec", default=False, task=self.task)
-        if evtpersec is not False:
-            gbasf2_command_str += f" --evtpersec {evtpersec} "
-
-        # gbasf2 job priority
-        priority = get_setting("gbasf2_priority", default=False, task=self.task)
-        if priority is not False:
-            if not 0 <= priority <= 10:
-                raise ValueError("Priority should be integer between 0 and 10.")
-            gbasf2_command_str += f" --priority {priority} "
-
-        # gbasf2 job type (e.g. User, Production, ...)
-        jobtype = get_setting("gbasf2_jobtype", default=False, task=self.task)
-        if jobtype is not False:
-            gbasf2_command_str += f" --jobtype {jobtype} "
-
-        # additional basf2 options to use on grid
-        basf2opt = get_setting("gbasf2_basf2opt", default=False, task=self.task)
-        if basf2opt is not False:
-            gbasf2_command_str += f" --basf2opt='{basf2opt}' "
-
-        gbasf2_input_grouping = get_setting("gbasf2_input_grouping", default=False, task=self.task)
-        if gbasf2_input_grouping is not False:
-            if gbasf2_input_grouping not in {"site", "size"}:
-                raise ValueError("gbasf2_input_grouping must be either 'site' or 'size'.")
-            gbasf2_command_str += f" --input_grouping {' '.join(gbasf2_input_grouping)} "
-
-        # Provide a output_ds parameter if the group is not belle
-        group_name = get_setting("gbasf2_proxy_group", default="belle", task=self.task)
-        if group_name != "belle":
-            output_lpn_dir = get_setting("gbasf2_project_lpn_path", default=None, task=self.task)
-            if output_lpn_dir is None:
-                raise ValueError(
-                    "If `gbasf2_proxy_group` is set to a non-default value, "
-                    "you also have to provide the `gbasf2_project_lpn_path` setting."
-                )
-            gbasf2_command_str += f" --output_ds {output_lpn_dir}/{self.gbasf2_project_name}"
-        # optional string of additional parameters to append to gbasf2 command
-        gbasf2_additional_params = get_setting("gbasf2_additional_params", default=False, task=self.task)
-        if gbasf2_additional_params is not False:
-            gbasf2_command_str += f" {gbasf2_additional_params} "
-
-        gbasf2_command = shlex.split(gbasf2_command_str)
-        return gbasf2_command
+        return build_gbasf2_submit_command(
+            task=self.task,
+            wrapper_file_path=self.wrapper_file_path,
+            pickle_file_path=self.pickle_file_path,
+            gbasf2_project_name=self.gbasf2_project_name,
+            gbasf2_custom_steering_file=self.gbasf2_custom_steering_file,
+        )
 
     def _write_path_to_file(self):
         """
@@ -1225,6 +1100,157 @@ class Gbasf2GridProjectTarget(Target):
             if not all_jobs_done:
                 return False
         return True
+
+
+def build_gbasf2_submit_command(
+    task, wrapper_file_path=None, pickle_file_path=None, gbasf2_project_name=None, gbasf2_custom_steering_file=None
+):
+    """
+    Constructs the ``gbasf2`` submit command string based on task options and attributes.
+
+    This method generates a command string to submit a ``gbasf2`` job, incorporating various
+    settings and parameters. It validates inputs, handles optional parameters, and ensures
+    the command is properly formatted for execution.
+
+    Returns:
+        list: A list of command-line arguments for the ``gbasf2`` submission command.
+
+    Raises:
+        ValueError: If ``gbasf2_additional_files`` is not an iterable or is a string.
+        RuntimeError: If both ``gbasf2_input_dataset`` and ``gbasf2_input_dslist`` are set,
+                        or if neither is set.
+        FileNotFoundError: If the file specified in ``gbasf2_input_dslist`` does not exist.
+        ValueError: If ``priority`` is not an integer between `0` and `10`.
+        ValueError: If ``gbasf2_proxy_group`` is non-default and ``gbasf2_project_lpn_path`` is not provided.
+
+    Notes:
+        - The method uses various task settings to construct the command, such as:
+            ``gbasf2_release``, ``gbasf2_additional_files``, ``gbasf2_input_dataset``,
+            ``gbasf2_input_dslist``, ``gbasf2_n_repition_job``, ``gbasf2_input_datafiles``,
+            ``gbasf2_force_submission``, ``gbasf2_cputime``, ``gbasf2_evtpersec``,
+            ``gbasf2_priority``, ``gbasf2_jobtype``, ``gbasf2_basf2opt``, and
+            ``gbasf2_additional_params``.
+        - If the proxy group is not ``"belle"``, an output dataset path must be specified.
+    """
+    gbasf2_release = get_setting("gbasf2_release", default=get_basf2_git_hash(), task=task)
+
+    if wrapper_file_path is None or pickle_file_path is None:
+        task_file_dir = get_task_file_dir(task)
+        pickle_file_path = os.path.join(task_file_dir, "serialized_basf2_path.pkl")
+        wrapper_file_path = os.path.join(task_file_dir, "steering_file_wrapper.py")
+
+    if gbasf2_project_name is None:
+        gbasf2_project_name = get_unique_project_name(task)
+
+    if gbasf2_custom_steering_file is None:
+        gbasf2_custom_steering_file = get_setting("gbasf2_custom_steering_file", default="", task=task)
+
+    gbasf2_command_str = f"gbasf2 {wrapper_file_path} -p {gbasf2_project_name} -s {gbasf2_release} "
+
+    gbasf2_additional_files = get_setting("gbasf2_additional_files", default=[], task=task)
+
+    if not isinstance(gbasf2_additional_files, Iterable) or isinstance(gbasf2_additional_files, str):
+        raise ValueError("``gbasf2_additional_files`` is not an iterable or strings.")
+
+    input_sandboxfiles = []
+
+    if gbasf2_custom_steering_file:
+        input_sandboxfiles.extend(gbasf2_additional_files)
+    else:
+        gbasf2_input_sandbox_files = [os.path.basename(pickle_file_path)] + list(gbasf2_additional_files)
+        input_sandboxfiles.extend(gbasf2_input_sandbox_files)
+
+    if input_sandboxfiles:
+        gbasf2_command_str += f"-f {' '.join(input_sandboxfiles)}"
+
+    gbasf2_lfn_sandboxfiles = get_setting("gbasf2_lfn_sandboxfiles", default=False, task=task)
+    if gbasf2_lfn_sandboxfiles is not False:
+        gbasf2_command_str += " --lfn_sandboxfiles "
+
+    gbasf2_noscout = get_setting("gbasf2_noscout", default=False, task=task)
+    if gbasf2_noscout:
+        gbasf2_command_str += " --noscout "
+
+    gbasf2_input_dataset = get_setting("gbasf2_input_dataset", default=False, task=task)
+    gbasf2_input_dslist = get_setting("gbasf2_input_dslist", default=False, task=task)
+
+    if gbasf2_input_dataset is not False and gbasf2_input_dslist is not False:
+        raise RuntimeError("Can't use both `gbasf2_input_dataset` and `gbasf2_input_dslist` simultaneously.")
+
+    if gbasf2_input_dataset is not False:
+        gbasf2_command_str += f" -i {gbasf2_input_dataset} "
+    elif gbasf2_input_dslist is not False:
+        if not os.path.isfile(gbasf2_input_dslist):
+            raise FileNotFoundError(errno.ENOTDIR, os.strerror(errno.ENOTDIR), gbasf2_input_dslist)
+        gbasf2_command_str += f" --input_dslist {os.path.abspath(gbasf2_input_dslist)} "
+    else:
+        raise RuntimeError("Must set either `gbasf2_input_dataset` or `gbasf2_input_dslist`.")
+
+    gbasf2_n_repition_jobs = get_setting("gbasf2_n_repition_job", default=False, task=task)
+    if gbasf2_n_repition_jobs is not False:
+        gbasf2_command_str += f" --repetition {gbasf2_n_repition_jobs} "
+
+    gbasf2_input_datafiles = get_setting("gbasf2_input_datafiles", default=[], task=task)
+    if gbasf2_input_datafiles:
+        gbasf2_command_str += f" --input_datafiles {' '.join(gbasf2_input_datafiles)}"
+
+    # now add some additional optional options to the gbasf2 job submission string
+
+    # whether to ask user for confirmation before submitting job
+    force_submission = get_setting("gbasf2_force_submission", default=True, task=task)
+    if force_submission:
+        gbasf2_command_str += " --force "
+
+    # estimated cpu time per sub-job in minutes
+    cpu_minutes = get_setting("gbasf2_cputime", default=False, task=task)
+    if cpu_minutes is not False:
+        gbasf2_command_str += f" --cputime {cpu_minutes} "
+
+    # estimated number or processed events per second
+    evtpersec = get_setting("gbasf2_evtpersec", default=False, task=task)
+    if evtpersec is not False:
+        gbasf2_command_str += f" --evtpersec {evtpersec} "
+
+    # gbasf2 job priority
+    priority = get_setting("gbasf2_priority", default=False, task=task)
+    if priority is not False:
+        if not 0 <= priority <= 10:
+            raise ValueError("Priority should be integer between 0 and 10.")
+        gbasf2_command_str += f" --priority {priority} "
+
+    # gbasf2 job type (e.g. User, Production, ...)
+    jobtype = get_setting("gbasf2_jobtype", default=False, task=task)
+    if jobtype is not False:
+        gbasf2_command_str += f" --jobtype {jobtype} "
+
+    # additional basf2 options to use on grid
+    basf2opt = get_setting("gbasf2_basf2opt", default=False, task=task)
+    if basf2opt is not False:
+        gbasf2_command_str += f" --basf2opt='{basf2opt}' "
+
+    gbasf2_input_grouping = get_setting("gbasf2_input_grouping", default=False, task=task)
+    if gbasf2_input_grouping is not False:
+        if gbasf2_input_grouping not in {"site", "size"}:
+            raise ValueError("gbasf2_input_grouping must be either 'site' or 'size'.")
+        gbasf2_command_str += f" --input_grouping {' '.join(gbasf2_input_grouping)} "
+
+    # Provide a output_ds parameter if the group is not belle
+    group_name = get_setting("gbasf2_proxy_group", default="belle", task=task)
+    if group_name != "belle":
+        output_lpn_dir = get_setting("gbasf2_project_lpn_path", default=None, task=task)
+        if output_lpn_dir is None:
+            raise ValueError(
+                "If `gbasf2_proxy_group` is set to a non-default value, "
+                "you also have to provide the `gbasf2_project_lpn_path` setting."
+            )
+        gbasf2_command_str += f" --output_ds {output_lpn_dir}/{gbasf2_project_name}"
+    # optional string of additional parameters to append to gbasf2 command
+    gbasf2_additional_params = get_setting("gbasf2_additional_params", default=False, task=task)
+    if gbasf2_additional_params is not False:
+        gbasf2_command_str += f" {gbasf2_additional_params} "
+
+    gbasf2_command = shlex.split(gbasf2_command_str)
+    return gbasf2_command
 
 
 def check_dataset_exists_on_grid(

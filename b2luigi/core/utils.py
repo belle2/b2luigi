@@ -1,17 +1,17 @@
-import itertools
-import os
 import collections
+import colorama
+import copy
+from functools import lru_cache
+import itertools
+import logging
+import os
+import shlex
+import shutil
 import sys
 import types
 from typing import Any, Dict, List, Optional, Iterator, Iterable
-import shlex
-import copy
-import shutil
-import logging
 
 import luigi
-
-import colorama
 
 from b2luigi.core.settings import get_setting
 
@@ -203,19 +203,27 @@ def find_dependents(task_iterator, target_task):
         - The ``requires()`` method of each task is used to determine dependencies.
     """
     dependents = set()
+    target_cls_name = target_task
 
-    def depends_on(task, target):
+    # Memoization to avoid recomputing for the same task instance
+    @lru_cache(maxsize=5000)
+    def depends_on(task_id):
+        task = task_map[task_id]
         for dep in luigi.task.flatten(task.requires()):
-            if dep.__class__.__name__ == target:
+            dep_id = dep.task_id
+            if dep.__class__.__name__ == target_cls_name:
                 return True
-            if depends_on(dep, target):
+            if depends_on(dep_id):
                 return True
         return False
 
+    # Create a task_id -> task instance map to ensure hashability for caching
+    task_map = {}
     for task in task_iterator:
-        if task.__class__.__name__ == target_task:
-            dependents.add(task)
-        if depends_on(task, target_task):
+        task_map[task.task_id] = task
+
+    for task_id, task in task_map.items():
+        if task.__class__.__name__ == target_cls_name or depends_on(task_id):
             dependents.add(task)
 
     return dependents
@@ -275,7 +283,7 @@ def get_all_output_files_in_tree(root_module, key=None):
     return all_output_files
 
 
-def get_serialized_parameters(task):
+def get_serialized_parameters(task, need_hidden=False):
     """
     Retrieve a string-typed ordered dictionary of significant parameters in the format ``key=value``.
 
@@ -294,7 +302,7 @@ def get_serialized_parameters(task):
     serialized_parameters = collections.OrderedDict()
 
     for key, parameter in task.get_params():
-        if not parameter.significant:
+        if not parameter.significant or (parameter.hidden and not need_hidden):
             continue
 
         value = getattr(task, key)
@@ -308,7 +316,9 @@ def get_serialized_parameters(task):
     return serialized_parameters
 
 
-def create_output_file_name(task, base_filename: str, result_dir: Optional[str] = None) -> str:
+def create_output_file_name(
+    task, base_filename: str, result_dir: Optional[str] = None, need_hidden: bool = False
+) -> str:
     """
     Generates an output file path based on the task's parameters, a base filename,
     and an optional result directory.
@@ -336,7 +346,7 @@ def create_output_file_name(task, base_filename: str, result_dir: Optional[str] 
         - If ``parameter_separator`` is set to a non-empty string, it will be used to separate
           parameter names and values in the output path.
     """
-    serialized_parameters = get_serialized_parameters(task)
+    serialized_parameters = get_serialized_parameters(task, need_hidden=need_hidden)
 
     if not result_dir:
         # Be sure to evaluate things relative to the current executed file, not to where we are now
@@ -408,7 +418,9 @@ def get_task_file_dir(task):
         return task_file_dir
 
     base_task_file_dir = map_folder(get_setting("task_file_dir", task=task, default="task_files"))
-    task_file_dir = create_output_file_name(task, task.get_task_family() + "/", result_dir=base_task_file_dir)
+    task_file_dir = create_output_file_name(
+        task, task.get_task_family() + "/", result_dir=base_task_file_dir, need_hidden=True
+    )
 
     return task_file_dir
 
@@ -726,7 +738,7 @@ def create_apptainer_command(command, task=None):
     apptainer_image = get_setting("apptainer_image", task=task, default="")
 
     # If the batch system is gbasf2, we cannot use apptainer
-    if get_setting("batch_system", default="lsf", task=task) == "gbasf2":
+    if get_setting("batch_system", default="auto", task=task) == "gbasf2":
         raise ValueError("Invalid batch system for apptainer usage. Apptainer is not supported for gbasf2.")
 
     exec_command = [get_apptainer_or_singularity(task=task), "exec"]
