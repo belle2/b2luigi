@@ -185,7 +185,7 @@ class Task(luigi.Task):
             return self._transform_io(self.input()[requirement_key])[key]
         return self._transform_io(self.input()[requirement_key])
 
-    def get_input_file_name(self, key: Optional[str] = None):
+    def get_input_file_name(self, key: Optional[str] = None) -> str:
         """
         Wraps :obj:`get_input_file_names` and asserts there is only one input file.
 
@@ -248,7 +248,7 @@ class Task(luigi.Task):
 
         return file_path
 
-    def _get_input_targets(self, key: str) -> luigi.Target:
+    def _get_input_targets(self, key: str) -> List[luigi.Target]:
         """
         Retrieve the input targets associated with a specific key.
 
