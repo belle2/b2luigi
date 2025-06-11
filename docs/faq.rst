@@ -160,25 +160,26 @@ Yes! You can use the :meth:`build_gbasf2_submit_command <b2luigi.batch.processes
 This method rebuilds as closley as possible the submission command. An example usage is:
 
 .. code-block:: python
+
     import shlex
     import b2luigi
 
     class MyTask(b2luigi.Task):
-    parameter = b2luigi.IntParameter()
+        parameter = b2luigi.IntParameter()
 
-    @property
-    def gbasf2_project_name_prefix(self):
-        return "my_project"
+        @property
+        def gbasf2_project_name_prefix(self):
+            return "my_project"
 
-    @property
-    def gbasf2_input_dataset(self):
-        return "my_input_dataset"
+        @property
+        def gbasf2_input_dataset(self):
+            return "my_input_dataset"
 
-    def dry_run(self):
-        gbasf2_command = b2luigi.batch.processes.gbasf2.build_gbasf2_submit_command(self)
-        print(shlex.join(gbasf2_command)) # shlex.join is used to create a shell-friendly command string
+        def dry_run(self):
+            gbasf2_command = b2luigi.batch.processes.gbasf2.build_gbasf2_submit_command(self)
+            print(shlex.join(gbasf2_command)) # shlex.join is used to create a shell-friendly command string
 
 
-Who made the beatuiful logo?
+Who made the beautiful logo?
 ----------------------------
 The logo was created by Lea Reuter! We are forever grateful to her!

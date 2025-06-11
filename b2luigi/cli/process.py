@@ -70,10 +70,12 @@ def process(
             or dispatched (see :obj:`DispatchableTask`) but directly on the machine for
             debugging reasons. Does output all logs to the console.
 
-        batch (bool, optional): Execute the tasks on the selected batch system.
+        batch (bool, optional): If set to `False`, the global settings of `batch_system`
+            will be set to `local`. If set to `True`, task with no batch_system set,
+            will be executed with the globally set `batch_system`.
             Refer to :ref:`quick-start-label` for more information.
-            The default batch system is LSF, but this can be changed with the `batch_system`
-            settings. See :obj:`get_setting` on how to define settings.
+            The default global batch system is LSF, but this can be changed with the
+            `batch_system` settings. See :meth:`get_setting <b2luigi.core.settings.get_setting>` on how to define settings.
 
         remove (list, optional): If a single task is given, remove the output of this task.
             If a list of tasks is given, remove the output of all tasks in the list.
