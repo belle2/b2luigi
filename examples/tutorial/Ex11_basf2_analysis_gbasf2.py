@@ -12,9 +12,9 @@
 To submit jobs via ``gbasf2``, the user will need to have a valid grid certificate.
 In principle, ``b2luigi`` will execute the ``gbasf2`` setup with
 
-.. code-block: bash
+.. code-block:: bash
 
-  source /cvmfs/belle.kek.jp/grid/gbasf2/pro/bashrc
+    source /cvmfs/belle.kek.jp/grid/gbasf2/pro/bashrc
 
 which will also initialize the proxy.
 However, it is recommended to have an active proxy before submitting the job since otherwise the proxy password will be required for each submitting project.
