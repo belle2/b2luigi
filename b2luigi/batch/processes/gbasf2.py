@@ -1710,10 +1710,9 @@ def get_unique_project_name(task):
     # but that returns a signed integer. I prefer a hex string to get more information per character,
     # which is why I decided to use ``hashlib.md5``.
     hash_length = int(get_setting("gbasf2_project_name_hash_length", default=10))
-    if not 5<hash_length<=10:
+    if not 5 < hash_length <= 10:
         raise ValueError(
-            "Custom hash length for project name should be between 5-10, "
-            f"but a value of {hash_length} was given."
+            "Custom hash length for project name should be between 5-10, " f"but a value of {hash_length} was given."
         )
     task_id_hash = hashlib.md5(task.task_id.encode()).hexdigest()[0:hash_length]
     gbasf2_project_name = gbasf2_project_name_prefix + task_id_hash
