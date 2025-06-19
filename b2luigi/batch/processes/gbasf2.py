@@ -1709,7 +1709,13 @@ def get_unique_project_name(task):
     # luigi internally assigns a hash to a task by calling the builtin ``hash(task.task_id)``,
     # but that returns a signed integer. I prefer a hex string to get more information per character,
     # which is why I decided to use ``hashlib.md5``.
-    task_id_hash = hashlib.md5(task.task_id.encode()).hexdigest()[0:10]
+    hash_length = int(get_setting("gbasf2_project_name_hash_length", default=10))
+    if not 5<hash_length<=10:
+        raise ValueError(
+            "Custom hash length for project name should be between 5-10, "
+            f"but a value of {hash_length} was given."
+        )
+    task_id_hash = hashlib.md5(task.task_id.encode()).hexdigest()[0:hash_length]
     gbasf2_project_name = gbasf2_project_name_prefix + task_id_hash
     max_project_name_length = 32
     if len(gbasf2_project_name) > max_project_name_length:
@@ -1719,6 +1725,9 @@ def get_unique_project_name(task):
             "Please choose a gbasf2_project_name_prefix of less than "
             f"{max_project_name_length - len(task_id_hash)} characters,"
             f" since the unique task id hash takes {len(task_id_hash)} characters."
+            " Alternatively if a detailed project name is required, consider adjusting "
+            "the length of the hash by the setting gbasf2_project_name_hash_length. "
+            "This takes an integer between 5-10."
         )
     # Only alphanumeric characters (letters, numbers and `_`, `-`) are supported by gbasf2
     valid_project_name_regex_str = r"^[a-zA-Z0-9_-]*$"
