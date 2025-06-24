@@ -183,3 +183,24 @@ This method rebuilds as closley as possible the submission command. An example u
 Who made the beautiful logo?
 ----------------------------
 The logo was created by Lea Reuter! We are forever grateful to her!
+
+
+When submitting to the grid via gbasf2 can I adjust the length of the unique hash ID?
+-------------------------------------------------------------------------------------
+Yes you can, if you find yourself in a position where your ``gbasf2_project_prefix`` needs to be detailed
+but the 22 character limit is too restrictive you can shorten the unique hash! For context, the project name
+b2luigi submits to the grid is built similar to the example below.
+
+.. code-block:: python
+
+    project_name = f"{gbasf2_project_name_prefix}{unique_10_digit_hash}"
+    assert len(project_name)<=32
+
+Where the total project name cannot exceed 32 characters, as per gbasf2 guidelines. To adjust the hash length, you can give an integer 
+value between 5-10 to ``gbasf2_project_name_hash_length`` via the settings manager like so:
+
+.. code-block:: python
+
+    b2luigi.set_setting("gbasf2_project_name_hash_length", 7)
+
+This example would allow three additional characters in ``gbasf2_project_prefix``, up to a maximum of five if ``gbasf2_project_name_hash_length=5``. 
