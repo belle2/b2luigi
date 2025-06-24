@@ -229,17 +229,17 @@ class HTCondorProcess(BatchProcess):
             RuntimeError: If the batch submission fails or the job ID cannot be extracted
                           from the ``condor_submit`` output.
         """
-        for i, submit_file in enumerate(self.create_submit_files()):
-            # HTCondor submit needs to be called in the folder of the submit file
-            submit_file_dir, submit_file = os.path.split(submit_file)
-            output = subprocess.check_output(["condor_submit", submit_file], cwd=submit_file_dir)
+        submit_file = self._create_htcondor_submit_file()
+        # HTCondor submit needs to be called in the folder of the submit file
+        submit_file_dir, submit_file = os.path.split(submit_file)
+        output = subprocess.check_output(["condor_submit", submit_file], cwd=submit_file_dir)
 
-            output = output.decode()
-            match = re.search(r"[0-9]+\.", output)
-            if not match:
-                raise RuntimeError("Batch submission failed with output " + output)
+        output = output.decode()
+        match = re.findall(r"[0-9]+\.", output)
+        if not match:
+            raise RuntimeError("Batch submission failed with output " + output)
 
-            self._batch_job_ids.append(int(match.group(0)[:-1]))
+        self._batch_job_ids.extend(int(m[:-1]) for m in match)
 
     def terminate_job(self):
         """
@@ -254,7 +254,7 @@ class HTCondorProcess(BatchProcess):
         subprocess.run(["condor_rm", str(self._batch_job_ids)], stdout=subprocess.DEVNULL)
 
     @staticmethod
-    def _create_htcondor_submit_file(task):
+    def _create_submit_file_content(task):
         """
         Creates an HTCondor submit file for the current task.
 
@@ -295,7 +295,7 @@ class HTCondorProcess(BatchProcess):
 
         # Specify the executable
         executable_file = create_executable_wrapper(task)
-        submit_file_content.append(f"executable = {os.path.basename(executable_file)}")
+        submit_file_content.append(f"executable = {os.path.abspath(executable_file)}")
 
         # Specify additional settings
         general_settings = get_setting("htcondor_settings", dict())
@@ -336,30 +336,26 @@ class HTCondorProcess(BatchProcess):
         # Finally also start the process
         submit_file_content.append("queue 1")
 
-        # Now we can write the submit file
-        output_path = get_task_file_dir(task)
+        return submit_file_content
+
+    def _create_htcondor_submit_file(self):
+        submit_file_contents = []
+
+        output_path = get_task_file_dir(task=self.task)
+        os.makedirs(output_path, exist_ok=True)
         submit_file_path = os.path.join(output_path, "job.submit")
 
-        os.makedirs(output_path, exist_ok=True)
-
-        with open(submit_file_path, "w") as submit_file:
-            submit_file.write("\n".join(submit_file_content))
-
-        return submit_file_path
-
-    def create_submit_files(self):
         batched_params = self.task.batch_param_names()
         if len(batched_params) == 0:
-            return [self._create_htcondor_submit_file(task=self.task)]
+            submit_file_contents.extend(self._create_submit_file_content(task=self.task))
         else:
-            submit_file_paths = []
-
             len_combinations = len(self.task.param_kwargs[batched_params[0]])
 
             batched_param_dicts = [
                 {param: value[i] for param, value in self.task.param_kwargs.items() if param in batched_params}
                 for i in range(len_combinations)
             ]
+
             for param_dict in batched_param_dicts:
                 sub_task = self.task.clone(None, **param_dict)
 
@@ -367,13 +363,10 @@ class HTCondorProcess(BatchProcess):
                 if sub_task.complete():
                     continue
 
-                # print("New Task", sub_task.__repr__())
+                submit_file_content = self._create_submit_file_content(task=sub_task)
+                submit_file_contents.extend(submit_file_content)
 
-                submit_file_path = self._create_htcondor_submit_file(task=sub_task)
-                submit_file_paths.append(submit_file_path)
+        with open(submit_file_path, "w") as submit_file:
+            submit_file.write("\n".join(submit_file_contents))
 
-            # print(self.task.batch_param_names())
-            # print(self.task.__repr__())
-            # print(self.task.param_kwargs)
-
-            return submit_file_paths
+        return submit_file_path
