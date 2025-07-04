@@ -3,6 +3,7 @@ import os
 import re
 import subprocess
 import enum
+import luigi
 
 from retry import retry
 
@@ -230,6 +231,12 @@ class HTCondorProcess(BatchProcess):
                           from the ``condor_submit`` output.
         """
         submit_file = self._create_htcondor_submit_file()
+
+        # Check if the submit file is empty and the task was already terminated
+        if self._terminated:
+            print("Task was already terminated.")
+            return
+
         # HTCondor submit needs to be called in the folder of the submit file
         submit_file_dir, submit_file = os.path.split(submit_file)
         output = subprocess.check_output(["condor_submit", submit_file], cwd=submit_file_dir)
@@ -251,7 +258,9 @@ class HTCondorProcess(BatchProcess):
         if not self._batch_job_ids:
             return
 
-        subprocess.run(["condor_rm", str(self._batch_job_ids)], stdout=subprocess.DEVNULL)
+        rm_cmd = ["condor_rm"]
+        rm_cmd.extend([str(j) for j in self._batch_job_ids])
+        subprocess.run(rm_cmd, stdout=subprocess.DEVNULL)
 
     @staticmethod
     def _create_submit_file_content(task):
@@ -365,6 +374,11 @@ class HTCondorProcess(BatchProcess):
 
                 submit_file_content = self._create_submit_file_content(task=sub_task)
                 submit_file_contents.extend(submit_file_content)
+
+        if len(submit_file_contents) == 0:
+            print("All tasks are already done!")
+            self._put_to_result_queue(status=luigi.scheduler.DONE, explanation="")
+            self._terminated = True
 
         with open(submit_file_path, "w") as submit_file:
             submit_file.write("\n".join(submit_file_contents))
