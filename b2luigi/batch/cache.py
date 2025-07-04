@@ -17,7 +17,7 @@ class BatchJobStatusCache(abc.ABC, TTLCache):
     """
 
     def __init__(self):
-        super().__init__(maxsize=1000, ttl=20)
+        super().__init__(maxsize=100000, ttl=60)
 
     @abc.abstractmethod
     def _ask_for_job_status(self, job_id=None):
