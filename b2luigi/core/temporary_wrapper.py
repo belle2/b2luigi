@@ -25,6 +25,7 @@ class TemporaryFileContextManager(ExitStack):
         self._task = task
         self._task_output_function = task.get_output_file_name
         self._task_input_function = task.get_input_file_names
+        self._task_all_input_function = task.get_all_input_file_names
         self._task_input_function_from_dict = task.get_input_file_names_from_dict
 
         self._open_output_files = {}
@@ -71,6 +72,21 @@ class TemporaryFileContextManager(ExitStack):
           Notes:
               - If the ``n_download_threads`` setting is specified, the input files are fetched
                 concurrently using a thread pool.
+              - If ``n_download_threads`` is not specified, the input files are fetched sequentially.
+
+        - ``get_all_input_file_names``
+            Retrieves all input file names from the task's input, ensuring that all files are temporarily available for processing.
+            Behaves the same as :meth:`b2luigi.Task.get_all_input_file_names`.
+
+            Args:
+                tmp_file_kwargs: Additional keyword arguments to pass to the :meth:`b2luigi.Target.get_temporary_input` method of the target.
+
+            Returns:
+                list: A list of all opened temporary input files from the task's input.
+
+            Notes:
+              - If the ``n_download_threads`` setting is specified, the input files are fetched concurrently
+                using a thread pool.
               - If ``n_download_threads`` is not specified, the input files are fetched sequentially.
 
         - ``get_input_file_names_from_dict``
@@ -125,6 +141,29 @@ class TemporaryFileContextManager(ExitStack):
 
         self._task.get_input_file_names = get_input_file_names
 
+        def get_all_input_file_names(**tmp_file_kwargs):
+            input_dict = utils.flatten_to_dict_of_lists(self._task.input())
+            n_download_threads = get_setting("n_download_threads", default=2, task=self._task)
+            for key, value in input_dict.items():
+                if key not in self._open_input_files:
+                    self._open_input_files[key] = []
+                    if n_download_threads is not None:
+                        with ThreadPool(n_download_threads) as pool:
+                            self._open_input_files[key] = pool.map(
+                                lambda target: self.enter_context(
+                                    target.get_temporary_input(task=self._task, **tmp_file_kwargs)
+                                ),
+                                value,
+                            )
+                    else:
+                        for target in value:
+                            temporary_path = target.get_temporary_input(task=self._task, **tmp_file_kwargs)
+                            self._open_input_files[key].append(self.enter_context(temporary_path))
+
+            return list(self._open_input_files.values())
+
+        self._task.get_all_input_file_names = get_all_input_file_names
+
         def get_input_file_names_from_dict(requirement_key: str, key: Optional[str] = None, **tmp_file_kwargs):
             internal_key = f"{requirement_key}_{str(key)}"
             if internal_key not in self._open_input_files:
@@ -162,6 +201,7 @@ class TemporaryFileContextManager(ExitStack):
 
         self._task.get_output_file_name = self._task_output_function
         self._task.get_input_file_names = self._task_input_function
+        self._task.get_all_input_file_names = self._task_all_input_function
         self._task.get_input_file_names_from_dict = self._task_input_function_from_dict
 
 
