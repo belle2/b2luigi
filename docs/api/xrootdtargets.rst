@@ -25,14 +25,14 @@ A full task using XRootDTargets could look like this:
 
 .. code-block:: python
 
-        from b2luigi import XRootDSystem, XrootDTarget
+        from b2luigi import XRootDSystem, XRootDTarget
         from b2luigi.core.utils import create_output_filename
         import b2luigi
 
         class MyTask(b2luigi.Task):
             def run(self):
                 file_name = "Hello_world.txt"
-                target = self._get_output_file_target(file_name)
+                target = self._get_output_target(file_name)
                 with target.temporary_path() as temp_path:
                     with open(temp_path, "w") as f:
                         f.write("Hello World")
