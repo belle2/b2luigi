@@ -211,7 +211,7 @@ def dry_run(task_list):
 
     if non_completed_tasks:
         print("In total", non_completed_tasks)
-        exit(0)
+        exit(1)
     print("All tasks are finished!")
     exit(0)
 
@@ -234,12 +234,16 @@ def remove_outputs(task_list, target_tasks, only=False, auto_confirm=False):
           In large task graphs, this can be time-consuming.
     """
     to_be_removed_tasks = collections.defaultdict(set)
+    unseen_tasks = set()
+    matched_target_tasks = set()
 
     # Remove the output of this task and all its dependent tasks
     if not only:
         for root_task in task_list:
             for target_task in target_tasks:
                 dependent_tasks = find_dependents(task_iterator(root_task), target_task)
+                if dependent_tasks:
+                    matched_target_tasks.add(target_task)
                 for task in dependent_tasks:
                     to_be_removed_tasks[task.__class__.__name__].add(task)
 
@@ -248,13 +252,23 @@ def remove_outputs(task_list, target_tasks, only=False, auto_confirm=False):
         for root_task in task_list:
             for task in task_iterator(root_task):
                 if task.__class__.__name__ in target_tasks:
+                    matched_target_tasks.add(task.__class__.__name__)
                     to_be_removed_tasks[task.__class__.__name__].add(task)
+
+    # Grep tasks that are in target but not found in the DAQ
+    unseen_tasks = set(target_tasks) - matched_target_tasks
 
     if not to_be_removed_tasks:
         print("Nothing to remove.")
         exit(0)
 
     if not auto_confirm:
+        if unseen_tasks:
+            print("The following tasks are not found in the task list and can't be removed:")
+            for task in sorted(unseen_tasks):
+                print(f"\t\t- {task}")
+            print("\n")
+
         print("The following outputs of these tasks are about to be removed:")
         for task in sorted(to_be_removed_tasks):
             print(f"\t- {task}")
@@ -284,5 +298,4 @@ def remove_outputs(task_list, target_tasks, only=False, auto_confirm=False):
 
     if removed_tasks:
         print("In total", removed_tasks)
-        exit(1)
     exit(0)
