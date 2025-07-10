@@ -14,6 +14,7 @@ def process(
     remove=[],
     remove_only=[],
     auto_confirm=False,
+    keep_tasks=None,
     ignore_additional_command_line_args=False,
     **kwargs,
 ):
@@ -117,7 +118,10 @@ def process(
         runner.run_as_batch_worker(task_list, cli_args, kwargs)
     elif cli_args.remove or remove:
         runner.remove_outputs(
-            task_list, target_tasks=cli_args.remove or remove, auto_confirm=auto_confirm or cli_args.yes
+            task_list,
+            target_tasks=cli_args.remove or remove,
+            auto_confirm=auto_confirm or cli_args.yes,
+            keep=cli_args.keep or keep_tasks,
         )
     elif cli_args.remove_only or remove_only:
         runner.remove_outputs(
@@ -125,6 +129,7 @@ def process(
             target_tasks=cli_args.remove_only or remove_only,
             only=True,
             auto_confirm=auto_confirm or cli_args.yes,
+            keep=cli_args.keep or keep_tasks,
         )
     elif cli_args.batch or batch:
         runner.run_batched(task_list, cli_args, kwargs)

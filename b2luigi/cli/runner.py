@@ -216,7 +216,7 @@ def dry_run(task_list):
     exit(0)
 
 
-def remove_outputs(task_list, target_tasks, only=False, auto_confirm=False):
+def remove_outputs(task_list, target_tasks, only=False, auto_confirm=False, keep=None):
     """
     Removes the outputs of specified tasks and their dependent tasks.
 
@@ -257,6 +257,15 @@ def remove_outputs(task_list, target_tasks, only=False, auto_confirm=False):
 
     # Grep tasks that are in target but not found in the DAQ
     unseen_tasks = set(target_tasks) - matched_target_tasks
+
+    # If the user has specified a list of tasks to keep, remove them from the list of tasks to be removed
+    if keep:
+        keep = set(keep)
+        for task_class in keep:
+            if task_class in to_be_removed_tasks:
+                print(f"Keeping {task_class} outputs.")
+                del to_be_removed_tasks[task_class]
+            print("\n")
 
     if not to_be_removed_tasks:
         print("Nothing to remove.")
