@@ -10,8 +10,8 @@ Can I specify my own paths for the log files for tasks running on a batch system
 output of a task processed on a batch system. The paths of these log files are defined
 relative to the location of the executed python file and contain the parameter of
 the task.
-In some cases one might one to specify other paths for the log files. To achieve this,
-a own ``get_log_file_dir()`` method of the task class must be implemented. This method
+In some cases, one might one to specify other paths for the log files. To achieve this,
+the ``get_log_file_dir()`` method of the task class must be defined. This method
 must return a directory path for the stdout and the stderr files, for example:
 
 .. code-block:: python
@@ -24,19 +24,19 @@ must return a directory path for the stdout and the stderr files, for example:
           return path
 
 ``b2luigi`` will use this method if it is defined and write the log output in the respective
-files. Be careful, though, as these log files will of course be overwritten if more than one
+files. Be careful though, as these log files will of course be overwritten if more than one
 task receive the same paths to write to!
 
 
-Can I exclude one job from batch processing
--------------------------------------------
+Can I exclude one job from batch processing?
+--------------------------------------------
 
 The setting ``batch_system`` defines which submission method is used for scheduling
 your tasks when using ``batch=True`` or ``--batch``.
-In most cases, you set your ``batch_system`` globally (e.g. in a ``settings.json``)
-file and start all your tasks with ``--batch`` or ``batch=True``.
+In most cases, you set your ``batch_system`` globally (e.g. in a ``settings.json`` file)
+and start all your tasks with ``--batch`` or ``batch=True``.
 If you want a single task to run only locally (e.g. because of constraints in
-the batch farm) you can set the ``batch_system`` only for this job by adding a member to this task:
+the batch farm), you can set the ``batch_system`` only for this job by adding a member to this task:
 
 .. code-block:: python
 
@@ -65,7 +65,7 @@ want to show them to everyone.
 When using a parameter in ``b2luigi`` (or any of its derivatives), they have a new flag called ``hashed``
 in their constructor, which makes the path creation only using a hashed version of your parameter value.
 
-For example will this task::
+For example, this task will::
 
     class MyTask(b2luigi.Task):
         my_parameter = b2luigi.ListParameter(hashed=True)
@@ -120,14 +120,14 @@ Where by default:
 - ``filename`` = ``[path/to/main/python/script.py]``
 - ``task_cmd_additional_args`` = ``[]`` i.e nothing
 
-The ``executable`` variable can be set to a custom value using the b2luigi settings manager, like so:
+The ``executable`` variable can be set to a custom value using the ``b2luigi`` settings manager, like so:
 
 .. code-block:: python
 
     b2luigi.set_setting("executable", ["my_custom", "executable"])
 
-The `filename` can not be customised. However, if necessary it can be excluded from the exec string through the boolean setting ``add_filename_to_cmd``.
-By default ``add_filename_to_cmd`` is ``True``, but by setting it to ``False`` the filename is excluded from the exec string:
+The `filename` can not be customised. However, if necessary, it can be excluded from the exec string through the boolean setting ``add_filename_to_cmd``.
+By default ``add_filename_to_cmd`` is ``True``; by setting it to ``False``, the filename is excluded from the exec string:
 
 .. code-block:: python
 
