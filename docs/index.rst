@@ -43,23 +43,23 @@ But for thousands of tasks in very large projects with different task-defining l
     But what do you do if you have thousands of tasks to do?
 *   **You have already a large set of luigi tasks in your project**
 
-    In other implementations you either have to override a ``work`` function (and you are not allowed to touch
-    the ``run`` function) or they can only run an external command, which you need to define.
-    The first approach plays not well when mixing non-batch and batch task libraries and the second
+    In other implementations, you either have to override a ``work`` function (and you are not allowed to touch
+    the ``run`` function) or run an external command, which you need to define.
+    The first approach is problematic when mixing non-batch and batch task libraries and the second
     has problems when you need to pass complex arguments to the external command (via command line).
 *   **You do not know which batch system you will run on**
 
     Currently, the batch tasks are mostly defined for a specific batch system. But what if you want to
     switch from AWS to Azure? From LSF to SGE?
 
-Entering ``b2luigi``, which tries to solve all this (but was heavily inspired by the previous implementations):
+Entering ``b2luigi`` -- it tries to solve all this (but was heavily inspired by the previous implementations):
 
 *   You can run as many tasks as your batch system can handle in parallel! There will only be a single process running
     on your submission machine.
 *   No need to rewrite your tasks! Just call them with ``b2luigi.process(.., batch=True)`` or with
     ``python file.py --batch`` and you are ready to go!
 *   Switching the batch system is just a single change in a config file or one line in python.
-    In the future, there will even be an automatic discovery of the batch system to use.
+    In the future, ``b2luigi`` will be able to automatically discover which batch system is in use!
 
 
 Is this the only thing I can do with ``b2luigi``?
@@ -72,13 +72,13 @@ Also, we give you working examples and best-practices for better data management
 that we have learned with time.
 
 
-Why are you still talking, lets use it!
+Why are you still talking, let's use it!
 ---------------------------------------
 
 Have a look into the :ref:`quick-start-label` and/or the :ref:`starterkit_label`.
 You can also start reading the :ref:`api-documentation-label` or the code on GitHub_.
 If you find any bugs or want to improve the documentation, please send us a pull request.
-You can help me by working with one of the todo items described in :ref:`development-label`.
+You can help me by working with one of the to-do items described in :ref:`development-label`.
 
 Content
 -------
