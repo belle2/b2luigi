@@ -20,7 +20,7 @@ where mode can be one of:
 *   **batch**: Run the tasks on a batch system, as described in :ref:`quick-start-label`. The maximal number of
     batch jobs to run in parallel (jobs in flight) is equal to the number of workers.
     This is ``1`` by default, so you probably want to change this.
-    If set to `False` only the global setting for the `batch_system` will be set to `local`.
+    If set to `False`, only the global setting for the `batch_system` will be set to `local`.
     Tasks with their own `batch_system` setting will be unaffected.
     By default, the batch system is automatically detected. If you want to change this, set the corresponding ``batch_system``
     (see :ref:`batch-label`) to one of the supported systems.
@@ -61,7 +61,7 @@ where mode can be one of:
                 # automatically when starting the processing in remove mode
                 do_some_stuff_in_remove_mode()
 
-    If you are very sure in what you are doing check out the :meth:`b2luigi.Task._remove_output` private method. Before
+    If you are very sure in what you are doing, check out the :meth:`b2luigi.Task._remove_output` private method. Before
     executing the ``remove_output`` method of each task, you have to confirm once that you want to remove the output. To
     skip the confirmation, add the ``--yes`` or ``-y`` flag to the command line.
 

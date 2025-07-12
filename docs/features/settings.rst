@@ -40,7 +40,7 @@ General settings
     It is recommended to set this path per project via the settings file.
 
 - ``scratch_dir``: String
-    The directory, where temporary files are written to when using the :meth:`b2luigi.on_temporary_files` context.
+    The directory where temporary files are written to when using the :meth:`b2luigi.on_temporary_files` context.
     This is used when targets are created with the :meth:`b2luigi.Task.add_to_output` method. If not set, the path
     returned by ``tempfile.gettempdir()`` is used to write temporary files (very likely ``/tmp`` is used unless
     the environment variables ``TMPDIR``, ``TEMP`` or ``TMP`` are set).

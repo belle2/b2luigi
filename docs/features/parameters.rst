@@ -5,12 +5,12 @@ While Parameters are mostly handled by ``luigi`` itself, there are some addition
 
 Unique Task outputs
 -------------------
-``b2luigi`` uses a tasks parameters to create a unique output folder for each task.
+``b2luigi`` uses a tasks parameter to create a unique output folder for each task.
 This uses the pattern ``parameter_name=parameter_value`` to create a unique folder for each task.
 
 Exclude Parameters from the output name
 ---------------------------------------
-Sometimes one does not want to include all parameters in the output folder name.
+Sometimes, one does not want to include all parameters in the output folder name.
 This can be done by setting the ``Parameter``'s ``significant`` attribute to ``False``.
 
 .. code-block:: python
@@ -37,7 +37,8 @@ To prevent this, you can set the ``hashed`` attribute of the parameter to ``True
         my_parameter = b2luigi.ListParameter(hashed=True)
 
 This will use an md5 hash of the parameters string representation to build the output name.
-It is also possible, to give a custom hashing function to the parameter, by setting the ``hash_function`` attribute to a function that takes the parameter as input and returns a string.
+It is also possible, to give a custom hashing function to the parameter, by setting the ``hash_function`` attribute to a function that
+takes the parameter as input and returns a string.
 
 .. code-block:: python
 
