@@ -17,9 +17,9 @@ Later, we will build the average of those numbers.
     .. literalinclude:: ../tests/doc_examples/simple_example.py
 
     Each building block in ``(b2)luigi`` is a :class:`b2luigi.Task`.
-    It defines (which its run function), what should be done.
+    It defines (with its run function), what should be done.
     A task can have parameters, as in our case the ``some_parameter`` defined in line 6.
-    Each task needs to define, what it will output in its ``output`` function.
+    Each task needs to define what it will output in its ``output`` function.
 
     .. note::
 
@@ -29,9 +29,9 @@ Later, we will build the average of those numbers.
 
             b2luigi.set_setting("results")
 
-        You can ignore that for not - we will come back to it later.
+        You can ignore that for now - we will come back to it later.
 
-    In our run function, we generate a random number and write it to the output file,
+    In our ``run`` function, we generate a random number and write it to the output file,
     which is named after the parameter of the task and stored in a result folder.
 
     .. hint::
