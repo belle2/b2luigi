@@ -46,7 +46,7 @@ General settings
     the environment variables ``TMPDIR``, ``TEMP`` or ``TMP`` are set).
 
 - ``batch_system``: String
-    The batch system to use when executed in batch mode. Currently, ``htcondor``, ``lsf``, ``gbasf2``, ``auto`` and ``local`` are supported.
+    The batch system to use when executed in batch mode. Currently, ``htcondor``, ``lsf``, ``slurm``, ``gbasf2``, ``auto`` and ``local`` are supported.
     In case of ``auto``, b2luigi will try to detect the batch system automatically by checking for the executables of ``htcondor`` and ``lsf``.
     If none of them is found, the local mode is used.
     Please note, that this setting does not activate the batch mode. For that, use the ``--batch`` flag when calling your script.
