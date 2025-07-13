@@ -49,7 +49,7 @@ class MyOtherTask(b2luigi.Task):
 
 # %%
 # Here, we define the ``b2luigi.WrapperTask`` to loop over all parameter combinations of the second task.
-# In contrast to the usual :class:`b2luigi.Task` class it does not need a ``run`` and ``output`` method.
+# In contrast to the usual :class:`b2luigi.Task` class, it does not need a ``run`` and ``output`` method.
 # The task counts as completed if its requirement is fulfilled.
 
 

@@ -39,7 +39,7 @@ is called after the path is processed.
 
 Additional tips:
 
-- For later porpuses, we add a parameter (``identifier``) to identify the output file
+- For later purposes, we add a parameter (``identifier``) to identify the output file
   uniqley. This is useful when running multiple tasks in parallel.
 
 - We make use of the task own settings via `result_dir`. It is sometimes more useful
@@ -48,7 +48,7 @@ Additional tips:
   instead of relative paths as we do in this example.
 
 - No batch submission of this task will be done (``batch_system = "local"``), more will
-  come in the next examples.
+  come in subsequent examples.
 
 - The example relies again on the task's own
   :meth:`get_output_file_name <b2luigi.Task.get_output_file_name>` method to generate
