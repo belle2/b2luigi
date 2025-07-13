@@ -43,7 +43,7 @@ Later, we will build the average of those numbers.
         But we strongly advice you to use ``b2luigi``'s task, as it has some more
         superior functions (see below).
 
-    Please not that we could have imported ``b2luigi`` with
+    Please note that we could have imported ``b2luigi`` with
 
     .. code-block:: python
 
@@ -57,7 +57,7 @@ Later, we will build the average of those numbers.
 
         python simple-example.py --batch
 
-    Instead of giving the batch parameter in as argument, you can also add it
+    Instead of giving the batch parameter in as an argument, you can also add it
     to the ``luigi.process(.., batch=True)`` call.
 
     Each task will be scheduled as a batch job to your LSF queue.
@@ -94,10 +94,10 @@ Later, we will build the average of those numbers.
 
     After a job is submitted, ``b2luigi`` will check if it is still running or not and handle failed or done tasks correctly.
 
-4.  The defined output file names will in most of the cases depend on the parameters of the task, as
+4.  The defined output file names will, in most of the cases, depend on the parameters of the task, as
     you do not want to override your files from different tasks.
-    However this means, you always need to include all parameters in the file name to keep them different.
-    This cumbersome work can be handled by ``b2luigi`` automatically ,
+    However, this means you always need to include all parameters in the file name to keep them different.
+    This cumbersome work can be handled by ``b2luigi`` automatically,
     which will also help you ordering your files at no cost.
     This is especially useful in larger projects, when many people are defining and executing tasks.
 
@@ -150,7 +150,7 @@ Later, we will build the average of those numbers.
         more information on how to use it.
 
     .. attention::
-        The result path (as well as any other paths, e.g. the log folders) are always evaluated
+        The result paths (as well as any other paths, e.g. the log folders) are always evaluated
         relatively to your script file.
         This means ``results`` will always be created in the folder where your script is,
         not where your current working directory is.
