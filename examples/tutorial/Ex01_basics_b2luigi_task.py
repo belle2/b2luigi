@@ -40,12 +40,12 @@ to the specified location.
 
 The ``output`` method defines the output of the task. It should return an
 iterable of output targets. The output targets are specified as either
-strings (will be interpreted as :class:`b2luigi.LocalTarget) or target objects (e.g. :class:`b2luigi.LocalTarget`, :class:`b2luigi.XRootDTarget`). The task is considered complete
+strings (will be interpreted as :class:`b2luigi.LocalTarget`) or target objects (e.g. :class:`b2luigi.LocalTarget`, :class:`b2luigi.XRootDTarget`). The task is considered complete
 when all output targets are present.
 
 A few additional methods are available to help with the output structure:
 
-- The :meth:`b2luigi.Task.add_to_output` method is a helper function that adds a target to the list of files, this task will output.
+- The :meth:`b2luigi.Task.add_to_output` method is a helper function that adds a target to the list of this task's output files.
   Always use in combination with yield. This function will automatically add all current parameter values to the output
   directory.
 - The :meth:`b2luigi.Task.get_output_file_name` method returns an output file defined in the output function with the given key.
