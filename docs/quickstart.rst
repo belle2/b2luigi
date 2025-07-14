@@ -65,7 +65,7 @@ Later, we will build the average of those numbers.
     saving you some unneeded CPU time on the batch system.
     This means although you have requested 200 workers, you only need
     100 workers to fulfill the tasks, so only 100 batch jobs will be started.
-    On your local machine runs only the scheduling mechanism needing only a small amount of a single CPU power.
+    On your local machine, only a small amount of your CPU's power is needed for the scheduling mechanism.
 
     .. hint::
 
