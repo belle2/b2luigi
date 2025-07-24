@@ -103,7 +103,7 @@ I do not like to have "=" in my output file names. Is there a way to not have th
 Yes, there are two options. The first is to set the setting ``use_parameter_name_in_output`` to ``False``.
 The paths for your outputs and logs will then be generated using only the parameter values.
 It is then up to you to remember which parameter value belongs to which parameter name.
-Alernatively, you can use the setting ``parameter_seperator`` to change "=" to a string of your choice.
+Alernatively, you can use the setting ``parameter_separator`` to change "=" to a string of your choice.
 
 
 Can I alter the ``exec`` string in the executable wrapper made by b2luigi for batch submissions?
