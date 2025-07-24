@@ -24,7 +24,7 @@ If you do not want to use the parameter name in the output folder name, set the 
 
 Do not use "=" to separate the parameter name and value
 -------------------------------------------------------
-If you do not want to use the "=" to separate the parameter name and value, set the setting ``parameter_seperator`` to a character that fits.
+If you do not want to use the "=" to separate the parameter name and value, set the setting ``parameter_separator`` to a character that fits.
 
 Hashing List and Dict Parameters
 --------------------------------
