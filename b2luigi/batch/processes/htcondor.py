@@ -357,6 +357,8 @@ class HTCondorProcess(BatchProcess):
         batched_params = self.task.batch_param_names()
         if len(batched_params) == 0:
             submit_file_contents.extend(self._create_submit_file_content(task=self.task))
+        elif not isinstance(self.task.param_kwargs[batched_params[0]], tuple):
+            submit_file_contents.extend(self._create_submit_file_content(task=self.task))
         else:
             len_combinations = len(self.task.param_kwargs[batched_params[0]])
 
