@@ -173,14 +173,12 @@ class MergerTask(Basf2Task):
                         yield self.add_to_output(key)
                 else:
                     yield self.add_to_output(key)
-        elif hasattr(self, "keys") and self.keys is not None:
-            for key in self.keys:
-                yield self.add_to_output(f"{key}.root")
+        elif isinstance(self.input(), list):
+            if hasattr(self, "keys") and self.keys is not None:
+                for key in self.keys:
+                    yield self.add_to_output(key)
         else:
-            if isinstance(self.input(), list):
-                yield self.add_to_output("Merged.root")  # Default, otherwiseuser can give the dict structure
-            else:
-                raise ValueError(f"Input is of type {type(self.input())}")
+            raise ValueError(f"Input is of type {type(self.input())}")
 
     @b2luigi.on_temporary_files
     def process(self):

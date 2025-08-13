@@ -22,7 +22,9 @@ class MyAdditionalTask(b2luigi.Task):
     @b2luigi.on_temporary_files
     def run(self):
         with open(self.get_output_file_name("combined.txt"), "w") as f:
-            with open(self.get_input_file_names("test.txt")[0], "r") as from_f:
+            # get_input_file_names returns a dict with the key as the file name and the value as a list of files
+            # keys are provided as list of strings
+            with open(self.get_input_file_names(["test.txt"])["test.txt"][0], "r") as from_f:
                 f.write(from_f.read())
 
 

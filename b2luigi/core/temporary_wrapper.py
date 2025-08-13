@@ -125,10 +125,6 @@ class TemporaryFileContextManager(ExitStack):
             2. if dict format is used and keys are not provided, then all the input file names are returned with
             their respective keys in a dict.
             3. if list format is used and keys are provided, then the input file names are grouped by the keys.
-            4. otherwise, all the input file names are returned with the default name "Merged.root"
-
-            Note: In list format the keys are simple string not the file names whereas in dict format
-            the keys are the file names.
             """
             if isinstance(self._task.input(), dict):
                 for key, _ in self._task.input().items():
@@ -151,20 +147,34 @@ class TemporaryFileContextManager(ExitStack):
                                 temporary_path = target.get_temporary_input(task=self._task, **tmp_file_kwargs)
                                 self._open_input_files[key].append(self.enter_context(temporary_path))
                 if keys is not None:
-                    filtered = {k: v for k, v in self._open_input_files.items() if k in keys}
-                    return filtered
+                    filtered_input_files = {k: v for k, v in self._open_input_files.items() if k in keys}
+                    return filtered_input_files
                 else:
                     return self._open_input_files
-            elif keys is not None:
-                grouped_by_keys = {
-                    f"{key}.root": [file for file in self._task_all_input_function() if key in file] for key in keys
-                }
-                return grouped_by_keys
-            else:
-                if isinstance(self._task.input(), list):
-                    return {"Merged.root": list(self._task_all_input_function())}
+
+            elif isinstance(self._task.input(), list):
+                all_input_files = self._task_all_input_function()
+                if keys is not None and isinstance(keys, list):
+                    for key in keys:
+                        if key not in self._open_input_files:
+                            self._open_input_files[key] = []
+                    # Loop through files once and assign to appropriate keys
+                    for file in all_input_files:
+                        file_matched = False
+                        for key in keys:
+                            if key in file:
+                                print(f"Found {key} in {file}")
+                                self._open_input_files[key].append(file)
+                                file_matched = True
+                        if not file_matched:
+                            print(f"File {file} did not match any key")
                 else:
-                    raise ValueError(f"Input is of type {type(self._task.input())}")
+                    raise KeyError("At least one key must be provided to merge all files.")
+
+                return self._open_input_files
+
+            else:
+                raise ValueError(f"Input is of type {type(self._task.input())}")
 
         self._task.get_input_file_names = get_input_file_names
 
