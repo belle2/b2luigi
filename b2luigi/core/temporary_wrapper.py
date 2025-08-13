@@ -119,25 +119,52 @@ class TemporaryFileContextManager(ExitStack):
         self._task.get_output_file_name = get_output_file_name
 
         def get_input_file_names(key: str, **tmp_file_kwargs):
-            """ """
-            if key not in self._open_input_files:
-                targets = self._task._get_input_targets(key)
-                self._open_input_files[key] = []
-                n_download_threads = get_setting("n_download_threads", default=2, task=self._task)
-                if n_download_threads is not None:
-                    with ThreadPool(n_download_threads) as pool:
-                        self._open_input_files[key] = pool.map(
-                            lambda target: self.enter_context(
-                                target.get_temporary_input(task=self._task, **tmp_file_kwargs)
-                            ),
-                            targets,
-                        )
-                else:
-                    for target in targets:  # TODO: This does not work in wrapping tasks
-                        temporary_path = target.get_temporary_input(task=self._task, **tmp_file_kwargs)
-                        self._open_input_files[key].append(self.enter_context(temporary_path))
+            """
+            This function is used to get the input file names for the task either in a dict or a list format.
+            1. if dict format is used and keys are provided, then the input file names are filtered by the keys.
+            2. if dict format is used and keys are not provided, then all the input file names are returned with
+            their respective keys in a dict.
+            3. if list format is used and keys are provided, then the input file names are grouped by the keys.
+            4. otherwise, all the input file names are returned with the default name "Merged.root"
 
-            return self._open_input_files[key]
+            Note: In list format the keys are simple string not the file names whereas in dict format
+            the keys are the file names.
+            """
+            if isinstance(self._task.input(), dict):
+                for key, _ in self._task.input().items():
+                    if key not in self._open_input_files:
+                        target_generator_list = self._task.input()[key]
+                        target_dict = utils.flatten_to_dict_of_lists(target_generator_list)
+                        targets = [item for sublist in target_dict.values() for item in sublist]
+                        self._open_input_files[key] = []
+                        n_download_threads = get_setting("n_download_threads", default=2, task=self._task)
+                        if n_download_threads is not None:
+                            with ThreadPool(n_download_threads) as pool:
+                                self._open_input_files[key] = pool.map(
+                                    lambda target: self.enter_context(
+                                        target.get_temporary_input(task=self._task, **tmp_file_kwargs)
+                                    ),
+                                    targets,
+                                )
+                        else:
+                            for target in targets:  # TODO: This does not work in wrapping tasks
+                                temporary_path = target.get_temporary_input(task=self._task, **tmp_file_kwargs)
+                                self._open_input_files[key].append(self.enter_context(temporary_path))
+                if keys is not None:
+                    filtered = {k: v for k, v in self._open_input_files.items() if k in keys}
+                    return filtered
+                else:
+                    return self._open_input_files
+            elif keys is not None:
+                grouped_by_keys = {
+                    f"{key}.root": [file for file in self._task_all_input_function() if key in file] for key in keys
+                }
+                return grouped_by_keys
+            else:
+                if isinstance(self._task.input(), list):
+                    return {"Merged.root": list(self._task_all_input_function())}
+                else:
+                    raise ValueError(f"Input is of type {type(self._task.input())}")
 
         self._task.get_input_file_names = get_input_file_names
 

@@ -166,11 +166,21 @@ class MergerTask(Basf2Task):
             - If the task has a ``keys`` attribute, only keys present in ``self.keys``
               are processed.
         """
-        for key, _ in self.get_input_file_names().items():
-            if hasattr(self, "keys") and key not in self.keys:
-                continue
-
-            yield self.add_to_output(key)
+        if isinstance(self.input(), dict):
+            for key, _ in self.get_input_file_names().items():
+                if hasattr(self, "keys") and self.keys is not None:
+                    if key in self.keys:
+                        yield self.add_to_output(key)
+                else:
+                    yield self.add_to_output(key)
+        elif hasattr(self, "keys") and self.keys is not None:
+            for key in self.keys:
+                yield self.add_to_output(f"{key}.root")
+        else:
+            if isinstance(self.input(), list):
+                yield self.add_to_output("Merged.root")  # Default, otherwiseuser can give the dict structure
+            else:
+                raise ValueError(f"Input is of type {type(self.input())}")
 
     @b2luigi.on_temporary_files
     def process(self):
@@ -185,10 +195,7 @@ class MergerTask(Basf2Task):
         """
         create_output_dirs(self)
 
-        for key, file_list in self.get_input_file_names().items():
-            if hasattr(self, "keys") and key not in self.keys:
-                continue
-
+        for key, file_list in self.get_input_file_names(keys=getattr(self, "keys", None)).items():
             args = self.cmd + [self.get_output_file_name(key)] + file_list
             subprocess.check_call(args)
 
