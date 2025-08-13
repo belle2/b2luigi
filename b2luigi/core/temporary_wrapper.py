@@ -1,7 +1,7 @@
 from contextlib import ExitStack
 from functools import wraps
 from multiprocessing.pool import ThreadPool
-from typing import Optional
+from typing import Optional, List
 
 from b2luigi import Task
 from b2luigi.core import utils
@@ -118,7 +118,7 @@ class TemporaryFileContextManager(ExitStack):
 
         self._task.get_output_file_name = get_output_file_name
 
-        def get_input_file_names(keys: Optional[list[str]] = None, **tmp_file_kwargs):
+        def get_input_file_names(keys: Optional[List[str]] = None, **tmp_file_kwargs):
             """
             This function is used to get the input file names for the task either in a dict or a list format.
             1. if dict format is used and keys are provided, then the input file names are filtered by the keys.
