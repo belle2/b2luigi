@@ -1,7 +1,7 @@
 from contextlib import ExitStack
 from functools import wraps
 from multiprocessing.pool import ThreadPool
-from typing import Optional, List
+from typing import Optional
 
 from b2luigi import Task
 from b2luigi.core import utils
@@ -118,63 +118,26 @@ class TemporaryFileContextManager(ExitStack):
 
         self._task.get_output_file_name = get_output_file_name
 
-        def get_input_file_names(keys: Optional[List[str]] = None, **tmp_file_kwargs):
-            """
-            This function is used to get the input file names for the task either in a dict or a list format.
-            1. if dict format is used and keys are provided, then the input file names are filtered by the keys.
-            2. if dict format is used and keys are not provided, then all the input file names are returned with
-            their respective keys in a dict.
-            3. if list format is used and keys are provided, then the input file names are grouped by the keys.
-            """
-            if isinstance(self._task.input(), dict):
-                for key, _ in self._task.input().items():
-                    if key not in self._open_input_files:
-                        target_generator_list = self._task.input()[key]
-                        target_dict = utils.flatten_to_dict_of_lists(target_generator_list)
-                        targets = [item for sublist in target_dict.values() for item in sublist]
-                        self._open_input_files[key] = []
-                        n_download_threads = get_setting("n_download_threads", default=2, task=self._task)
-                        if n_download_threads is not None:
-                            with ThreadPool(n_download_threads) as pool:
-                                self._open_input_files[key] = pool.map(
-                                    lambda target: self.enter_context(
-                                        target.get_temporary_input(task=self._task, **tmp_file_kwargs)
-                                    ),
-                                    targets,
-                                )
-                        else:
-                            for target in targets:  # TODO: This does not work in wrapping tasks
-                                temporary_path = target.get_temporary_input(task=self._task, **tmp_file_kwargs)
-                                self._open_input_files[key].append(self.enter_context(temporary_path))
-                if keys is not None:
-                    filtered_input_files = {k: v for k, v in self._open_input_files.items() if k in keys}
-                    return filtered_input_files
+        def get_input_file_names(key: str, **tmp_file_kwargs):
+            """ """
+            if key not in self._open_input_files:
+                targets = self._task._get_input_targets(key)
+                self._open_input_files[key] = []
+                n_download_threads = get_setting("n_download_threads", default=2, task=self._task)
+                if n_download_threads is not None:
+                    with ThreadPool(n_download_threads) as pool:
+                        self._open_input_files[key] = pool.map(
+                            lambda target: self.enter_context(
+                                target.get_temporary_input(task=self._task, **tmp_file_kwargs)
+                            ),
+                            targets,
+                        )
                 else:
-                    return self._open_input_files
+                    for target in targets:  # TODO: This does not work in wrapping tasks
+                        temporary_path = target.get_temporary_input(task=self._task, **tmp_file_kwargs)
+                        self._open_input_files[key].append(self.enter_context(temporary_path))
 
-            elif isinstance(self._task.input(), list):
-                all_input_files = self._task_all_input_function()
-                if keys is not None and isinstance(keys, list):
-                    for key in keys:
-                        if key not in self._open_input_files:
-                            self._open_input_files[key] = []
-                    # Loop through files once and assign to appropriate keys
-                    for file in all_input_files:
-                        file_matched = False
-                        for key in keys:
-                            if key in file:
-                                print(f"Found {key} in {file}")
-                                self._open_input_files[key].append(file)
-                                file_matched = True
-                        if not file_matched:
-                            print(f"File {file} did not match any key")
-                else:
-                    raise KeyError("At least one key must be provided to merge all files.")
-
-                return self._open_input_files
-
-            else:
-                raise ValueError(f"Input is of type {type(self._task.input())}")
+            return self._open_input_files[key]
 
         self._task.get_input_file_names = get_input_file_names
 
