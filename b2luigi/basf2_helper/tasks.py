@@ -7,7 +7,7 @@ from b2luigi.basf2_helper.targets import ROOTLocalTarget
 import subprocess
 
 from b2luigi.basf2_helper.utils import get_basf2_git_hash
-from b2luigi.core.utils import create_output_dirs, get_serialized_parameters
+from b2luigi.core.utils import create_output_dirs, get_serialized_parameters, flatten_to_dict_of_lists
 
 
 class Basf2Task(b2luigi.DispatchableTask):
@@ -154,6 +154,16 @@ class MergerTask(Basf2Task):
     cmd = []
     keys = []
 
+    @property
+    def input_keys(self):
+        all_input_keys = flatten_to_dict_of_lists(self.input()).keys()
+        for key in all_input_keys:
+            # Filter out keys not in self.keys
+            if hasattr(self, "keys") and key not in self.keys:
+                continue
+
+            yield key
+
     def output(self):
         """
         Generates the output for the task by iterating over input file names and
@@ -167,9 +177,11 @@ class MergerTask(Basf2Task):
             - If the task has a ``keys`` attribute, only keys present in ``self.keys``
               are processed.
         """
-        if hasattr(self, "keys") and self.keys is not None:
-            for key in self.keys:
-                yield self.add_to_output(key)
+        for key in self.input_keys:
+            if hasattr(self, "keys") and key not in self.keys:
+                continue
+
+            yield self.add_to_output(key)
 
     @b2luigi.on_temporary_files
     def process(self):
@@ -184,16 +196,15 @@ class MergerTask(Basf2Task):
         """
         create_output_dirs(self)
 
-        if hasattr(self, "keys") and self.keys is not None:
-            for key in self.keys:
-                if isinstance(self.input(), list):
-                    file_list = self.get_input_file_names(key)
-                elif isinstance(self.input(), dict):
-                    file_list = self.get_input_file_names_from_dict(key)
-                else:
-                    raise ValueError(f"Input is of type {type(self.input())}")
-                args = self.cmd + [self.get_output_file_name(key)] + file_list
-                subprocess.check_call(args)
+        for key in self.input_keys:
+            if isinstance(self.input(), list):
+                file_list = self.get_input_file_names(key)
+            elif isinstance(self.input(), dict):
+                file_list = self.get_input_file_names_from_dict(key)
+            else:
+                raise ValueError(f"Input is of type {type(self.input())}")
+            args = self.cmd + [self.get_output_file_name(key)] + file_list
+            subprocess.check_call(args)
 
 
 class HaddTask(MergerTask):
