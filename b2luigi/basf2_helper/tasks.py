@@ -7,7 +7,11 @@ from b2luigi.basf2_helper.targets import ROOTLocalTarget
 import subprocess
 
 from b2luigi.basf2_helper.utils import get_basf2_git_hash
-from b2luigi.core.utils import create_output_dirs, get_serialized_parameters, flatten_to_dict_of_lists
+from b2luigi.core.utils import (
+    create_output_dirs,
+    get_serialized_parameters,
+    flatten_to_dict_of_lists,
+)
 
 
 class Basf2Task(b2luigi.DispatchableTask):
@@ -197,12 +201,13 @@ class MergerTask(Basf2Task):
         create_output_dirs(self)
 
         for key in self.input_keys:
-            if isinstance(self.input(), list):
+            if not isinstance(self.input(), dict):
                 file_list = self.get_input_file_names(key)
-            elif isinstance(self.input(), dict):
-                file_list = self.get_input_file_names_from_dict(key)
             else:
-                raise ValueError(f"Input is of type {type(self.input())}")
+                raise ValueError(
+                    f"Input is of type {type(self.input())}. "
+                    + "The behaviour of a merger Task with a dict input is not well defined. "
+                )
             args = self.cmd + [self.get_output_file_name(key)] + file_list
             subprocess.check_call(args)
 
