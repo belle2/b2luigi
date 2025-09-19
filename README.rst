@@ -10,9 +10,9 @@ b2luigi - bringing batch 2 luigi
 .. image:: https://zenodo.org/badge/726161674.svg
    :target: https://zenodo.org/doi/10.5281/zenodo.10853220
 
-.. figure:: https://raw.githubusercontent.com/belle2/b2luigi/main/docs/b2luigi.png
+.. figure:: https://raw.githubusercontent.com/belle2/b2luigi/main/docs/b2luigi_200px.png
    :alt: b2luigi logo
-   :height: 100px
+   :height: 200px
 
 ``b2luigi`` is a helper package constructed around ``luigi`` that helps you schedule working packages (so-called
 tasks) locally or on a batch system.
