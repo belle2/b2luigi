@@ -2,15 +2,15 @@ b2luigi - bringing batch 2 luigi
 ================================
 
 .. image:: https://img.shields.io/badge/sphinx-latest-009682
-           :target: https://b2luigi.belle2.org//
+   :target: https://b2luigi.belle2.org/
 .. image:: https://img.shields.io/github/license/belle2/b2luigi
-           :target: https://github.com/belle2/b2luigi/blob/main/LICENSE
+   :target: https://github.com/belle2/b2luigi/blob/main/LICENSE
 .. image:: https://img.shields.io/pypi/v/b2luigi?logo=pypi
-           :target: https://pypi.python.org/pypi/b2luigi/
+   :target: https://pypi.python.org/pypi/b2luigi/
 .. image:: https://zenodo.org/badge/726161674.svg
-	   :target: https://zenodo.org/doi/10.5281/zenodo.10853220
+	:target: https://zenodo.org/doi/10.5281/zenodo.10853220
 
-.. image:: https://raw.githubusercontent.com/belle2/b2luigi/main/docs/b2luigi.png
+.. figure:: https://raw.githubusercontent.com/belle2/b2luigi/main/docs/b2luigi.png
    :alt: b2luigi logo
    :height: 100px
 
