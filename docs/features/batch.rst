@@ -29,7 +29,7 @@ If you are doing a local calculation, all calculated tasks will use the same env
 as you have currently set up when calling your script(s).
 This makes it predictable and simple.
 
-Things get a bit more complicated when using a batch farm, as the workers might not have the same environment set up, the batch
+Things get a bit more complicated when using a batch farm, as the workers might not have the same environment set up. The batch
 submission does not copy the environment (or the local site administrators have forbidden that) or the system on the workers
 is so different that copying the environment from the scheduling machine does not make sense.
 
@@ -49,7 +49,7 @@ Therefore ``b2luigi`` provides you with three mechanism to set the environment f
     export MY_IMPORTANT_SETTING 10
 
 * You can set the ``env`` setting to a dictionary, which contains additional variables to be set up before your job runs.
-  Using the mechanism described in :meth:`b2luigi.get_setting` it is possible to make this task- or even parameter-dependent.
+  By using the mechanism described in :meth:`b2luigi.get_setting`, it is possible to make this task- or even parameter-dependent.
 
 * By default, ``b2luigi`` re-uses the same ``python`` executable on the workers as you used to schedule the tasks (by calling your script).
   In some cases, this specific python executable is not present on the worker or is not usable (e.g. because of different operation systems

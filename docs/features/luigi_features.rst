@@ -6,7 +6,7 @@
 ``luigi`` already has many nice and helpful features.
 All of them can be used with ``b2luigi`` as well.
 In the following is a collection of the most important features.
-Please note, that the following list is not exhaustive and check the `luigi documentation <https://luigi.readthedocs.io/en/stable/index.html>`_ for more information.
+Please note, that the following list is not exhaustive; check the `luigi documentation <https://luigi.readthedocs.io/en/stable/index.html>`_ for more information.
 
 The Central Scheduler
 ---------------------
@@ -27,8 +27,8 @@ Logging
 Even more settings
 ------------------
 Many aspects of ``luigi``'s scheduling mechanism can be controlled via the `luigi configuration <https://luigi.readthedocs.io/en/stable/configuration.html>`_.
-Please be aware, that these settings is are a separate configuration from the settings in ``b2luigi``.
-Yes, this is very confusing, but historically grown. In one point in the future, this might get changed.
+Please be aware that these settings are a separate configuration from the settings in ``b2luigi``.
+Yes, this is very confusing, but historically grown. At some point in the future, this might change.
 
 Resource Management
 -------------------

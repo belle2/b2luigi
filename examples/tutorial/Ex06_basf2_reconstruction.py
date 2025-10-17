@@ -24,7 +24,7 @@ from Ex05_basf2_simulation import SimulationTask
 
 
 # %%
-# Here me make use of the ``requires`` decorator to require the ``SimulationTask``.
+# Here, I make use of the ``requires`` decorator to require the ``SimulationTask``.
 # This functionality is very useful when the dependencies of tasks are very
 # easily defined. The task with the ``requires`` decorator will automatically
 # create the ``requires`` method that returns the required task. Additionally,

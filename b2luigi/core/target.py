@@ -1,9 +1,9 @@
 from contextlib import contextmanager
 import os
 import random
-from typing import Generator, Optional
 import luigi
 import tempfile
+from typing import Generator, Optional
 
 from b2luigi.core.settings import get_setting
 
@@ -18,7 +18,7 @@ class FileSystemTarget(luigi.target.FileSystemTarget):
         scratch_dir (str): Directory path where temporary files will be created
 
     Args:
-        _scratch_dir (str): Directory path where temporary files will be created
+        _scratch_dir (str): Directory path where temporary files will be created.
         *args: Additional positional arguments passed to :obj:`LocalTarget`
         **kwargs: Additional keyword arguments passed to :obj:`LocalTarget`
     """
@@ -48,8 +48,8 @@ class FileSystemTarget(luigi.target.FileSystemTarget):
         num = random.randrange(0, 10_000_000_000)
         filename_parts = os.path.basename(self.path).split(".")
         prefix = filename_parts[0]
-        extension = "".join(filename_parts[1:]) if len(filename_parts) > 1 else ""
-        _temp_path = f"{prefix}-luigi-tmp-{num:010}.{extension}{self._trailing_slash()}"
+        extension = "." + ".".join(filename_parts[1:]) if len(filename_parts) > 1 else ""
+        _temp_path = f"{prefix}-luigi-tmp-{num:010}{extension}{self._trailing_slash()}"
         return _temp_path
 
     @contextmanager
@@ -77,7 +77,7 @@ class FileSystemTarget(luigi.target.FileSystemTarget):
                     process_file(tmp_input)
         """
         with tempfile.TemporaryDirectory(
-            dir=get_setting("scratch_dir", task=task, default="/tmp"), **tmp_file_kwargs
+            dir=get_setting("scratch_dir", task=task, default=tempfile.gettempdir()), **tmp_file_kwargs
         ) as tmp_path:
             tmp_path = os.path.join(tmp_path, self.tmp_name)
             self.fs.copy(self.path, tmp_path)
@@ -113,7 +113,7 @@ class FileSystemTarget(luigi.target.FileSystemTarget):
         """
         # Use a temporary directory
         with tempfile.TemporaryDirectory(
-            dir=get_setting("scratch_dir", task=task, default="/tmp"), **tmp_file_kwargs
+            dir=get_setting("scratch_dir", task=task, default=tempfile.gettempdir()), **tmp_file_kwargs
         ) as tmp_dir:
             tmp_path = os.path.join(tmp_dir, self.tmp_name)
             os.makedirs(os.path.dirname(tmp_path), exist_ok=True)

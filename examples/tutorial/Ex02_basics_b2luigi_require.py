@@ -10,8 +10,8 @@ Building a Dependency Graph with ``b2luigi``
 
 The ``requires`` method is used to define dependencies between different tasks.
 The method should return iterable instances of the required tasks.
-This task will be scheduled to run after the output of the required taskis completed.
-The output is considered completed if the output files is present.
+This task will be scheduled to run after the output of the required task is completed.
+The output is considered completed if the output files are present.
 
 .. warning::
     There is no check of the content of the output files!
