@@ -17,7 +17,9 @@ class BatchJobStatusCache(abc.ABC, TTLCache):
     """
 
     def __init__(self):
-        super().__init__(maxsize=100000, ttl=60)
+        super().__init__(maxsize=100000, ttl=20)
+        # List to store all the job_ids that are currently handled by running tasks
+        self._job_ids = []
 
     @abc.abstractmethod
     def _ask_for_job_status(self, job_id=None):
@@ -31,6 +33,12 @@ class BatchJobStatusCache(abc.ABC, TTLCache):
             job_id (str, optional): The unique identifier of the job. Defaults to ``None``.
         """
         pass
+
+    def add_job_ids(self, job_ids):
+        self._job_ids.append(job_ids)
+
+    def remove_job_ids(self, job_ids):
+        self._job_ids.remove(job_ids)
 
     def __missing__(self, job_id):
         """

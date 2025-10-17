@@ -3,6 +3,9 @@ import os
 import re
 import subprocess
 import enum
+import time
+from itertools import chain
+
 import luigi
 
 from retry import retry
@@ -55,20 +58,48 @@ class HTCondorJobStatusCache(BatchJobStatusCache):
         seen_ids = self._fill_from_output(output)
 
         # If the specified job can not be found in the condor_q output, we need to request its history
+
         if job_id and job_id not in seen_ids:
             # https://htcondor.readthedocs.io/en/latest/man-pages/condor_history.html
             history_cmd = [
                 "condor_history",
                 "-json",
                 "-attributes",
-                "ClusterId,JobStatus,ExitCode",
+                "ClusterId,JobStatus,ExitStatus",
                 "-match",
                 "1",
                 str(job_id),
             ]
-            output = subprocess.check_output(history_cmd)
 
-            self._fill_from_output(output)
+            # as there can be a delay between jobs being available in condor_q and condor_history try multiple times
+            while True:
+                output = subprocess.check_output(history_cmd)
+                seen_ids = self._fill_from_output(output)
+
+                if len(seen_ids) > 0:
+                    break
+                print(f"Could not find status of job {job_id}! Trying again.")
+                time.sleep(2)
+        else:
+            # run condor_history for all jobs that are currently in the task flow, which is way faster then calling condor_history for each of them individually
+            # only run this for the jobs that are not already in the cache
+            history_ids = [
+                str(job_id)
+                for job_id in chain.from_iterable(self._job_ids)
+                if job_id not in seen_ids and job_id not in self
+            ]
+            if len(history_ids) > 0:
+                history_cmd = [
+                    "condor_history",
+                    "-json",
+                    "-attributes",
+                    "ClusterId,JobStatus,ExitStatus",
+                    "-match",
+                    str(len(history_ids)),
+                ]
+                history_cmd.extend(history_ids)
+                output = subprocess.check_output(history_cmd)
+                self._fill_from_output(output)
 
     def _fill_from_output(self, output):
         """
@@ -88,7 +119,7 @@ class HTCondorJobStatusCache(BatchJobStatusCache):
             return seen_ids
 
         for status_dict in json.loads(output):
-            if status_dict["JobStatus"] == HTCondorJobStatus.completed and status_dict["ExitCode"]:
+            if status_dict["JobStatus"] == HTCondorJobStatus.completed and status_dict["ExitStatus"]:
                 self[status_dict["ClusterId"]] = HTCondorJobStatus.failed
             else:
                 self[status_dict["ClusterId"]] = status_dict["JobStatus"]
@@ -217,6 +248,7 @@ class HTCondorProcess(BatchProcess):
         elif any([s == JobStatus.aborted for s in job_status_list]):
             return JobStatus.aborted
         else:
+            _batch_job_status_cache.remove_job_ids(job_ids=self._batch_job_ids)
             return JobStatus.successful
 
     def start_job(self):
@@ -247,6 +279,7 @@ class HTCondorProcess(BatchProcess):
             raise RuntimeError("Batch submission failed with output " + output)
 
         self._batch_job_ids.extend(int(m[:-1]) for m in match)
+        _batch_job_status_cache.add_job_ids(self._batch_job_ids)
 
     def terminate_job(self):
         """
