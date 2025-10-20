@@ -48,7 +48,7 @@ class HTCondorJobStatusCache(BatchJobStatusCache):
         Both commands are used in order to find out the :meth:`JobStatus <b2luigi.process.JobStatus>`.
         """
         # https://htcondor.readthedocs.io/en/latest/man-pages/condor_q.html
-        q_cmd = ["condor_q", "-json", "-attributes", "ClusterId,JobStatus,ExitStatus"]
+        q_cmd = ["condor_q", "-json", "-attributes", "ClusterId,JobStatus,ExitStatus,ExitCode"]
 
         if job_id:
             output = subprocess.check_output(q_cmd + [str(job_id)])
