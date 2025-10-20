@@ -65,7 +65,7 @@ class HTCondorJobStatusCache(BatchJobStatusCache):
                 "condor_history",
                 "-json",
                 "-attributes",
-                "ClusterId,JobStatus,ExitStatus",
+                "ClusterId,JobStatus,ExitCode",
                 "-match",
                 "1",
                 str(job_id),
@@ -93,7 +93,7 @@ class HTCondorJobStatusCache(BatchJobStatusCache):
                     "condor_history",
                     "-json",
                     "-attributes",
-                    "ClusterId,JobStatus,ExitStatus",
+                    "ClusterId,JobStatus,ExitCode",
                     "-match",
                     str(len(history_ids)),
                 ]
@@ -119,7 +119,11 @@ class HTCondorJobStatusCache(BatchJobStatusCache):
             return seen_ids
 
         for status_dict in json.loads(output):
-            if status_dict["JobStatus"] == HTCondorJobStatus.completed and status_dict["ExitStatus"]:
+            # this can only happen if the status information comes from condor_q which does not provide an ExitCode
+            if "ExitCode" not in status_dict.keys():
+                status_dict["ExitCode"] = status_dict["ExitStatus"]
+
+            if status_dict["JobStatus"] == HTCondorJobStatus.completed and status_dict["ExitCode"]:
                 self[status_dict["ClusterId"]] = HTCondorJobStatus.failed
             else:
                 self[status_dict["ClusterId"]] = status_dict["JobStatus"]
