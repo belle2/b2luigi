@@ -17,7 +17,7 @@ class BatchJobStatusCache(abc.ABC, TTLCache):
     """
 
     def __init__(self):
-        super().__init__(maxsize=100000, ttl=20)
+        super().__init__(maxsize=100000, ttl=120)
         # List to store all the job_ids that are currently handled by running tasks
         self._job_ids = []
 
