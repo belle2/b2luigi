@@ -121,7 +121,10 @@ class HTCondorJobStatusCache(BatchJobStatusCache):
         for status_dict in json.loads(output):
             # this can only happen if the status information comes from condor_q which does not provide an ExitCode
             if "ExitCode" not in status_dict.keys():
-                status_dict["ExitCode"] = status_dict["ExitStatus"]
+                if "ExitStatus" in status_dict.keys():
+                    status_dict["ExitCode"] = status_dict["ExitStatus"]
+                else:
+                    status_dict["ExitCode"] = 1
 
             if status_dict["JobStatus"] == HTCondorJobStatus.completed and status_dict["ExitCode"]:
                 self[status_dict["ClusterId"]] = (HTCondorJobStatus.failed, status_dict["UserLog"])
