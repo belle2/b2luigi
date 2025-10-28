@@ -48,7 +48,7 @@ class HTCondorJobStatusCache(BatchJobStatusCache):
         Both commands are used in order to find out the :meth:`JobStatus <b2luigi.process.JobStatus>`.
         """
         # https://htcondor.readthedocs.io/en/latest/man-pages/condor_q.html
-        q_cmd = ["condor_q", "-json", "-attributes", "ClusterId,JobStatus,ExitStatus,ExitCode"]
+        q_cmd = ["condor_q", "-json", "-attributes", "ClusterId,JobStatus,ExitStatus,ExitCode,UserLog"]
 
         if job_id:
             output = subprocess.check_output(q_cmd + [str(job_id)])
@@ -65,7 +65,7 @@ class HTCondorJobStatusCache(BatchJobStatusCache):
                 "condor_history",
                 "-json",
                 "-attributes",
-                "ClusterId,JobStatus,ExitCode",
+                "ClusterId,JobStatus,ExitCode,UserLog",
                 "-match",
                 "1",
                 str(job_id),
@@ -93,7 +93,7 @@ class HTCondorJobStatusCache(BatchJobStatusCache):
                     "condor_history",
                     "-json",
                     "-attributes",
-                    "ClusterId,JobStatus,ExitCode",
+                    "ClusterId,JobStatus,ExitCode,UserLog",
                     "-match",
                     str(len(history_ids)),
                 ]
@@ -124,9 +124,9 @@ class HTCondorJobStatusCache(BatchJobStatusCache):
                 status_dict["ExitCode"] = status_dict["ExitStatus"]
 
             if status_dict["JobStatus"] == HTCondorJobStatus.completed and status_dict["ExitCode"]:
-                self[status_dict["ClusterId"]] = HTCondorJobStatus.failed
+                self[status_dict["ClusterId"]] = (HTCondorJobStatus.failed, status_dict["UserLog"])
             else:
-                self[status_dict["ClusterId"]] = status_dict["JobStatus"]
+                self[status_dict["ClusterId"]] = (status_dict["JobStatus"], status_dict["UserLog"])
 
             seen_ids.add(status_dict["ClusterId"])
 
@@ -228,7 +228,7 @@ class HTCondorProcess(BatchProcess):
             return JobStatus.aborted
 
         try:
-            job_status = _batch_job_status_cache[job_id]
+            job_status, _ = _batch_job_status_cache[job_id]
         except KeyError:
             return JobStatus.aborted
 
@@ -246,10 +246,23 @@ class HTCondorProcess(BatchProcess):
         raise ValueError(f"Unknown HTCondor Job status: {job_status}")
 
     def get_job_status(self):
+        print(f"Checking job status for task {self.task.task_id}")
         job_status_list = [self.get_job_status_for_id(job_id=job_id) for job_id in self._batch_job_ids]
         if any([s == JobStatus.running for s in job_status_list]):
             return JobStatus.running
         elif any([s == JobStatus.aborted for s in job_status_list]):
+            aborted_job_ids = [
+                job_id for job_id, status in zip(self._batch_job_ids, job_status_list) if status == JobStatus.aborted
+            ]
+            aborted_log_files = [(job_id, _batch_job_status_cache[job_id][1]) for job_id in aborted_job_ids]
+
+            log_file_dir = get_log_file_dir(task=self.task)
+            os.makedirs(log_file_dir, exist_ok=True)
+            with open(os.path.join(log_file_dir, "failed_jobs.log"), "w") as f:
+                for job_id, log_file in aborted_log_files:
+                    f.write(f"{job_id}: {log_file}\n")
+
+            _batch_job_status_cache.remove_job_ids(job_ids=self._batch_job_ids)
             return JobStatus.aborted
         else:
             _batch_job_status_cache.remove_job_ids(job_ids=self._batch_job_ids)

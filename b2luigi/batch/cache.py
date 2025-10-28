@@ -59,13 +59,16 @@ class BatchJobStatusCache(abc.ABC, TTLCache):
             KeyError: If the ``job_id`` cannot be found after querying.
         """
         # First, ask for all jobs
+        print(f"Calling missing for job_id {job_id}")
         self._ask_for_job_status(job_id=None)
         if job_id in self:
+            print("Found job_id in all")
             return self[job_id]
 
         # Then, ask specifically for this job
         self._ask_for_job_status(job_id=job_id)
         if job_id in self:
+            print("Found job_id in specific")
             return self[job_id]
 
         raise KeyError
