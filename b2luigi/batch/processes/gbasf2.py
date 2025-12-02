@@ -16,16 +16,15 @@ from getpass import getpass
 from glob import glob
 from itertools import groupby
 from typing import Iterable, List, Optional, Set, Tuple
-
+from jinja2 import Template
+from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_exponential
 
 from b2luigi.basf2_helper.utils import get_basf2_git_hash
 from b2luigi.batch.processes import BatchProcess, JobStatus
 from b2luigi.core.settings import get_setting
 from b2luigi.core.utils import flatten_to_dict, get_log_file_dir, get_task_file_dir
 from b2luigi.batch.processes.gbasf2_utils.gbasf2_download_utils import search_pattern_in_folder
-from jinja2 import Template
 from luigi.target import Target
-from reretry import retry
 
 
 class Gbasf2Process(BatchProcess):
@@ -1287,10 +1286,9 @@ def check_dataset_exists_on_grid(
 
 
 @retry(
-    (json.decoder.JSONDecodeError, subprocess.CalledProcessError),
-    tries=4,
-    delay=2,
-    backoff=3,  # retry after 2,6,18,108 s
+    retry=retry_if_exception_type((json.JSONDecodeError, subprocess.CalledProcessError)),
+    stop=stop_after_attempt(4),
+    wait=wait_exponential(multiplier=2, min=2, exp_base=3)  # 2, 6, 18, 108 seconds
 )
 def get_gbasf2_project_job_status_dict(
     gbasf2_project_name,

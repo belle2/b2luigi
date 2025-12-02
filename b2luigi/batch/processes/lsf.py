@@ -2,7 +2,7 @@ import json
 import re
 import subprocess
 import os
-from reretry import retry
+from tenacity import retry, stop_after_attempt, wait_exponential
 
 from b2luigi.batch.processes import BatchProcess, JobStatus
 from b2luigi.batch.cache import BatchJobStatusCache
@@ -12,7 +12,11 @@ from b2luigi.core.settings import get_setting
 
 
 class LSFJobStatusCache(BatchJobStatusCache):
-    @retry(subprocess.CalledProcessError, tries=3, delay=2, backoff=3)  # retry after 2,6,18 seconds
+    @retry(
+        retry=retry_if_exception_type(subprocess.CalledProcessError),
+        stop=stop_after_attempt(3),
+        wait=wait_exponential(multiplier=2, min=2, exp_base=3)  # 2, 6, 18 seconds
+    )
     def _ask_for_job_status(self, job_id=None):
         """
         Queries the job status from the LSF batch system and updates the internal job status mapping.

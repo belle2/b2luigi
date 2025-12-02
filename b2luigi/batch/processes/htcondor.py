@@ -3,8 +3,7 @@ import os
 import re
 import subprocess
 import enum
-
-from reretry import retry
+from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_exponential
 
 from b2luigi.core.settings import get_setting
 from b2luigi.batch.processes import BatchProcess, JobStatus
@@ -14,7 +13,11 @@ from b2luigi.core.executable import create_executable_wrapper
 
 
 class HTCondorJobStatusCache(BatchJobStatusCache):
-    @retry(subprocess.CalledProcessError, tries=3, delay=2, backoff=3)  # retry after 2,6,18 seconds
+    @retry(
+        retry=retry_if_exception_type(subprocess.CalledProcessError),
+        stop=stop_after_attempt(3),
+        wait=wait_exponential(multiplier=2, min=2, exp_base=3)  # 2, 6, 18 seconds
+    )
     def _ask_for_job_status(self, job_id: int = None):
         """
         With HTCondor, you can check the progress of your jobs using the ``condor_q`` command.
