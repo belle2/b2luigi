@@ -25,7 +25,7 @@ from b2luigi.core.utils import flatten_to_dict, get_log_file_dir, get_task_file_
 from b2luigi.batch.processes.gbasf2_utils.gbasf2_download_utils import search_pattern_in_folder
 from jinja2 import Template
 from luigi.target import Target
-from retry import retry
+from reretry import retry
 
 
 class Gbasf2Process(BatchProcess):

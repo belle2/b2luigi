@@ -2,7 +2,7 @@ import json
 import re
 import subprocess
 import os
-from retry import retry
+from reretry import retry
 
 from b2luigi.batch.processes import BatchProcess, JobStatus
 from b2luigi.batch.cache import BatchJobStatusCache
