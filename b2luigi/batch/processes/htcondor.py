@@ -13,12 +13,11 @@ from b2luigi.core.executable import create_executable_wrapper
 
 
 class HTCondorJobStatusCache(BatchJobStatusCache):
-
     @retry(
         retry=retry_if_exception_type(subprocess.CalledProcessError),
         stop=stop_after_attempt(3),
         wait=wait_exponential(multiplier=2, min=2, exp_base=3),  # 2, 6, 18 seconds
-        reraise=True
+        reraise=True,
     )
     def _ask_for_job_status(self, job_id: int = None):
         """

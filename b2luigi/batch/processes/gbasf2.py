@@ -1289,7 +1289,7 @@ def check_dataset_exists_on_grid(
     retry=retry_if_exception_type((json.JSONDecodeError, subprocess.CalledProcessError)),
     stop=stop_after_attempt(4),
     wait=wait_exponential(multiplier=2, min=2, exp_base=3),  # 2, 6, 18, 108 seconds
-    reraise=True
+    reraise=True,
 )
 def get_gbasf2_project_job_status_dict(
     gbasf2_project_name,
