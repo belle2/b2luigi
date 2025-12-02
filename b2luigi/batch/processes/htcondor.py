@@ -4,7 +4,7 @@ import re
 import subprocess
 import enum
 
-from retry import retry
+from reretry import retry
 
 from b2luigi.core.settings import get_setting
 from b2luigi.batch.processes import BatchProcess, JobStatus

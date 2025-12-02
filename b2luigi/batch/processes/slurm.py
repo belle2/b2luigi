@@ -1,4 +1,4 @@
-from retry import retry
+from reretry import retry
 import subprocess
 import pathlib
 import re
