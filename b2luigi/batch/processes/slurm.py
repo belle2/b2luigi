@@ -18,7 +18,7 @@ class SlurmJobStatusCache(BatchJobStatusCache):
 
     @retry(
         retry=retry_if_exception_type(subprocess.CalledProcessError),
-        stop=stop_after_attempt(3),
+        stop=stop_after_attempt(4),
         wait=wait_exponential(multiplier=2, min=2, exp_base=3),  # 2, 6, 18 seconds
         reraise=True,
     )
