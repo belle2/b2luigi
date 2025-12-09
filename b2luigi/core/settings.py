@@ -184,10 +184,13 @@ def _get_setting_implementation(key: str, task: Optional[object] = None) -> Any:
     """
     # First check if the task has an attribute with this name
     if task:
-        try:
+        if key in type(task).__dict__.keys() or key in task.__dict__.keys():
             return getattr(task, key)
-        except AttributeError:
-            pass
+        else:
+            # If the task does not have the key, we can check the class hierarchy
+            for cls in type(task).__mro__:
+                if key in cls.__dict__.keys():
+                    return getattr(task, key)
 
     # Then check if the setting was set explicitly
     try:
