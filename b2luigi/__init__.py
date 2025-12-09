@@ -1,11 +1,26 @@
 """b2luigi - bringing batch 2 luigi"""
 
+import sys
+import warnings
+
 from luigi import *
 from luigi.util import copies
 
 # version must be defined after importing the luigi namespace,
 # otherwise the b2luigi.__version__ gets overwritten by the one from luigi
 __version__ = "1.2.5"
+
+# Warn users if they're using an untested Python version
+if sys.version_info[:2] > (3, 11):
+    warnings.warn(
+        f"You are using Python {sys.version_info.major}.{sys.version_info.minor}. "
+        f"b2luigi is only tested with Python 3.8-3.12. "
+        f"While the package should work, you may encounter unexpected issues. "
+        f"Please report any problems at https://gitlab.desy.de/belle2/software/b2luigi "
+        "or https://github.com/belle2/b2luigi/issues",
+        UserWarning,
+        stacklevel=2,
+    )
 
 from b2luigi.core.parameter import wrap_parameter, BoolParameter
 from typing import Optional, Union, Collection
