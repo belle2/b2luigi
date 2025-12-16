@@ -29,16 +29,18 @@ class TemporaryFileContextManagerTestCase(B2LuigiTestCase):
             def output(self):
                 yield self.add_to_output("input.txt")
 
+            @b2luigi.on_temporary_files
             def run(self):
-                with open(self.get_output_file_name("input.txt"), "w") as f:
+                output_file = self.get_output_file_name("input.txt")
+                with open(output_file, "w") as f:
                     f.write("Test")
 
         task_a = TaskA()
         task_a.run()
 
+        @b2luigi.requires(TaskA)
         class TaskB(b2luigi.Task):
-            def requires(self):
-                return TaskA()
+            pass
 
         task_b = TaskB()
 
@@ -53,6 +55,12 @@ class TemporaryFileContextManagerTestCase(B2LuigiTestCase):
         class TaskA(b2luigi.Task):
             def output(self):
                 yield self.add_to_output("input.txt")
+
+            @b2luigi.on_temporary_files
+            def run(self):
+                output_file = self.get_output_file_name("input.txt")
+                with open(output_file, "w") as f:
+                    f.write("Test")
 
         task_a = TaskA()
         task_a.run()
