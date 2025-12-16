@@ -85,3 +85,23 @@ class TaskTestCase(B2LuigiTestCase):
     def test_b2luigi_settings_json(self):
         with patch.dict("os.environ", {"B2LUIGI_SETTINGS_JSON": "settings.json"}):
             self.assertEqual("settings.json", next(b2luigi._setting_file_iterator()))
+
+    def test_task_property_with_attribute_error(self):
+        """Test that AttributeError in task property is raised.
+
+        This test covers the case where a task property causes an AttributeError
+        (e.g., accessing a non-existent attribute). The get_setting function should
+        raise the AttributeError instead of catching it.
+        """
+
+        class MyTask(b2luigi.Task):
+            param = b2luigi.Parameter()
+
+            @property
+            def foo(self):
+                # This will raise AttributeError when accessed
+                return self.xparam
+
+        task = MyTask(param="test_value")
+
+        self.assertRaises(AttributeError, b2luigi.get_setting, "foo", task=task)
