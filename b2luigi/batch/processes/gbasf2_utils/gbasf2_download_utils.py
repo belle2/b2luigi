@@ -13,15 +13,9 @@ def search_pattern_in_folder(path: str, pattern: str):
       str
     """
     if not os.path.isdir(path):
-        raise RuntimeError(f"Search root '{path}' does not exist or is not a directory.")
-
-    sample_entries = []
-    dir_count = 0
-    file_count = 0
+        raise FileNotFoundError(f"Search root '{path}' does not exist or is not a directory.")
 
     for root, dirs, files in os.walk(path):
-        dir_count += len(dirs)
-        file_count += len(files)
 
         for dir_name in dirs:
             if fnmatch.fnmatch(dir_name, pattern):
@@ -29,17 +23,6 @@ def search_pattern_in_folder(path: str, pattern: str):
         for file_name in files:
             if fnmatch.fnmatch(file_name, pattern):
                 return root
-
-        if len(sample_entries) < 5:
-            candidates = [os.path.join(root, name) for name in sorted(dirs + files)]
-            for candidate in candidates:
-                if len(sample_entries) >= 5:
-                    break
-                sample_entries.append(candidate)
-
-    example_entries = ", ".join(sample_entries) if sample_entries else "no entries found"
-    raise RuntimeError(
+    raise FileNotFoundError(
         f"Pattern '{pattern}' not found anywhere under '{path}'. "
-        f"Visited {dir_count} directories and {file_count} files. "
-        f"Examples encountered: {example_entries}."
     )
