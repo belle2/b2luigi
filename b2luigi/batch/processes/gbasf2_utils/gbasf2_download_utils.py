@@ -16,13 +16,10 @@ def search_pattern_in_folder(path: str, pattern: str):
         raise FileNotFoundError(f"Search root '{path}' does not exist or is not a directory.")
 
     for root, dirs, files in os.walk(path):
-
         for dir_name in dirs:
             if fnmatch.fnmatch(dir_name, pattern):
                 return root
         for file_name in files:
             if fnmatch.fnmatch(file_name, pattern):
                 return root
-    raise FileNotFoundError(
-        f"Pattern '{pattern}' not found anywhere under '{path}'. "
-    )
+    raise FileNotFoundError(f"Pattern '{pattern}' not found anywhere under '{path}'. ")
