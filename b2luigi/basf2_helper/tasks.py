@@ -7,7 +7,11 @@ from b2luigi.basf2_helper.targets import ROOTLocalTarget
 import subprocess
 
 from b2luigi.basf2_helper.utils import get_basf2_git_hash
-from b2luigi.core.utils import create_output_dirs, get_serialized_parameters
+from b2luigi.core.utils import (
+    create_output_dirs,
+    get_serialized_parameters,
+    flatten_to_dict_of_lists,
+)
 
 
 class Basf2Task(b2luigi.DispatchableTask):
@@ -152,6 +156,17 @@ class MergerTask(Basf2Task):
     """
 
     cmd = []
+    keys = []
+
+    @property
+    def input_keys(self):
+        all_input_keys = flatten_to_dict_of_lists(self.input()).keys()
+        for key in all_input_keys:
+            # Filter out keys not in self.keys
+            if hasattr(self, "keys") and key not in self.keys:
+                continue
+
+            yield key
 
     def output(self):
         """
@@ -166,7 +181,7 @@ class MergerTask(Basf2Task):
             - If the task has a ``keys`` attribute, only keys present in ``self.keys``
               are processed.
         """
-        for key, _ in self.get_input_file_names().items():
+        for key in self.input_keys:
             if hasattr(self, "keys") and key not in self.keys:
                 continue
 
@@ -179,16 +194,20 @@ class MergerTask(Basf2Task):
 
         1. Creates necessary output directories using :meth:`create_output_dirs <b2luigi.core.utils.create_output_dirs>`.
         2. Iterates over the input file names grouped by keys.
-        3. Skips processing for keys not specified in ``self.keys`` (if ``self.keys`` exists).
+        3. Processing for only the keys specified in ``self.keys``.
         4. Constructs a command by appending the output file name and input file list to ``self.cmd``.
         5. Executes the constructed command using ``subprocess.check_call``.
         """
         create_output_dirs(self)
 
-        for key, file_list in self.get_input_file_names().items():
-            if hasattr(self, "keys") and key not in self.keys:
-                continue
-
+        for key in self.input_keys:
+            if not isinstance(self.input(), dict):
+                file_list = self.get_input_file_names(key)
+            else:
+                raise ValueError(
+                    f"Input is of type {type(self.input())}. "
+                    + "The behaviour of a merger Task with a dict input is not well defined. "
+                )
             args = self.cmd + [self.get_output_file_name(key)] + file_list
             subprocess.check_call(args)
 
