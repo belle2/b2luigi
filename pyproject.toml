@@ -28,7 +28,8 @@ requires = [
 	 "cachetools>=2.1.0",
 	 "jinja2",
      "setuptools",
-	 "retry2>=0.9.3"]
+	 "retry2>=0.9.3"
+]
 requires-python = ">=3.8"
 description-file = "README.rst"
 
