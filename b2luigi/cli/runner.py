@@ -6,7 +6,7 @@ import luigi.configuration
 
 from b2luigi.batch.workers import SendJobWorkerSchedulerFactory
 from b2luigi.core.settings import set_setting
-from b2luigi.core.utils import find_dependents, task_iterator, get_all_output_files_in_tree
+from b2luigi.core.utils import task_iterator, get_all_output_files_in_tree
 from b2luigi.core.utils import create_output_dirs
 
 
@@ -216,73 +216,93 @@ def dry_run(task_list):
     exit(0)
 
 
-def remove_outputs(task_list, target_tasks, only=False, auto_confirm=False, keep=None):
+def remove_outputs(task_list, target_tasks, only=False, auto_confirm=False, keep_tasks=None):
     """
     Removes the outputs of specified tasks and their dependent tasks.
 
     Args:
-        task_list (list): A list of tasks to iterate over.
-        target_tasks (list): A list of target task class names whose outputs should be removed.
-        only (bool, optional): If ``True``, removes only the outputs of the specified target tasks.
-                               If ``False``, removes the outputs of the target tasks and all their dependent tasks.
-                               Defaults to ``False``.
-        auto_confirm (bool, optional): If ``True``, skips the confirmation prompt and proceeds with removal.
-                                        Defaults to ``False``.
-
-    Notes:
-        - The :obj:`find_dependents` function is used to identify dependent tasks for a given target task.
-          In large task graphs, this can be time-consuming.
+        task_list (list): A list of root tasks to traverse.
+        target_tasks (list): Task class names whose outputs should be removed.
+        only (bool, optional): If True, remove only the specified tasks' outputs.
+                               If False, also remove outputs of dependents.
+        auto_confirm (bool, optional): If True, skip confirmation prompt.
+        keep_tasks (list, optional): List of task class names to KEEP outputs for.
     """
+
+    # ---------- Build dynamic graph ----------
+    all_tasks = set()
+    task_by_class = collections.defaultdict(set)
+    child_to_parents = collections.defaultdict(set)
+
+    def visit(task):
+        if task in all_tasks:
+            return
+        all_tasks.add(task)
+        task_by_class[task.__class__.__name__].add(task)
+
+        try:
+            children = luigi.task.flatten(task.requires())
+        except Exception as e:
+            print(f"Failed to get requires() for {task}: {e}")
+            children = []
+
+        for child in children:
+            child_to_parents[child].add(task)
+            visit(child)
+
+    for root in task_list:
+        visit(root)
+
+    # ---------- Determine tasks to remove ----------
     to_be_removed_tasks = collections.defaultdict(set)
-    unseen_tasks = set()
     matched_target_tasks = set()
 
-    # Remove the output of this task and all its dependent tasks
-    if not only:
-        for root_task in task_list:
-            for target_task in target_tasks:
-                dependent_tasks = find_dependents(task_iterator(root_task), target_task)
-                if dependent_tasks:
-                    matched_target_tasks.add(target_task)
-                for task in dependent_tasks:
-                    to_be_removed_tasks[task.__class__.__name__].add(task)
-
-    # Remove only the output of the tasks that are given in the list
+    if only:
+        for target_class in target_tasks:
+            matched = task_by_class.get(target_class, set())
+            if matched:
+                matched_target_tasks.add(target_class)
+                to_be_removed_tasks[target_class].update(matched)
     else:
-        for root_task in task_list:
-            for task in task_iterator(root_task):
-                if task.__class__.__name__ in target_tasks:
-                    matched_target_tasks.add(task.__class__.__name__)
-                    to_be_removed_tasks[task.__class__.__name__].add(task)
+        for target_class in target_tasks:
+            matched = task_by_class.get(target_class, set())
+            if matched:
+                matched_target_tasks.add(target_class)
+                for task in matched:
+                    dependents = collect_all_dependents(task, child_to_parents)
+                    for dep in dependents:
+                        to_be_removed_tasks[dep.__class__.__name__].add(dep)
 
-    # Grep tasks that are in target but not found in the DAQ
+    # ---------- Apply keep filter ----------
+    if keep_tasks:
+        keep_tasks = set(keep_tasks)
+        for keep_class in keep_tasks:
+            if keep_class in to_be_removed_tasks:
+                print(f"Keeping {keep_class} outputs.")
+                del to_be_removed_tasks[keep_class]
+        print()
+
+    # ---------- Identify unseen ----------
     unseen_tasks = set(target_tasks) - matched_target_tasks
-
-    # If the user has specified a list of tasks to keep, remove them from the list of tasks to be removed
-    if keep:
-        keep = set(keep)
-        for task_class in keep:
-            if task_class in to_be_removed_tasks:
-                print(f"Keeping {task_class} outputs.")
-                del to_be_removed_tasks[task_class]
-            print("\n")
 
     if not to_be_removed_tasks:
         print("Nothing to remove.")
         exit(0)
 
+    # ---------- Confirm ----------
     if not auto_confirm:
         if unseen_tasks:
-            print("The following tasks are not found in the task list and can't be removed:")
+            print("The following tasks were not found in the graph and can't be removed:")
             for task in sorted(unseen_tasks):
-                print(f"\t\t- {task}")
-            print("\n")
+                print(f"\t- {task}")
+            print()
 
-        print("The following outputs of these tasks are about to be removed:")
-        for task in sorted(to_be_removed_tasks):
-            print(f"\t- {task}")
+        print("The following task outputs will be removed:")
+        for task_class in sorted(to_be_removed_tasks):
+            print(f"\t- {task_class}")
+        print()
 
-        confirm = input("Are you sure you want to remove all of these tasks outputs? [y/N]: ").strip().lower()
+        confirm = input("Are you sure you want to remove these outputs? [y/N]: ").strip().lower()
     else:
         confirm = "y"
 
@@ -290,21 +310,38 @@ def remove_outputs(task_list, target_tasks, only=False, auto_confirm=False, keep
         print("No tasks were removed.")
         exit(0)
 
+    # ---------- Execute removal ----------
     removed_tasks = 0
     for task_class in sorted(to_be_removed_tasks):
-        print(task_class)
+        print(f"Class: {task_class}")
         for task in to_be_removed_tasks[task_class]:
-            print("\tRemoving output for", task)
-
-            # execute the remove_output method of the task if it is implemented
+            print(f"\tRemoving output for {task}")
             if hasattr(task, "remove_output"):
                 print("\tcall: remove_output()")
                 task.remove_output()
                 removed_tasks += 1
             else:
-                print(f"\tNo remove_output() method implemented for {task_class}. Doing nothing.")
+                print(f"\tNo remove_output() implemented for {task_class}.")
             print()
 
     if removed_tasks:
-        print("In total", removed_tasks)
+        print(f"Removed outputs for {removed_tasks} tasks.")
+    else:
+        print("No outputs were removed.")
+
     exit(0)
+
+
+def collect_all_dependents(task, child_to_parents):
+    """
+    Given a task, walk up the DAG to collect all tasks that depend on it.
+    """
+    visited = set()
+    stack = [task]
+    while stack:
+        current = stack.pop()
+        if current in visited:
+            continue
+        visited.add(current)
+        stack.extend(child_to_parents.get(current, []))
+    return visited
