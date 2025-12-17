@@ -27,9 +27,11 @@ requires = [
 	 "colorama>=0.3.9",
 	 "cachetools>=2.1.0",
 	 "jinja2",
+     "setuptools",
 	 "tenacity>=8,<9"
+
 ]
-requires-python = ">=3.8, <3.12"
+requires-python = ">=3.8"
 description-file = "README.rst"
 
 [tool.flit.metadata.requires-extra]
