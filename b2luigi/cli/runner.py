@@ -211,7 +211,7 @@ def dry_run(task_list):
 
     if non_completed_tasks:
         print("In total", non_completed_tasks)
-        exit(1)
+        exit(0)
     print("All tasks are finished!")
     exit(0)
 
