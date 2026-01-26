@@ -121,7 +121,7 @@ def process(
             task_list,
             target_tasks=cli_args.remove or remove,
             auto_confirm=auto_confirm or cli_args.yes,
-            keep_task=cli_args.keep or keep_tasks,
+            keep_tasks=cli_args.keep or keep_tasks,
         )
     elif cli_args.remove_only or remove_only:
         runner.remove_outputs(
@@ -129,7 +129,7 @@ def process(
             target_tasks=cli_args.remove_only or remove_only,
             only=True,
             auto_confirm=auto_confirm or cli_args.yes,
-            keep_task=cli_args.keep or keep_tasks,
+            keep_tasks=cli_args.keep or keep_tasks,
         )
     elif cli_args.batch or batch:
         runner.run_batched(task_list, cli_args, kwargs)
