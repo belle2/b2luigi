@@ -15,6 +15,10 @@ When the number of tasks grows, it is sometimes hard to keep track of all of the
 For this, ``luigi`` (the parent project of ``b2luigi``) brings a nice visualization and scheduling tool called `the central scheduler <https://luigi.readthedocs.io/en/stable/central_scheduler.html>`_.
 If you are submitting your jobs from a remote machine, you can forward the schedulers port to your local machine via ssh.
 
+In the ``examples/scheduler`` directory of ``b2luigi``, you can find an example script (``query_scheduler.py``) that demonstrates how to query the
+central scheduler and retrieve the status of tasks.
+This example provides a lightweight alternative for monitoring the status of your workflow without relying on the web interface.
+
 Parameters
 ----------
 ``luigi`` already has various Parameter types to pass to your tasks, like :obj:`ListParameter`, :obj:`IntParameter`, :obj:`DateParameter` and many more.
