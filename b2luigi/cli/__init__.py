@@ -6,6 +6,8 @@ from typing import Literal, Annotated
 import b2luigi
 from cyclopts import App, Parameter
 
+from b2luigi.cli.task_commandy import register_task_command
+
 app = App(name="b2luigi", help="Run user-defined b2luigi tasks")
 
 
@@ -44,14 +46,17 @@ def run_task(class_name: str, task_filename="tasks.py", parameters_file="paramet
     b2luigi.process(task_instance, ignore_additional_command_line_args=False)
 
 
-def list_all_task_classes(filename="tasks.py"):
+def list_all_task_classes(filename="tasks.py", return_classes=False) -> tuple[str, ...]:
     tasks_module = import_from_file(filename, "user_tasks")
 
     tasks = []
     for name, obj in inspect.getmembers(tasks_module):
         if inspect.isclass(obj) and issubclass(obj, b2luigi.Task):
             if obj.__module__ == "user_tasks":
-                tasks.append(name)
+                if return_classes:
+                    tasks.append(obj)
+                else:
+                    tasks.append(name)
 
     if not tasks:
         return ("NoTasksFound",)
@@ -78,6 +83,10 @@ def run(
 ):
     """Run a task class from tasks.py."""
     run_task(classname, task_filename, parameter_filename)
+
+
+for task in list_all_task_classes(return_classes=True):
+    register_task_command(task, app)
 
 
 def main():
