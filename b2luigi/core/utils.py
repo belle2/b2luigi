@@ -391,7 +391,8 @@ def get_filename():
     """
     import __main__
 
-    return os.path.abspath(__main__.__file__)
+    pathname = os.environ.get("_B2LUIGI_MAIN_PATHNAME", None)
+    return os.path.abspath(pathname if pathname is not None else __main__.__file__)
 
 
 def map_folder(input_folder):
