@@ -1,10 +1,10 @@
 import importlib.util
 import os
 import inspect
-from typing import Literal
+from typing import Literal, Annotated
 
 import b2luigi
-from cyclopts import App
+from cyclopts import App, Parameter
 
 app = App(name="b2luigi", help="Run user-defined b2luigi tasks")
 
@@ -23,30 +23,30 @@ def import_from_file(filename: str, module_name: str):
     return module
 
 
-def load_parameters():
-    params_module = import_from_file("parameters.py", "user_parameters")
+def load_parameters(filename="parameters.py"):
+    params_module = import_from_file(filename, "user_parameters")
     if not hasattr(params_module, "config"):
-        raise AttributeError("parameters.py must define a 'config' variable")
+        raise AttributeError(f"{filename} must define a 'config' variable")
     return params_module.config
 
 
-def load_task_class(class_name: str):
-    tasks_module = import_from_file("tasks.py", "user_tasks")
+def load_task_class(class_name: str, filename="tasks.py"):
+    tasks_module = import_from_file(filename, "user_tasks")
     if not hasattr(tasks_module, class_name):
-        raise AttributeError(f"Class '{class_name}' not found in tasks.py")
+        raise AttributeError(f"Class '{class_name}' not found in {filename}")
     return getattr(tasks_module, class_name)
 
 
-def run_task(class_name: str):
-    params = load_parameters()
-    TaskClass = load_task_class(class_name)
+def run_task(class_name: str, task_filename="tasks.py", parameters_file="parameters.py"):
+    params = load_parameters(parameters_file)
+    TaskClass = load_task_class(class_name, task_filename)
     task_instance = TaskClass(**params)
     b2luigi.process(task_instance, ignore_additional_command_line_args=False)
 
 
-def list_all_task_classes():
+def list_all_task_classes(filename="tasks.py"):
     try:
-        tasks_module = import_from_file("tasks.py", "user_tasks")
+        tasks_module = import_from_file(filename, "user_tasks")
     except (FileNotFoundError, ImportError):
         return ("NoTasksFound",)
 
@@ -67,9 +67,17 @@ app.command(run_app)
 
 
 @run_app.default
-def run(classname: Literal[list_all_task_classes()]):
+def run(
+    classname: str,
+    task_filename: Annotated[
+        str, Parameter(name=["--task-file", "-f"], help="The file containing the task definitions")
+    ] = "tasks.py",
+    parameter_filename: Annotated[
+        str, Parameter(name=["--params-file", "-p"], help="The file containing the parameters")
+    ] = "parameters.py",
+):
     """Run a task class from tasks.py."""
-    run_task(classname)
+    run_task(classname, task_filename, parameter_filename)
 
 
 def main():
