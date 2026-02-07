@@ -19,7 +19,7 @@ def register_task_command(task: Task, app: cyclopts.App):
     def command_factory(**kwargs):
         process(**kwargs)
 
-    task_name = task.__class__.__name__
+    task_name = task.__name__
     task_params = task.get_params()
     required_params = []
     default_params = []
