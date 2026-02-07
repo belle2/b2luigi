@@ -62,7 +62,11 @@ def list_all_task_classes():
     return tuple(tasks)
 
 
-@app.command
+run_app = App(name="run", help="Run a task class from tasks.py")
+app.command(run_app)
+
+
+@run_app.default
 def run(classname: Literal[list_all_task_classes()]):
     """Run a task class from tasks.py."""
     run_task(classname)
