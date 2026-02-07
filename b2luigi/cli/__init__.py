@@ -1,5 +1,7 @@
 import importlib.util
 import os
+import inspect
+from typing import Literal
 
 import b2luigi
 from cyclopts import App
@@ -42,8 +44,26 @@ def run_task(class_name: str):
     b2luigi.process(task_instance, ignore_additional_command_line_args=False)
 
 
+def list_all_task_classes():
+    try:
+        tasks_module = import_from_file("tasks.py", "user_tasks")
+    except (FileNotFoundError, ImportError):
+        return ("NoTasksFound",)
+
+    tasks = []
+    for name, obj in inspect.getmembers(tasks_module):
+        if inspect.isclass(obj) and issubclass(obj, b2luigi.Task):
+            if obj.__module__ == "user_tasks":
+                tasks.append(name)
+
+    if not tasks:
+        return ("NoTasksFound",)
+
+    return tuple(tasks)
+
+
 @app.command
-def run(classname: str):
+def run(classname: Literal[list_all_task_classes()]):
     """Run a task class from tasks.py."""
     run_task(classname)
 
