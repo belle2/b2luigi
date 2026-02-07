@@ -45,10 +45,7 @@ def run_task(class_name: str, task_filename="tasks.py", parameters_file="paramet
 
 
 def list_all_task_classes(filename="tasks.py"):
-    try:
-        tasks_module = import_from_file(filename, "user_tasks")
-    except (FileNotFoundError, ImportError):
-        return ("NoTasksFound",)
+    tasks_module = import_from_file(filename, "user_tasks")
 
     tasks = []
     for name, obj in inspect.getmembers(tasks_module):
@@ -68,7 +65,10 @@ app.command(run_app)
 
 @run_app.default
 def run(
-    classname: str,
+    classname: Annotated[
+        Literal[list_all_task_classes()],
+        Parameter(name=["--task", "-t", "--classname", "-c"], help="The name of the task class to run"),
+    ],
     task_filename: Annotated[
         str, Parameter(name=["--task-file", "-f"], help="The file containing the task definitions")
     ] = "tasks.py",
