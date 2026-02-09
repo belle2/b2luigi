@@ -1,33 +1,10 @@
-import importlib
 import inspect
-import os
-from typing import Annotated, Any, Dict
+from typing import Annotated, Any
 
+import b2luigi
+from b2luigi.cli.utils import load_parameters
 import cyclopts
-from b2luigi.cli.process import process
-from b2luigi.core.task import Task
 from luigi.parameter import _no_value as luigi_no_value
-
-
-def import_from_file(filename: str, module_name: str) -> Any:
-    path = os.path.join(os.getcwd(), filename)
-    if not os.path.exists(path):
-        raise FileNotFoundError(f"{filename} not found in the current directory")
-
-    spec = importlib.util.spec_from_file_location(module_name, path)
-    if spec is None or spec.loader is None:
-        raise ImportError(f"Could not load spec for {filename}")
-
-    module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
-    return module
-
-
-def load_parameters(filename="parameters.py") -> Dict[str, Any]:
-    params_module = import_from_file(filename, "user_parameters")
-    if not hasattr(params_module, "config"):
-        raise AttributeError(f"{filename} must define a 'config' variable")
-    return params_module.config
 
 
 def build_annotation(
@@ -38,9 +15,9 @@ def build_annotation(
     return Annotated[Any, cyclopts.Parameter(name=option_names)]
 
 
-def register_task_command(task: Task, app: cyclopts.App):
+def register_task_command(task: b2luigi.Task, app: cyclopts.App):
     def command_factory(**kwargs):
-        process(**kwargs)
+        b2luigi.process(**kwargs)
 
     task_name = task.__name__
     task_params = task.get_params()
