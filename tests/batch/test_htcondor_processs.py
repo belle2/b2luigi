@@ -84,14 +84,17 @@ class TestHTCondorJobStatusCache(unittest.TestCase):
                 "JobStatus": 4,  # completed
                 "ExitCode": 0,  # success
                 "ClusterId": 42,
+                "UserLog": "/some/mock/log",
             },
             {
                 "JobStatus": 2,  # running
                 "ClusterId": 43,
+                "UserLog": "/some/mock/log",
             },
             {
                 "JobStatus": 999,  # failed
                 "ClusterId": 44,
+                "UserLog": "/some/mock/log",
             },
         ]
         self.mock_status_json = json.dumps(mock_status_dicts).encode()
