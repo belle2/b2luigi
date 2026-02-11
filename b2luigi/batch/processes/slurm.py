@@ -1,10 +1,9 @@
-from retry import retry
 import subprocess
 import pathlib
 import re
 import getpass
 import enum
-
+from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_exponential
 
 from luigi.parameter import _no_value
 from b2luigi.core.settings import get_setting
@@ -17,7 +16,12 @@ from b2luigi.core.executable import create_executable_wrapper
 class SlurmJobStatusCache(BatchJobStatusCache):
     sacct_disabled = None
 
-    @retry(subprocess.CalledProcessError, tries=3, delay=2, backoff=3)  # retry after 2,6,18 seconds
+    @retry(
+        retry=retry_if_exception_type(subprocess.CalledProcessError),
+        stop=stop_after_attempt(4),
+        wait=wait_exponential(multiplier=2, min=2, exp_base=3),  # 2, 6, 18 seconds
+        reraise=True,
+    )
     def _ask_for_job_status(self, job_id: int = None):
         """
         With Slurm, you can check the progress of your jobs using the ``squeue`` command.

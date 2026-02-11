@@ -54,6 +54,12 @@ def get_cli_arguments(ignore_additional_command_line_args=False):
         default=[],
         help="Remove the output of only this task, not its dependents. If a list of tasks is given, remove only the output of the tasks in the list.",
     )
+    parser.add_argument(
+        "--keep",
+        type=lambda s: s.split(",") if "," in s else [s],
+        default=[],
+        help="Keep the output of only this task. If a list of tasks is given, keep the output of the tasks in the list.",
+    )
     parser.add_argument("-y", "--yes", action="store_true", help="Automatically confirm removal without prompting")
 
     parser.add_argument("--task-id", help="EXPERT.", default="")
