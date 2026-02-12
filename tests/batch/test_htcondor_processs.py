@@ -24,6 +24,9 @@ class TestHTCondorCreateSubmitFile(B2LuigiTestCase):
         task.get_log_file_dir = lambda: self.test_dir
         htcondor_mock_process.task = task
         #  create submit file
+        htcondor_mock_process._create_submit_file_content = lambda task: HTCondorProcess._create_submit_file_content(
+            task
+        )
         HTCondorProcess._create_htcondor_submit_file(htcondor_mock_process)
         # read submit file and return string
         submit_file_path = os.path.join(self.test_dir, "job.submit")
@@ -40,11 +43,12 @@ class TestHTCondorCreateSubmitFile(B2LuigiTestCase):
             executable = executable_wrapper.sh
             queue 1
         """
-        submit_file_lines = self._get_htcondor_submit_file_string(MyTask("some_parameter")).splitlines()
+        task = MyTask("some_parameter")
+        submit_file_lines = self._get_htcondor_submit_file_string(task).splitlines()
         self.assertIn("output = ", submit_file_lines[0])
         self.assertIn("error = ", submit_file_lines[1])
         self.assertIn("log = ", submit_file_lines[2])
-        self.assertEqual("executable = executable_wrapper.sh", submit_file_lines[3])
+        self.assertEqual(f"executable = {task.get_task_file_dir()}/executable_wrapper.sh", submit_file_lines[3])
         self.assertEqual("queue 1", submit_file_lines[4])
 
     def test_not_setting_job_name(self):
