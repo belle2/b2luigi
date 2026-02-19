@@ -98,9 +98,9 @@ def wrap_parameter():
         self.grouping = grouping
         if self.grouping:
             if grouping_function is None:
-                self.batch_method = lambda x: [i for i in x]
+                self._batch_method = lambda x: [i for i in x]
             else:
-                self.batch_method = grouping_function
+                self._batch_method = grouping_function
 
     parameter_class.__init__ = __init__
 
