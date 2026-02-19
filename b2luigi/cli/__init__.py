@@ -1,91 +1,141 @@
-from enum import Enum
-import os
-import inspect
-from typing import Annotated
-
-import b2luigi
+import subprocess
+from typing import Annotated, Literal
 from cyclopts import App, Parameter
+from importlib.metadata import PackageNotFoundError
+from importlib.metadata import version as get_version
+import os
+import platform
+from pathlib import Path
+from rich.console import Console
+from rich.panel import Panel
+import sys
 
-from b2luigi.cli.task_commands import register_task_command
-from b2luigi.cli.utils import get_task_instance, import_from_file, process_task_instance
-
-app = App(name="b2luigi", help="Run user-defined b2luigi tasks")
-
-
-def run_task(class_name: str, task_filename="tasks.py", parameters_file="parameters.py") -> None:
-    task_instance = get_task_instance(class_name, task_filename, parameters_file)
-    process_task_instance(task_instance)
-
-
-def remove_task(class_name: str) -> None:
-    task_instance = get_task_instance(class_name)
-    process_task_instance(task_instance, remove=[class_name])
+from b2luigi.cli.apps.run import run_app
+from b2luigi.cli.errors import CliUserError, _render_cli_error
+from b2luigi.cli.templates import PARAMS_TEMPLATE, TASKS_TEMPLATE
 
 
-def list_all_task_classes(filename="tasks.py", return_classes=False):
-    tasks_module = import_from_file(filename, "TaskClasses")
-
-    tasks = []
-    for name, obj in inspect.getmembers(tasks_module):
-        if inspect.isclass(obj) and issubclass(obj, b2luigi.Task):
-            if obj.__module__ == "TaskClasses":
-                if return_classes:
-                    tasks.append(obj)
-                else:
-                    tasks.append(name)
-
-    if not tasks:
-        return ("NoTasksFound",)
-
-    return tuple(tasks)
+def get_b2luigi_version() -> str:
+    # If you're installed as a package, this is the most robust.
+    try:
+        return get_version("b2luigi")
+    except PackageNotFoundError:
+        return "0.0.0"
 
 
-run_app = App(name="run", help="Run a task class from tasks.py")
-show_output_app = App(name="show_output", help="Run a task class and show its output")
-remove_app = App(name="remove", help="Remove the output of a task class")
+# TODO: Improve help message by a lot
+app = App(
+    name="b2luigi",
+    help="Run user-defined b2luigi tasks",
+    version=get_b2luigi_version(),
+    version_flags=["--version", "-V", "-v"],
+)
+app.register_install_completion_command()
 
+# Register the user commands
 app.command(run_app)
-app.command(show_output_app)
-app.command(remove_app)
 
 
-@run_app.default
-def run(classname: Literal[list_all_task_classes()]):
-    """Run a task class from tasks.py."""
-    run_task(str(classname).split(".")[-1], task_filename, parameter_filename)
+console = Console()
 
 
-@remove_app.default
-def remove(
-    classname: Annotated[
-        task_classes_enum,
-        Parameter(name=["--task", "-t", "--classname", "-c"], help="The name of the task class to remove"),
-    ],
-    task_filename: Annotated[
-        str, Parameter(name=["--task-file", "-f"], help="The file containing the task definitions")
-    ] = "tasks.py",
-    parameter_filename: Annotated[
-        str, Parameter(name=["--params-file", "-p"], help="The file containing the parameters")
-    ] = "parameters.py",
-):
-    """Remove a task class from the Luigi scheduler."""
-    remove_task(str(classname).split(".")[-1], task_filename, parameter_filename)
+@app.command
+def info():
+    """Show environment and b2luigi installation info."""
+    v = get_b2luigi_version()
+
+    lines = [
+        f"b2luigi: {v}",
+        f"python: {sys.version.split()[0]}",
+        f"platform: {platform.platform()}",
+        f"cwd: {os.getcwd()}",
+        f"B2LUIGI_TASK_FILE: {os.getenv('B2LUIGI_TASK_FILE', '(unset)')}",
+        f"B2LUIGI_PARAMS_FILE: {os.getenv('B2LUIGI_PARAMS_FILE', '(unset)')}",
+    ]
+    console.print(Panel.fit("\n".join(lines), title="Info", border_style="cyan"))
 
 
-for task in list_all_task_classes(return_classes=True):
-    print(f"Registering command for task: {task.__name__} {type(task)}")
-    register_task_command(task, app)
-    print(list(app._commands.keys()))
-
-
-@remove_app.default
-def remove(classname: Literal[list_all_task_classes()]):
-    """Remove the output of a task class from tasks.py."""
-    remove_task(classname)
-
-
-def main():
+@app.command
+def help(*args: str):
+    """Show help for b2luigi or a subcommand."""
+    sys.argv = [sys.argv[0], *args, "--help"]
     app()
+
+
+@app.command
+def init(force: bool = False):
+    """Create starter tasks.py, parameters.py, and optional config."""
+    files = {
+        "tasks.py": TASKS_TEMPLATE,
+        "parameters.py": PARAMS_TEMPLATE,
+    }
+    for name, content in files.items():
+        p = Path(name)
+        if p.exists() and not force:
+            console.print(f"[yellow]Skip[/yellow] {name} (already exists)")
+            continue
+        p.write_text(content, encoding="utf-8")
+        console.print(f"[green]Wrote[/green] {name}")
+
+
+@app.command
+def version():
+    """Print version and exit."""
+    print(get_b2luigi_version())
+
+
+@app.command(name="self-update")
+def self_update():
+    """Update b2luigi to the latest version in the current environment."""
+    old = get_b2luigi_version()
+
+    # (Optional but recommended in the cookbook) keep pip fresh
+    subprocess.check_call([sys.executable, "-m", "pip", "install", "--upgrade", "b2luigi"])
+
+    new = get_version("b2luigi")
+    if new == old:
+        print(f"b2luigi is already up-to-date ({new}).")
+    else:
+        print(f"b2luigi updated: {old} → {new}")
+
+
+@app.command
+def completion(
+    shell: Annotated[
+        Literal["bash", "zsh", "fish"],
+        Parameter(help="Shell type to generate completion for."),
+    ],
+    install: Annotated[
+        bool,
+        Parameter(name="--install", help="Install completion to the default shell-specific location."),
+    ] = False,
+    output: Annotated[
+        Path | None,
+        Parameter(name=["--output", "-o"], help="Write completion script to this path instead of stdout."),
+    ] = None,
+):
+    """Generate or install shell completion for b2luigi."""
+    if install:
+        # Installs to the default location for the shell (or to `output` if provided).
+        installed_path = app.install_completion(shell=shell, output=output)
+        print(installed_path)
+        return
+
+    script = app.generate_completion(shell=shell)
+
+    if output is not None:
+        output.write_text(script, encoding="utf-8")
+        print(output)
+    else:
+        print(script)
+
+
+def main() -> None:
+    try:
+        app()
+    except CliUserError as e:
+        _render_cli_error(str(e))
+        raise SystemExit(e.exit_code)
 
 
 if __name__ == "__main__":

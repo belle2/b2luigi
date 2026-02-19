@@ -63,7 +63,7 @@ def process(
             which will be generated marked in color, if they are present already.
             Good for testing of your tasks will do, what you think they should.
 
-        dry_run (bool, optional): Instead od running the task(s), write out which tasks will
+        dry_run (bool, optional): Instead of running the task(s), write out which tasks will
             be executed. This is a simplified form of dependency resolution, so this
             information may be wrong in some corner cases. Also good for testing.
 
@@ -118,7 +118,10 @@ def process(
     #     runner.run_as_batch_worker(task_list, cli_args, kwargs)
     elif cli_args.remove or remove:
         runner.remove_outputs(
-            task_list, target_tasks=cli_args.remove or remove, auto_confirm=auto_confirm or cli_args.yes
+            task_list,
+            target_tasks=cli_args.remove or remove,
+            auto_confirm=auto_confirm or cli_args.yes,
+            keep_tasks=cli_args.keep or keep_tasks,
         )
     # elif cli_args.remove_only or remove_only:
     #     runner.remove_outputs(
