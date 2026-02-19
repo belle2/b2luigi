@@ -86,7 +86,7 @@ def wrap_parameter():
         if not self.significant and not self.hidden:
             raise ValueError("Parameter cannot be both hidden=False and significant=False.")
 
-        if self.batch_method is not None:
+        if hasattr(self, "batch_method") and self.batch_method is not None:
             print(
                 f"Warning: Parameter {self} has a batch_method given.\n"
                 "Internally, we use this for parameter grouping."
@@ -109,6 +109,8 @@ class BoolParameter(luigi.BoolParameter):
     """Copied BoolParameter without default value"""
 
     def __init__(self, **kwargs):
+        if any(k in kwargs for k in ["grouping", "grouping_function", "batch_method"]):
+            raise ValueError("BoolParameter does not support grouping parameters.")
         kwargs.setdefault("default", _no_value)
         luigi.Parameter.__init__(self, **kwargs)
 
