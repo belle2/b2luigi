@@ -412,7 +412,7 @@ class HTCondorProcess(BatchProcess):
         os.makedirs(output_path, exist_ok=True)
         submit_file_path = os.path.join(output_path, "job.submit")
 
-        batched_params = self.task.batch_param_names()
+        batched_params = self.task.batched_param_names()
         if len(batched_params) == 0:
             submit_file_contents.extend(self._create_submit_file_content(task=self.task))
         elif not isinstance(self.task.param_kwargs[batched_params[0]], tuple):
