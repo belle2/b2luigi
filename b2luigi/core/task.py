@@ -16,6 +16,9 @@ class Task(luigi.Task):
     the parameters of the task.
     See :ref:`quick-start-label` on information on how to use the methods.
 
+    Also, we change the default value of ``max_batch_size`` to 1, so that you have
+    to explicitly set it to a value greater than 1 to enable parameter batching.
+
     Example:
 
         .. code-block:: python
@@ -42,6 +45,11 @@ class Task(luigi.Task):
                   with self.get_output_file("average.txt").open("w") as f:
                       f.write(f"{average}\\n")
     """
+
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        super().__init__(*args, **kwargs)
+
+        self.max_batch_size: int = 1
 
     def add_to_output(
         self,
@@ -384,7 +392,7 @@ class Task(luigi.Task):
             target.remove()
         else:
             raise NotImplementedError(
-                f"Cannot remove output file target for {base_filename}. " "The target does not have a remove method."
+                f"Cannot remove output file target for {base_filename}. The target does not have a remove method."
             )
 
     def _remove_output(self) -> None:
