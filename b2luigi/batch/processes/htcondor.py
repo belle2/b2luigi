@@ -412,20 +412,20 @@ class HTCondorProcess(BatchProcess):
         os.makedirs(output_path, exist_ok=True)
         submit_file_path = os.path.join(output_path, "job.submit")
 
-        batched_params = self.task.batched_param_names()
-        if len(batched_params) == 0:
+        grouped_params = self.task.grouped_param_names()
+        if len(grouped_params) == 0:
             submit_file_contents.extend(self._create_submit_file_content(task=self.task))
-        elif not isinstance(self.task.param_kwargs[batched_params[0]], tuple):
+        elif not isinstance(self.task.param_kwargs[grouped_params[0]], tuple):
             submit_file_contents.extend(self._create_submit_file_content(task=self.task))
         else:
-            len_combinations = len(self.task.param_kwargs[batched_params[0]])
+            len_combinations = len(self.task.param_kwargs[grouped_params[0]])
 
-            batched_param_dicts = [
-                {param: value[i] for param, value in self.task.param_kwargs.items() if param in batched_params}
+            grouped_param_dicts = [
+                {param: value[i] for param, value in self.task.param_kwargs.items() if param in grouped_params}
                 for i in range(len_combinations)
             ]
 
-            for param_dict in batched_param_dicts:
+            for param_dict in grouped_param_dicts:
                 sub_task = self.task.clone(None, **param_dict)
 
                 # If a sub_task was already successful do not resubmit it

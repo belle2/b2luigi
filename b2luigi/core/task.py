@@ -429,12 +429,12 @@ class Task(luigi.Task):
                 print(f"Could not remove output file {key}: {ex}")
 
     @classmethod
-    def batched_param_names(cls):
-        return [name for name, p in cls.get_params() if p.batched]
+    def grouped_param_names(cls):
+        return [name for name, p in cls.get_params() if p.grouping]
 
     @classmethod
-    def has_batched_params(cls):
-        return bool(cls.batched_param_names())
+    def has_grouped_params(cls):
+        return bool(cls.grouped_param_names())
 
 
 class ExternalTask(Task, luigi.ExternalTask):
