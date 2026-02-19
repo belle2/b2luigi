@@ -429,12 +429,22 @@ class Task(luigi.Task):
                 print(f"Could not remove output file {key}: {ex}")
 
     @classmethod
-    def batched_param_names(cls):
+    def batched_param_names(cls) -> List[str]:
         return [name for name, p in cls.get_params() if p.batched]
 
     @classmethod
-    def has_batched_params(cls):
+    def has_batched_params(cls) -> bool:
         return bool(cls.batched_param_names())
+
+    @property
+    def max_grouping_size(self) -> int:
+        return self.max_batch_size
+
+    @max_grouping_size.setter
+    def max_grouping_size(self, value: int) -> None:
+        if value < 1:
+            raise ValueError("max_grouping_size must be greater than 0.")
+        self.max_batch_size = value
 
 
 class ExternalTask(Task, luigi.ExternalTask):
