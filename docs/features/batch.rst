@@ -106,6 +106,15 @@ Although the batch mode has many benefits, it would be unfair to not mention its
 *   The ``luigi`` feature to request new dependencies while task running (via ``yield``) is not implemented for
     the batch mode so far.
 
+Implementing your own Batch Process
+-----------------------------------
+If you want to implement your own batch process, please have a look at the existing implementations.
+You can create your own class inheriting from :class:`b2luigi.batch.processes.BatchProcess` and implement the required methods.
+Then set the ``batch_system`` setting to ``custom`` and make sure your task has the ``process_class`` property implemented.
+The property should return your custom class.
+As we consider this to be a rather advanced feature, we do not provide a step-by-step guide here.
+The main goal of this feature is to allow experts to develop new batch system implementations easily.
+Feel free to reach out to us, if the batch system you want is not yet implemented and you need help with the implementation.
 
 Batch System Specific Settings
 ------------------------------

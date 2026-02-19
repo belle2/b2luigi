@@ -1,7 +1,6 @@
 import collections
 import colorama
 import copy
-from functools import lru_cache
 import itertools
 import logging
 import os
@@ -185,48 +184,6 @@ def task_iterator(task, only_non_complete=False):
             yield from _unique_task_iterator(dep, only_non_complete=only_non_complete)
 
     yield from _unique_task_iterator(task, only_non_complete)
-
-
-def find_dependents(task_iterator, target_task):
-    """
-    Identifies and returns a set of tasks that are dependents of a specified target task.
-
-    Args:
-        task_iterator (iterable): An iterable of ``luigi`` task instances to search through.
-        target_task (str): The name of the target task class to find dependents for.
-
-    Returns:
-        set: A set of tasks that are either instances of the target task class or depend on it.
-
-    Notes:
-        - A task is considered a dependent if it directly or indirectly requires the target task.
-        - The ``requires()`` method of each task is used to determine dependencies.
-    """
-    dependents = set()
-    target_cls_name = target_task
-
-    # Memoization to avoid recomputing for the same task instance
-    @lru_cache(maxsize=get_setting("remove_cache_size", 5000))
-    def depends_on(task_id):
-        task = task_map[task_id]
-        for dep in luigi.task.flatten(task.requires()):
-            dep_id = dep.task_id
-            if dep.__class__.__name__ == target_cls_name:
-                return True
-            if depends_on(dep_id):
-                return True
-        return False
-
-    # Create a task_id -> task instance map to ensure hashability for caching
-    task_map = {}
-    for task in task_iterator:
-        task_map[task.task_id] = task
-
-    for task_id, task in task_map.items():
-        if task.__class__.__name__ == target_cls_name or depends_on(task_id):
-            dependents.add(task)
-
-    return dependents
 
 
 def get_all_output_files_in_tree(root_module, key=None):

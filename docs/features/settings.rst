@@ -79,11 +79,6 @@ General settings
     The default target kwargs to use when creating targets.
     This is used when the task uses :meth:`b2luigi.Task.add_to_output` to define a target and no ``target_kwargs`` is set.
 
-- ``remove_cache_size``: int
-    The size of the cache used for the :meth:`b2luigi.cli.runner.remove_outputs` method.
-    This is used to cache multiple calls in the DAG. Depending on the size of your DAG, this can be set to a higher value.
-    Defaults to ``5000``.
-
 Apptainer settings
 ++++++++++++++++++
 

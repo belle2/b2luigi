@@ -25,6 +25,7 @@ class BatchSystems(enum.Enum):
     gbasf2 = "gbasf2"
     local = "local"
     test = "test"
+    custom = "custom"
 
 
 class SendJobWorker(luigi.worker.Worker):
@@ -93,6 +94,12 @@ class SendJobWorker(luigi.worker.Worker):
             process_class = Gbasf2Process
         elif batch_system == BatchSystems.test:
             process_class = TestProcess
+        elif batch_system == BatchSystems.custom:
+            if not hasattr(task, "process_class"):
+                raise AttributeError(
+                    "The task object does not have a 'process_class' attribute. Please ensure the task defines this attribute."
+                )
+            process_class = task.process_class
         elif batch_system == BatchSystems.local:
             if get_setting("apptainer_image", default="", task=task):
                 process_class = ApptainerProcess

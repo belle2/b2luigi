@@ -8,7 +8,7 @@ from itertools import chain
 
 import luigi
 
-from retry import retry
+from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_exponential
 
 from b2luigi.core.settings import get_setting
 from b2luigi.batch.processes import BatchProcess, JobStatus
@@ -18,7 +18,12 @@ from b2luigi.core.executable import create_executable_wrapper
 
 
 class HTCondorJobStatusCache(BatchJobStatusCache):
-    @retry(subprocess.CalledProcessError, tries=3, delay=2, backoff=3)  # retry after 2,6,18 seconds
+    @retry(
+        retry=retry_if_exception_type(subprocess.CalledProcessError),
+        stop=stop_after_attempt(4),
+        wait=wait_exponential(multiplier=2, min=2, exp_base=3),  # 2, 6, 18 seconds
+        reraise=True,
+    )
     def _ask_for_job_status(self, job_id: int = None):
         """
         With HTCondor, you can check the progress of your jobs using the ``condor_q`` command.
@@ -72,14 +77,14 @@ class HTCondorJobStatusCache(BatchJobStatusCache):
             ]
 
             # as there can be a delay between jobs being available in condor_q and condor_history try multiple times
-            while True:
+            for i in range(5):
                 output = subprocess.check_output(history_cmd)
                 seen_ids = self._fill_from_output(output)
 
                 if len(seen_ids) > 0:
                     break
                 print(f"Could not find status of job {job_id}! Trying again.")
-                time.sleep(2)
+                time.sleep((i + 1) * 2)
         else:
             # run condor_history for all jobs that are currently in the task flow, which is way faster then calling condor_history for each of them individually
             # only run this for the jobs that are not already in the cache

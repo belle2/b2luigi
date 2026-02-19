@@ -15,7 +15,7 @@ class B2LuigiTestCase(TestCase):
         self.cwd = os.getcwd()
         os.chdir(self.test_dir)
 
-        b2luigi.set_setting("result_dir", "results")
+        b2luigi.set_setting("result_dir", os.path.join(self.test_dir, "results"))
 
     def tearDown(self):
         os.chdir(self.cwd)
