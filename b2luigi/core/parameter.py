@@ -1,4 +1,5 @@
 import hashlib
+from typing import Callable, Optional
 
 import luigi
 from luigi.parameter import _no_value
@@ -9,7 +10,7 @@ def wrap_parameter():
     """
     Monkey patch the parameter base class (and with it all other parameters(
     of luigi to include three additional parameters in its constructor:
-    ``hashed``, ``hash_function``, ``hidden`` and ``batched``.
+    ``hashed``, ``hash_function``, ``hidden``, ``grouping`` and ``grouping_function``.
 
     Enabling the ``hashed`` parameter will use a hashed version of the
     parameter value when creating file paths our of the parameters of a task
@@ -25,14 +26,14 @@ def wrap_parameter():
     should be hiddened in the task's output directory structure when using
     :meth:`add_to_output <b2luigi.Task.add_to_output>`.
 
-    With the ``batched`` parameter, you can control whether the parameter
-    should be treated as a batch parameter. If no ``batch_method`` is provided,
-    the default method will be to return a list of the input value. You still
+    With the ``grouping`` parameter, you can control whether the parameter
+    should be treated as a grouping parameter. If no ``grouping_function`` is provided,
+    the default function will be to return a list of the input value. You still
     treat the parameter as a normal parameter when defining the task, but during
-    execution, the task will be executed once for each value in the batch. If
-    you provide a custom ``batch_method``, it should follow the format:
-    ``function(iterable[x])->x`` where ``x`` is the parameter you want to batch over.
-    To enable batching, you also need to set the task property ``max_batch_size``
+    execution, the task will be executed once for each value in the group. If
+    you provide a custom ``grouping_function``, it should follow the format:
+    ``function(iterable[x])->x`` where ``x`` is the parameter you want to group over.
+    To enable grouping, you also need to set the task property ``max_grouping_size``
     to a value greater than 1.
 
     .. caution::
@@ -59,7 +60,16 @@ def wrap_parameter():
 
     old_init = parameter_class.__init__
 
-    def __init__(self, hashed=False, hash_function=None, hidden=None, batched=False, *args, **kwargs):
+    def __init__(
+        self,
+        hashed: bool = False,
+        hash_function: Optional[Callable] = None,
+        hidden: Optional[bool] = None,
+        grouping: bool = False,
+        grouping_function: Optional[Callable] = None,
+        *args,
+        **kwargs,
+    ):
         old_init(self, *args, **kwargs)
 
         if hash_function is not None:
@@ -76,10 +86,21 @@ def wrap_parameter():
         if not self.significant and not self.hidden:
             raise ValueError("Parameter cannot be both hidden=False and significant=False.")
 
-        self.batched = batched
-        if self.batched:
-            if self.batch_method is None:
+        if self.batch_method is not None:
+            print(
+                f"Warning: Parameter {self} has a batch_method given.\n"
+                "Internally, we use this for parameter grouping."
+                "If you intended to use the parameter grouping feature, "
+                "please set the grouping parameter to True and provide a grouping_function if you want.\n"
+                "We overwrite the batch_method internally when grouping is enabled, so the old batch_method will be lost."
+            )
+
+        self.grouping = grouping
+        if self.grouping:
+            if grouping_function is None:
                 self.batch_method = lambda x: [i for i in x]
+            else:
+                self.batch_method = grouping_function
 
     parameter_class.__init__ = __init__
 
