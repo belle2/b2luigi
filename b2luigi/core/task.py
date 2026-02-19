@@ -51,7 +51,7 @@ class Task(luigi.Task):
     def __init_subclass__(cls, **kwargs):
         super().__init_subclass__(**kwargs)
         # Propagate max_grouping_size to max_batch_size
-        if "max_grouping_size" in cls.__dict__:
+        if hasattr(cls, "max_grouping_size"):
             cls.max_batch_size = cls.max_grouping_size
 
     def add_to_output(
