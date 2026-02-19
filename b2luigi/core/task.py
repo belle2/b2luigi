@@ -46,10 +46,13 @@ class Task(luigi.Task):
                       f.write(f"{average}\\n")
     """
 
-    def __init__(self, *args: Any, **kwargs: Any) -> None:
-        super().__init__(*args, **kwargs)
+    max_grouping_size: int = 1
 
-        self.max_batch_size: int = 1
+    def __init_subclass__(cls, **kwargs):
+        super().__init_subclass__(**kwargs)
+        # Propagate max_grouping_size to max_batch_size
+        if "max_grouping_size" in cls.__dict__:
+            cls.max_batch_size = cls.max_grouping_size
 
     def add_to_output(
         self,
@@ -435,16 +438,6 @@ class Task(luigi.Task):
     @classmethod
     def has_grouped_params(cls):
         return bool(cls.grouped_param_names())
-
-    @property
-    def max_grouping_size(self) -> int:
-        return self.max_batch_size
-
-    @max_grouping_size.setter
-    def max_grouping_size(self, value: int) -> None:
-        if value < 1:
-            raise ValueError("max_grouping_size must be greater than 0.")
-        self.max_batch_size = value
 
 
 class ExternalTask(Task, luigi.ExternalTask):
