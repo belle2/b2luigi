@@ -77,14 +77,14 @@ class HTCondorJobStatusCache(BatchJobStatusCache):
             ]
 
             # as there can be a delay between jobs being available in condor_q and condor_history try multiple times
-            while True:
+            for i in range(5):
                 output = subprocess.check_output(history_cmd)
                 seen_ids = self._fill_from_output(output)
 
                 if len(seen_ids) > 0:
                     break
                 print(f"Could not find status of job {job_id}! Trying again.")
-                time.sleep(2)
+                time.sleep((i + 1) * 2)
         else:
             # run condor_history for all jobs that are currently in the task flow, which is way faster then calling condor_history for each of them individually
             # only run this for the jobs that are not already in the cache
