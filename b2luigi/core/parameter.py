@@ -9,7 +9,7 @@ def wrap_parameter():
     """
     Monkey patch the parameter base class (and with it all other parameters(
     of luigi to include three additional parameters in its constructor:
-    ``hashed``, ``hash_function`` and ``hidden``.
+    ``hashed``, ``hash_function``, ``hidden`` and ``batched``.
 
     Enabling the ``hashed`` parameter will use a hashed version of the
     parameter value when creating file paths our of the parameters of a task
@@ -24,6 +24,16 @@ def wrap_parameter():
     With the ``hidden`` parameter, you can control whether the parameter
     should be hiddened in the task's output directory structure when using
     :meth:`add_to_output <b2luigi.Task.add_to_output>`.
+
+    With the ``batched`` parameter, you can control whether the parameter
+    should be treated as a batch parameter. If no ``batch_method`` is provided,
+    the default method will be to return a list of the input value. You still
+    treat the parameter as a normal parameter when defining the task, but during
+    execution, the task will be executed once for each value in the batch. If
+    you provide a custom ``batch_method``, it should follow the format:
+    ``function(iterable[x])->x`` where ``x`` is the parameter you want to batch over.
+    To enable batching, you also need to set the task property ``max_batch_size``
+    to a value greater than 1.
 
     .. caution::
         This will remove the parameter from the unique output of the task,
@@ -49,12 +59,12 @@ def wrap_parameter():
 
     old_init = parameter_class.__init__
 
-    def __init__(self, hashed=False, hash_function=None, hidden=None, *args, **kwargs):
+    def __init__(self, hashed=False, hash_function=None, hidden=None, batched=False, *args, **kwargs):
         old_init(self, *args, **kwargs)
 
         if hash_function is not None:
             n_params = len(signature(hash_function).parameters)
-            assert n_params == 1, "Custom hash function can have only" f" 1 argument, found {n_params}"
+            assert n_params == 1, f"Custom hash function can have only 1 argument, found {n_params}"
 
         self.hash_function = hash_function
 
@@ -65,6 +75,11 @@ def wrap_parameter():
 
         if not self.significant and not self.hidden:
             raise ValueError("Parameter cannot be both hidden=False and significant=False.")
+
+        self.batched = batched
+        if self.batched:
+            if self.batch_method is None:
+                self.batch_method = lambda x: [i for i in x]
 
     parameter_class.__init__ = __init__
 
