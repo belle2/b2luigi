@@ -1,4 +1,4 @@
-.. _parameter-batch-label:
+.. _parameter-grouping-label:
 
 Parameter Grouping
 ==================
