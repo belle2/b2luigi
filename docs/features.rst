@@ -13,6 +13,6 @@ Also checkout our :ref:`examples-label` and :ref:`starterkit_label` for some wor
     features/run_modes
     features/batch
     features/parameters
-    features/parameter_batching
+    features/parameter_grouping
     features/input_output
     features/settings
