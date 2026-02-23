@@ -58,7 +58,7 @@ If one or more tasks within a group fail:
 - Only the failed tasks are resubmitted to the batch system.
 - Successfully completed tasks in the same group are not rerun.
 
-Choosing an appropriate max_grouping_size therefore involves a trade-off:
+Choosing an appropriate ``max_grouping_size`` therefore involves a trade-off:
 
 **Larger values**
 
