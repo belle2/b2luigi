@@ -1,6 +1,13 @@
-.. _grouping-example-label:
+.. _parameter-grouping-example-label:
 
-This is a minimal example on how to enable the :ref:parameter-grouping-label in b2luigi.
+Parameter Grouping
+==================
+
+This is a minimal example on how to enable the :ref:`parameter-grouping-label` feature in b2luigi.
+
+.. warning::
+   This feature currently only works with the HTCondor batch system, but we plan to extend it to other batch systems in the future.
+   Help is very welcome here, so if you want to contribute, please check out the :ref:`development-label`.
 
 .. code-block:: python
 

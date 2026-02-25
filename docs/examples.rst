@@ -1,10 +1,22 @@
-.. _`examples-label`:
+.. _examples-label:
 
 Examples
 ========
 
-Some examples of b2luigi in Belle II
-------------------------------------
+Batch submission with b2luigi
+-----------------------------
+
+Here we list few examples on how to use b2luigi for your batch submission.
+We also showcase some specific features, like the :ref:`parameter-grouping-label`.
+
+.. toctree::
+    :maxdepth: 2
+
+    examples/grouping_examples
+
+
+Belle II and b2luigi
+--------------------
 
 These are some examples of how to use b2luigi in Belle II.
 Please keep in mind, that some of these examples are based on older versions of b2luigi.
@@ -20,4 +32,3 @@ If you know a project that should be listed here, please feel free to open a mer
     :maxdepth: 2
 
     examples/basf2-examples
-    examples/grouping_examples
