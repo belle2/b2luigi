@@ -15,8 +15,9 @@ This is a minimal example on how to enable the :ref:`parameter-grouping-label` f
 
 
     class MySubTask(b2luigi.Task):
-        pir = b2luigi.IntParameter(default=0)
-        per = b2luigi.IntParameter(default=0, grouping=True)
+        parameter0 = b2luigi.IntParameter(default=0)
+        parameter1 = b2luigi.IntParameter(default=0, grouping=True)
+
         max_grouping_size = 10
         batch_system = "htcondor"
 
@@ -35,14 +36,19 @@ This is a minimal example on how to enable the :ref:`parameter-grouping-label` f
 
 
     class MyTask(b2luigi.Task):
-        par = b2luigi.IntParameter(default=0)
+        parameter2 = b2luigi.IntParameter(default=0)
 
         def requires(self):
-            ll = []
-            for i in range(1):
-                for e in range(10):
-                    ll.append(MySubTask(pir=i, per=e))
-            return ll
+            tasks = []
+            for par0 in range(1):
+                for par1 in range(10):
+                    requirements.append(
+                        MySubTask(
+                            parameter0=par0,
+                            parameter1=par1,
+                        )
+                    )
+            return tasks
 
         def output(self):
             yield self.add_to_output("MyTask.txt")
@@ -54,15 +60,18 @@ This is a minimal example on how to enable the :ref:`parameter-grouping-label` f
 
 
     class MyWrapperTask(b2luigi.WrapperTask):
-        por = b2luigi.IntParameter()
+        parameter3 = b2luigi.IntParameter(default=0)
 
         def requires(self):
-            return [MyTask(par=value) for value in range(self.por)]
+            return [
+                MyTask(parameter2=par2)
+                for par2 in range(self.parameter3)
+            ]
 
 
     if __name__ == "__main__":
         b2luigi.set_setting("result_dir", "results")
+        b2luigi.process(MyWrapperTask(parameter3=10), workers=10)
 
-        b2luigi.process(MyWrapperTask(por=10), workers=10)
 
 In this example ``MySubTask`` is grouped in chunks of 10 tasks consuming only one worker each.
