@@ -255,7 +255,6 @@ class HTCondorProcess(BatchProcess):
         raise ValueError(f"Unknown HTCondor Job status: {job_status}")
 
     def get_job_status(self):
-        print(f"Checking job status for task {self.task.task_id}")
         job_status_list = [self.get_job_status_for_id(job_id=job_id) for job_id in self._batch_job_ids]
         if any([s == JobStatus.running for s in job_status_list]):
             return JobStatus.running
@@ -292,7 +291,6 @@ class HTCondorProcess(BatchProcess):
 
         # Check if the submit file is empty and the task was already terminated
         if self._terminated:
-            print("Task was already terminated.")
             return
 
         # HTCondor submit needs to be called in the folder of the submit file
@@ -437,7 +435,6 @@ class HTCondorProcess(BatchProcess):
                 submit_file_contents.extend(submit_file_content)
 
         if len(submit_file_contents) == 0:
-            print("All tasks are already done!")
             self._put_to_result_queue(status=luigi.scheduler.DONE, explanation="")
             self._terminated = True
 
