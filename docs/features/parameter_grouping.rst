@@ -22,6 +22,7 @@ With grouping enabled:
 - The number of workers required is reduced.
 - Job submission and status queries are faster.
 - The overall load on the batch system is significantly reduced.
+- However, this feature does not change the total number of tasks that (b2)luigi has to iterate, e.g. when scheduling tasks in a workflow.
 
 Enabling Parameter Grouping
 ---------------------------
