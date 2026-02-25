@@ -34,7 +34,7 @@ def wrap_parameter():
     you provide a custom ``grouping_function``, it should follow the format:
     ``function(iterable[x])->x`` where ``x`` is the parameter you want to group over.
     To enable grouping, you also need to set the task property ``max_grouping_size``
-    to a value greater than 1.
+    to a value greater than 1. For more information on parameter grouping, see :ref:`parameter-grouping-label`.
 
     .. caution::
         This will remove the parameter from the unique output of the task,
