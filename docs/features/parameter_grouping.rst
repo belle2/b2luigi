@@ -22,6 +22,7 @@ With grouping enabled:
 - The number of workers required is reduced.
 - Job submission and status queries are faster.
 - The overall load on the batch system is significantly reduced.
+- However, this feature does not change the total number of tasks that (b2)luigi has to iterate, e.g. when scheduling tasks in a workflow.
 
 Enabling Parameter Grouping
 ---------------------------
@@ -34,7 +35,7 @@ Grouping is enabled on a per-parameter basis by setting the ``grouping`` flag on
         my_parameter = b2luigi.Parameter(grouping=True)
 
 Multiple parameters may be marked as grouped.
-To control the size of these groups one needs to set the ``max_grouping_size`` attribute within the task (defaults to 1)
+To control the size of these groups, one needs to set the ``max_grouping_size`` attribute within the task (defaults to 1)
 
 
 .. code-block:: python
@@ -51,13 +52,13 @@ A complete example can be found in :ref:grouping-example-label.
 Failure Semantics and Resubmission
 ----------------------------------
 
-.. note::
+.. warning::
    A grouped chunk is considered successful only if all tasks within that chunk succeed.
 
 If one or more tasks within a group fail:
 
 - Only the failed tasks are resubmitted to the batch system.
-- Successfully completed tasks in the same group are not rerun.
+- Completed tasks in the same group are not rerun.
 
 Choosing an appropriate ``max_grouping_size`` therefore involves a trade-off:
 
@@ -77,22 +78,24 @@ For large workflows, larger grouping sizes are usually preferable.
 Advanced Usage: Custom Grouping Logic
 -------------------------------------
 
-Although not advertised, it is possible to provide a custom grouping_function to control how parameter values are divided into chunks.
+Although not recommended, it is possible to provide a custom ``grouping_function`` to control how parameter values are divided into chunks.
 
-.. warning:: This is intended for expert use only.
+.. warning::
+   This is intended for expert use only.
 
 Internally, grouped parameter values are packed and unpacked in a specific way.
-Changing the grouping logic can therefore lead to subtle or unexpected behavior if not done with care.
+Changing the grouping logic can therefore lead to subtle or unexpected behaviour if not done with care.
 
 
 Interaction with luigi Batching
 -------------------------------
 
-.. warning:: Internally, parameter grouping is implemented using luigi’s batching mechanism by setting ``max_batch_size`` on the task and providing a ``batch_method`` for the parameters.
+.. warning::
+   Internally, parameter grouping is implemented using luigi’s batching mechanism by setting ``max_batch_size`` on the task and providing a ``batch_method`` for the parameters.
 
 As a result:
 
 - Enabling grouping in b2luigi overwrites any user-defined ``max_batch_size`` or ``batch_method``.
 - If grouping is **not** enabled, the full luigi batching functionality remains available and untouched.
 
-Keep this in mind if you rely on custom batching behavior in your workflows.
+Keep this in mind if you rely on custom batching behaviour in your workflows.

@@ -34,7 +34,7 @@ def wrap_parameter():
     you provide a custom ``grouping_function``, it should follow the format:
     ``function(iterable[x])->x`` where ``x`` is the parameter you want to group over.
     To enable grouping, you also need to set the task property ``max_grouping_size``
-    to a value greater than 1.
+    to a value greater than 1. For more information on parameter grouping, see :ref:`parameter-grouping-label`.
 
     .. caution::
         This will remove the parameter from the unique output of the task,
@@ -49,6 +49,7 @@ def wrap_parameter():
                     yield self.add_to_output(f"test_{self.hiddened_parameter}.txt")
     """
     import b2luigi
+    from b2luigi.core.utils import get_luigi_logger
 
     parameter_class = b2luigi.Parameter
 
@@ -87,7 +88,8 @@ def wrap_parameter():
             raise ValueError("Parameter cannot be both hidden=False and significant=False.")
 
         if hasattr(self, "batch_method") and self.batch_method is not None:
-            print(
+            logger = get_luigi_logger()
+            logger.warning(
                 f"Warning: Parameter {self} has a batch_method given.\n"
                 "Internally, we use this for parameter grouping."
                 "If you intended to use the parameter grouping feature, "
