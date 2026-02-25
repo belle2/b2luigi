@@ -13,7 +13,7 @@ from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_ex
 from b2luigi.core.settings import get_setting
 from b2luigi.batch.processes import BatchProcess, JobStatus
 from b2luigi.batch.cache import BatchJobStatusCache
-from b2luigi.core.utils import get_log_file_dir, get_task_file_dir
+from b2luigi.core.utils import get_log_file_dir, get_luigi_logger, get_task_file_dir
 from b2luigi.core.executable import create_executable_wrapper
 
 
@@ -52,6 +52,7 @@ class HTCondorJobStatusCache(BatchJobStatusCache):
         can be found in the ``condor_history`` file (works mostly in the same way as ``condor_q``).
         Both commands are used in order to find out the :meth:`JobStatus <b2luigi.process.JobStatus>`.
         """
+        logger = get_luigi_logger()
         # https://htcondor.readthedocs.io/en/latest/man-pages/condor_q.html
         q_cmd = ["condor_q", "-json", "-attributes", "ClusterId,JobStatus,ExitStatus,ExitCode,UserLog"]
 
@@ -83,7 +84,7 @@ class HTCondorJobStatusCache(BatchJobStatusCache):
 
                 if len(seen_ids) > 0:
                     break
-                print(f"Could not find status of job {job_id}! Trying again.")
+                logger.debug(f"Could not find status of job {job_id}! Trying again.")
                 time.sleep((i + 1) * 2)
         else:
             # run condor_history for all jobs that are currently in the task flow, which is way faster then calling condor_history for each of them individually
