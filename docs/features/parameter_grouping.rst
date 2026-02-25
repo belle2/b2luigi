@@ -46,6 +46,7 @@ To control the size of these groups one needs to set the ``max_grouping_size`` a
 
 In the example above, when running 100 tasks of the type ``MyTask``, b2luigi would group them in 10 groups of 10 tasks.
 Consequently, only 10 workers are consumed instead of 100.
+A complete example can be found in :ref:grouping-example-label.
 
 Failure Semantics and Resubmission
 ----------------------------------
