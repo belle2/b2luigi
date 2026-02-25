@@ -37,6 +37,7 @@ default:
     - b2venv ${BASF2_RELEASE_VERSION}
     - source venv/bin/activate
     - pip install flit
+  interruptible: true  # All the jobs can be interrupted by newer pipelines
 
 pre_commit:
   stage: pre_commit
