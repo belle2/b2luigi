@@ -3,22 +3,9 @@ import b2luigi
 
 class MySubTask(b2luigi.Task):
     parameter0 = b2luigi.IntParameter(default=0)
-    parameter1 = b2luigi.IntParameter(default=0, grouping=True)
+    parameter1 = b2luigi.BatchIntParameter(default=0, grouping=True)
 
     max_grouping_size = 10
-    batch_system = "htcondor"
-
-    @property
-    def htcondor_settings(self):
-        return {
-            "request_cpus": "1",
-            "accounting_group": "belle",
-            "container_image": "/cvmfs/belle.cern.ch/images/belle2-base-el8",
-            "stream_output": "true",
-            "stream_error": "true",
-            "requirements": "(TARGET.ProvidesCPU == True) && " + "(TARGET.ProvidesEKPResources == True)",
-            "request_memory": "2048",
-        }
 
     def output(self):
         yield self.add_to_output("MySubTask.txt")
@@ -30,6 +17,7 @@ class MySubTask(b2luigi.Task):
 
 
 class MyTask(b2luigi.Task):
+    batch_system = "local"
     parameter2 = b2luigi.IntParameter(default=0)
 
     def requires(self):
@@ -54,6 +42,7 @@ class MyTask(b2luigi.Task):
 
 
 class MyWrapperTask(b2luigi.WrapperTask):
+    batch_system = "local"
     parameter3 = b2luigi.IntParameter(default=0)
 
     def requires(self):
@@ -61,5 +50,4 @@ class MyWrapperTask(b2luigi.WrapperTask):
 
 
 if __name__ == "__main__":
-    b2luigi.set_setting("result_dir", "results")
-    b2luigi.process(MyWrapperTask(parameter3=10), workers=10)
+    b2luigi.process(MyWrapperTask(parameter3=10), workers=10, batch=True)
