@@ -22,7 +22,7 @@ if sys.version_info[:2] > (3, 11):
         stacklevel=2,
     )
 
-from b2luigi.core.parameter import wrap_parameter, BoolParameter
+from b2luigi.core.parameter import wrap_parameter, BoolParameter, BatchIntParameter
 from typing import Optional, Union, Collection
 
 wrap_parameter()
