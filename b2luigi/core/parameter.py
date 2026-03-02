@@ -1,12 +1,11 @@
 import hashlib
-from typing import Callable, Optional
-
+from inspect import signature
 import luigi
 from luigi.parameter import _no_value
-from inspect import signature
+from typing import Callable, Optional
 
 
-def wrap_parameter():
+def wrap_parameter() -> None:
     """
     Monkey patch the parameter base class (and with it all other parameters(
     of luigi to include three additional parameters in its constructor:
@@ -79,9 +78,6 @@ def wrap_parameter():
 
         self.hash_function = hash_function
 
-        if hashed:
-            self.serialize_hashed = lambda x: serialize_hashed(self, x)
-
         self.hidden = hidden if hidden is not None else not self.significant
 
         if not self.significant and not self.hidden:
@@ -104,6 +100,20 @@ def wrap_parameter():
             else:
                 self._batch_method = grouping_function
 
+            if self.hash_function is None:
+
+                def _hash_function(x) -> str:
+                    try:
+                        return "_".join(str(i) for i in sorted(x))
+                    except TypeError:
+                        return str(x)
+
+                self.hash_function = _hash_function
+                hashed = True
+
+        if hashed:
+            self.serialize_hashed = lambda x: serialize_hashed(self, x)
+
     parameter_class.__init__ = __init__
 
 
@@ -118,5 +128,5 @@ class BoolParameter(luigi.BoolParameter):
 
 
 class BatchIntParameter(luigi.IntParameter):
-    def next_in_enumeration(self, value):
+    def next_in_enumeration(self, value) -> None:
         return None
