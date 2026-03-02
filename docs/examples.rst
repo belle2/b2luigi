@@ -3,18 +3,6 @@
 Examples
 ========
 
-Batch submission with b2luigi
------------------------------
-
-Here we list few examples on how to use b2luigi for your batch submission.
-We also showcase some specific features, like the :ref:`parameter-grouping-label`.
-
-.. toctree::
-    :maxdepth: 2
-
-    examples/grouping_examples
-
-
 Belle II and b2luigi
 --------------------
 
