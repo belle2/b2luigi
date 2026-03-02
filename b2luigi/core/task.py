@@ -16,6 +16,9 @@ class Task(luigi.Task):
     the parameters of the task.
     See :ref:`quick-start-label` on information on how to use the methods.
 
+    Also, we change the default value of ``max_batch_size`` to 1, so that you have
+    to explicitly set it to a value greater than 1 to enable parameter batching.
+
     Example:
 
         .. code-block:: python
@@ -42,6 +45,14 @@ class Task(luigi.Task):
                   with self.get_output_file("average.txt").open("w") as f:
                       f.write(f"{average}\\n")
     """
+
+    max_grouping_size: int = 1
+
+    def __init_subclass__(cls, **kwargs):
+        super().__init_subclass__(**kwargs)
+        # Propagate max_grouping_size to max_batch_size
+        if hasattr(cls, "max_grouping_size"):
+            cls.max_batch_size = cls.max_grouping_size
 
     def add_to_output(
         self,
@@ -384,7 +395,7 @@ class Task(luigi.Task):
             target.remove()
         else:
             raise NotImplementedError(
-                f"Cannot remove output file target for {base_filename}. " "The target does not have a remove method."
+                f"Cannot remove output file target for {base_filename}. The target does not have a remove method."
             )
 
     def _remove_output(self) -> None:
@@ -419,6 +430,14 @@ class Task(luigi.Task):
                 self._remove_output_file_target(key)
             except Exception as ex:
                 print(f"Could not remove output file {key}: {ex}")
+
+    @classmethod
+    def grouped_param_names(cls):
+        return [name for name, p in cls.get_params() if p.grouping]
+
+    @classmethod
+    def has_grouped_params(cls):
+        return bool(cls.grouped_param_names())
 
 
 class ExternalTask(Task, luigi.ExternalTask):

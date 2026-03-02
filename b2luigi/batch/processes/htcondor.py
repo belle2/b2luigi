@@ -3,12 +3,17 @@ import os
 import re
 import subprocess
 import enum
+import time
+from itertools import chain
+
+import luigi
+
 from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_exponential
 
 from b2luigi.core.settings import get_setting
 from b2luigi.batch.processes import BatchProcess, JobStatus
 from b2luigi.batch.cache import BatchJobStatusCache
-from b2luigi.core.utils import get_log_file_dir, get_task_file_dir
+from b2luigi.core.utils import get_log_file_dir, get_luigi_logger, get_task_file_dir
 from b2luigi.core.executable import create_executable_wrapper
 
 
@@ -47,8 +52,9 @@ class HTCondorJobStatusCache(BatchJobStatusCache):
         can be found in the ``condor_history`` file (works mostly in the same way as ``condor_q``).
         Both commands are used in order to find out the :meth:`JobStatus <b2luigi.process.JobStatus>`.
         """
+        logger = get_luigi_logger()
         # https://htcondor.readthedocs.io/en/latest/man-pages/condor_q.html
-        q_cmd = ["condor_q", "-json", "-attributes", "ClusterId,JobStatus,ExitStatus"]
+        q_cmd = ["condor_q", "-json", "-attributes", "ClusterId,JobStatus,ExitStatus,ExitCode,UserLog"]
 
         if job_id:
             output = subprocess.check_output(q_cmd + [str(job_id)])
@@ -58,20 +64,48 @@ class HTCondorJobStatusCache(BatchJobStatusCache):
         seen_ids = self._fill_from_output(output)
 
         # If the specified job can not be found in the condor_q output, we need to request its history
+
         if job_id and job_id not in seen_ids:
             # https://htcondor.readthedocs.io/en/latest/man-pages/condor_history.html
             history_cmd = [
                 "condor_history",
                 "-json",
                 "-attributes",
-                "ClusterId,JobStatus,ExitCode",
+                "ClusterId,JobStatus,ExitCode,UserLog",
                 "-match",
                 "1",
                 str(job_id),
             ]
-            output = subprocess.check_output(history_cmd)
 
-            self._fill_from_output(output)
+            # as there can be a delay between jobs being available in condor_q and condor_history try multiple times
+            for i in range(5):
+                output = subprocess.check_output(history_cmd)
+                seen_ids = self._fill_from_output(output)
+
+                if len(seen_ids) > 0:
+                    break
+                logger.debug(f"Could not find status of job {job_id}! Trying again.")
+                time.sleep((i + 1) * 2)
+        else:
+            # run condor_history for all jobs that are currently in the task flow, which is way faster then calling condor_history for each of them individually
+            # only run this for the jobs that are not already in the cache
+            history_ids = [
+                str(job_id)
+                for job_id in chain.from_iterable(self._job_ids)
+                if job_id not in seen_ids and job_id not in self
+            ]
+            if len(history_ids) > 0:
+                history_cmd = [
+                    "condor_history",
+                    "-json",
+                    "-attributes",
+                    "ClusterId,JobStatus,ExitCode,UserLog",
+                    "-match",
+                    str(len(history_ids)),
+                ]
+                history_cmd.extend(history_ids)
+                output = subprocess.check_output(history_cmd)
+                self._fill_from_output(output)
 
     def _fill_from_output(self, output):
         """
@@ -91,10 +125,17 @@ class HTCondorJobStatusCache(BatchJobStatusCache):
             return seen_ids
 
         for status_dict in json.loads(output):
+            # this can only happen if the status information comes from condor_q which does not provide an ExitCode
+            if "ExitCode" not in status_dict.keys():
+                if "ExitStatus" in status_dict.keys():
+                    status_dict["ExitCode"] = status_dict["ExitStatus"]
+                else:
+                    status_dict["ExitCode"] = 1
+
             if status_dict["JobStatus"] == HTCondorJobStatus.completed and status_dict["ExitCode"]:
-                self[status_dict["ClusterId"]] = HTCondorJobStatus.failed
+                self[status_dict["ClusterId"]] = (HTCondorJobStatus.failed, status_dict["UserLog"])
             else:
-                self[status_dict["ClusterId"]] = status_dict["JobStatus"]
+                self[status_dict["ClusterId"]] = (status_dict["JobStatus"], status_dict["UserLog"])
 
             seen_ids.add(status_dict["ClusterId"])
 
@@ -174,9 +215,10 @@ class HTCondorProcess(BatchProcess):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-        self._batch_job_id = None
+        self._batch_job_ids = []
 
-    def get_job_status(self):
+    @staticmethod
+    def get_job_status_for_id(job_id):
         """
         Determines the status of a batch job based on its HTCondor job status.
 
@@ -191,11 +233,11 @@ class HTCondorProcess(BatchProcess):
         Raises:
             ValueError: If the HTCondor job status is unknown.
         """
-        if not self._batch_job_id:
+        if not job_id:
             return JobStatus.aborted
 
         try:
-            job_status = _batch_job_status_cache[self._batch_job_id]
+            job_status, _ = _batch_job_status_cache[job_id]
         except KeyError:
             return JobStatus.aborted
 
@@ -212,6 +254,28 @@ class HTCondorProcess(BatchProcess):
             return JobStatus.aborted
         raise ValueError(f"Unknown HTCondor Job status: {job_status}")
 
+    def get_job_status(self):
+        job_status_list = [self.get_job_status_for_id(job_id=job_id) for job_id in self._batch_job_ids]
+        if any([s == JobStatus.running for s in job_status_list]):
+            return JobStatus.running
+        elif any([s == JobStatus.aborted for s in job_status_list]):
+            aborted_job_ids = [
+                job_id for job_id, status in zip(self._batch_job_ids, job_status_list) if status == JobStatus.aborted
+            ]
+            aborted_log_files = [(job_id, _batch_job_status_cache[job_id][1]) for job_id in aborted_job_ids]
+
+            log_file_dir = get_log_file_dir(task=self.task)
+            os.makedirs(log_file_dir, exist_ok=True)
+            with open(os.path.join(log_file_dir, "failed_jobs.log"), "w") as f:
+                for job_id, log_file in aborted_log_files:
+                    f.write(f"{job_id}: {log_file}\n")
+
+            _batch_job_status_cache.remove_job_ids(job_ids=self._batch_job_ids)
+            return JobStatus.aborted
+        else:
+            _batch_job_status_cache.remove_job_ids(job_ids=self._batch_job_ids)
+            return JobStatus.successful
+
     def start_job(self):
         """
         Starts a job by creating and submitting an HTCondor submit file.
@@ -225,16 +289,21 @@ class HTCondorProcess(BatchProcess):
         """
         submit_file = self._create_htcondor_submit_file()
 
+        # Check if the submit file is empty and the task was already terminated
+        if self._terminated:
+            return
+
         # HTCondor submit needs to be called in the folder of the submit file
         submit_file_dir, submit_file = os.path.split(submit_file)
         output = subprocess.check_output(["condor_submit", submit_file], cwd=submit_file_dir)
 
         output = output.decode()
-        match = re.search(r"[0-9]+\.", output)
+        match = re.findall(r"[0-9]+\.", output)
         if not match:
             raise RuntimeError("Batch submission failed with output " + output)
 
-        self._batch_job_id = int(match.group(0)[:-1])
+        self._batch_job_ids.extend(int(m[:-1]) for m in match)
+        _batch_job_status_cache.add_job_ids(self._batch_job_ids)
 
     def terminate_job(self):
         """
@@ -243,12 +312,15 @@ class HTCondorProcess(BatchProcess):
         This method checks if a batch job ID is available. If a valid job ID exists,
         it executes the ``condor_rm`` command to remove the job from the HTCondor queue.
         """
-        if not self._batch_job_id:
+        if not self._batch_job_ids:
             return
 
-        subprocess.run(["condor_rm", str(self._batch_job_id)], stdout=subprocess.DEVNULL)
+        rm_cmd = ["condor_rm"]
+        rm_cmd.extend([str(j) for j in self._batch_job_ids])
+        subprocess.run(rm_cmd, stdout=subprocess.DEVNULL)
 
-    def _create_htcondor_submit_file(self):
+    @staticmethod
+    def _create_submit_file_content(task):
         """
         Creates an HTCondor submit file for the current task.
 
@@ -271,10 +343,11 @@ class HTCondorProcess(BatchProcess):
             - The ``job_name`` setting can be used to specify a meaningful name for the job.
             - The submit file is named `job.submit` and is created in the task's output directory (:obj:`get_task_file_dir`).
         """
+
         submit_file_content = []
 
         # Specify where to write the log to
-        log_file_dir = get_log_file_dir(self.task)
+        log_file_dir = get_log_file_dir(task)
         os.makedirs(log_file_dir, exist_ok=True)
 
         stdout_log_file = os.path.abspath(os.path.join(log_file_dir, "stdout"))
@@ -287,16 +360,16 @@ class HTCondorProcess(BatchProcess):
         submit_file_content.append(f"log = {job_log_file}")
 
         # Specify the executable
-        executable_file = create_executable_wrapper(self.task)
-        submit_file_content.append(f"executable = {os.path.basename(executable_file)}")
+        executable_file = create_executable_wrapper(task)
+        submit_file_content.append(f"executable = {os.path.abspath(executable_file)}")
 
         # Specify additional settings
         general_settings = get_setting("htcondor_settings", dict())
-        general_settings.update(get_setting("htcondor_settings", task=self.task, default=dict()))
+        general_settings.update(get_setting("htcondor_settings", task=task, default=dict()))
 
-        transfer_files = get_setting("transfer_files", task=self.task, default=[])
+        transfer_files = get_setting("transfer_files", task=task, default=[])
         if transfer_files:
-            working_dir = get_setting("working_dir", task=self.task, default="")
+            working_dir = get_setting("working_dir", task=task, default="")
             if not working_dir or working_dir != ".":
                 raise ValueError("If using transfer_files, the working_dir must be explicitly set to '.'")
 
@@ -312,14 +385,14 @@ class HTCondorProcess(BatchProcess):
                         + f"{os.path.abspath(transfer_file)} != {transfer_file}"
                     )
 
-            env_setup_script = get_setting("env_script", task=self.task, default="")
+            env_setup_script = get_setting("env_script", task=task, default="")
             if env_setup_script:
                 # TODO: make sure to call it relatively
                 transfer_files.add(os.path.abspath(env_setup_script))
 
             general_settings.setdefault("transfer_input_files", ",".join(transfer_files))
 
-        job_name = get_setting("job_name", task=self.task, default=False)
+        job_name = get_setting("job_name", task=task, default=False)
         if job_name is not False:
             general_settings.setdefault("JobBatchName", job_name)
 
@@ -329,13 +402,43 @@ class HTCondorProcess(BatchProcess):
         # Finally also start the process
         submit_file_content.append("queue 1")
 
-        # Now we can write the submit file
-        output_path = get_task_file_dir(self.task)
+        return submit_file_content
+
+    def _create_htcondor_submit_file(self):
+        submit_file_contents = []
+
+        output_path = get_task_file_dir(task=self.task)
+        os.makedirs(output_path, exist_ok=True)
         submit_file_path = os.path.join(output_path, "job.submit")
 
-        os.makedirs(output_path, exist_ok=True)
+        grouped_params = self.task.grouped_param_names()
+        if len(grouped_params) == 0:
+            submit_file_contents.extend(self._create_submit_file_content(task=self.task))
+        elif not isinstance(self.task.param_kwargs[grouped_params[0]], tuple):
+            submit_file_contents.extend(self._create_submit_file_content(task=self.task))
+        else:
+            len_combinations = len(self.task.param_kwargs[grouped_params[0]])
+
+            grouped_param_dicts = [
+                {param: value[i] for param, value in self.task.param_kwargs.items() if param in grouped_params}
+                for i in range(len_combinations)
+            ]
+
+            for param_dict in grouped_param_dicts:
+                sub_task = self.task.clone(None, **param_dict)
+
+                # If a sub_task was already successful do not resubmit it
+                if sub_task.complete():
+                    continue
+
+                submit_file_content = self._create_submit_file_content(task=sub_task)
+                submit_file_contents.extend(submit_file_content)
+
+        if len(submit_file_contents) == 0:
+            self._put_to_result_queue(status=luigi.scheduler.DONE, explanation="")
+            self._terminated = True
 
         with open(submit_file_path, "w") as submit_file:
-            submit_file.write("\n".join(submit_file_content))
+            submit_file.write("\n".join(submit_file_contents))
 
         return submit_file_path

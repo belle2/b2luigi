@@ -1,5 +1,6 @@
 import enum
 import shutil
+import logging
 
 import luigi.interface
 import luigi.worker
@@ -84,10 +85,21 @@ class SendJobWorker(luigi.worker.Worker):
             NotImplementedError: If the batch system is not recognized or supported.
         """
         batch_system = self.detect_batch_system(task)
+
+        # fail if grouping is used on other tasks then htcondor tasks
+        if task.has_grouped_params() and task.max_grouping_size > 1 and batch_system != BatchSystems.htcondor:
+            raise RuntimeError(
+                f"The grouping of tasks is currently only implemented for HTCondor processes and not for {batch_system}!"
+            )
+
         if batch_system == BatchSystems.lsf:
             process_class = LSFProcess
         elif batch_system == BatchSystems.htcondor:
             process_class = HTCondorProcess
+            if task.has_grouped_params:
+                logging.warning(
+                    "Grouping of tasks is currently an experimental feature and should be treated with care!"
+                )
         elif batch_system == BatchSystems.slurm:
             process_class = SlurmProcess
         elif batch_system == BatchSystems.gbasf2:

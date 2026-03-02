@@ -1,10 +1,11 @@
 import unittest
+import b2luigi
 from unittest.mock import MagicMock
 from b2luigi.batch.workers import SendJobWorker, BatchSystems
 from b2luigi.batch.processes.apptainer import ApptainerProcess
 
 
-class CustomApptainerTask:
+class CustomApptainerTask(b2luigi.Task):
     process_class = ApptainerProcess
     apptainer_image = "/cvmfs/belle.cern.ch/images/belle2-base-el9"
     apptainer_mounts = ["/cvmfs"]
