@@ -24,11 +24,11 @@ class XRootDSystem(RemoteFileSystem):
             logging.error("The XRootD python package is not imported.")
             raise err
 
+        super().__init__(server_path)
         self.dir_list_flags = DirListFlags
         self.open_flags = OpenFlags
         self.mk_dir_flags = MkDirFlags
 
-        self.server_path = server_path
         self.client = client.FileSystem(self.server_path)
 
     def exists(self, path: str) -> bool:
