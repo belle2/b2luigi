@@ -1,4 +1,5 @@
 from pathlib import Path
+import shutil
 import tempfile
 from luigi.target import FileSystem
 import os
@@ -8,6 +9,53 @@ from typing import List, Optional, Generator
 from b2luigi.core.target import FileSystemTarget
 from b2luigi.core.settings import get_setting
 from b2luigi.core.task import Task
+
+
+def ensure_requests_ca_bundle(extra: str) -> None:
+    """
+    Ensure REQUESTS_CA_BUNDLE includes `extra` (file or directory).
+
+    Always converts everything into a temporary directory-based
+    CA store and rehashes it.
+    """
+
+    extra_path = Path(extra).expanduser().resolve()
+    if not extra_path.exists():
+        raise FileNotFoundError(extra_path)
+
+    existing = os.environ.get("REQUESTS_CA_BUNDLE")
+
+    # If nothing is set, just use extra directly
+    if not existing:
+        os.environ["REQUESTS_CA_BUNDLE"] = str(extra_path)
+        return
+
+    existing_path = Path(existing).expanduser().resolve()
+    if not existing_path.exists():
+        raise FileNotFoundError(existing_path)
+
+    if existing_path == extra_path:
+        return
+
+    # Always merge into a new temporary directory
+    # (slow if directories are well populated,
+    # but ensures a clean state and works for both files and directories)
+    temp_dir_obj = tempfile.TemporaryDirectory(prefix="requests-ca-dir-")
+    temp_dir = Path(temp_dir_obj.name)
+
+    def copy_into_dir(src: Path):
+        if src.is_dir():
+            shutil.copytree(src, temp_dir, dirs_exist_ok=True)
+        else:
+            shutil.copy2(src, temp_dir / src.name)
+
+    copy_into_dir(existing_path)
+    copy_into_dir(extra_path)
+
+    os.environ["REQUESTS_CA_BUNDLE"] = str(temp_dir)
+
+    # Keep reference alive so TemporaryDirectory isn't GC’d
+    ensure_requests_ca_bundle._temp_dir = temp_dir_obj
 
 
 class WebDAVSystem(FileSystem):
@@ -48,7 +96,7 @@ class WebDAVSystem(FileSystem):
             raise ValueError("X509_CERT_DIR is not set in environment variables or settings.")
 
         # Export as environment variable for the requests library used by webdav3
-        os.environ["REQUESTS_CA_BUNDLE"] = os.path.abspath(x509_cert_dir)
+        ensure_requests_ca_bundle(x509_cert_dir)
 
     def exists(self, path: str) -> bool:
         """
