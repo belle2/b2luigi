@@ -1,6 +1,6 @@
 import os
 import logging
-from typing import Any, Tuple, Dict
+from typing import Any, List, Tuple, Dict, Union
 from b2luigi.core.remote_target import RemoteFileSystem, RemoteTarget
 
 
@@ -192,7 +192,7 @@ class XRootDSystem(RemoteFileSystem):
             logging.warning(f"Failed to remove file {path}: {status.message}")
         assert status.ok, f"File removal failed: {status.message}"
 
-    def listdir(self, path: str, print_entries: bool = False) -> Tuple[Dict[str, int], Any]:
+    def listdir(self, path: str, print_entries: bool = False) -> Union[Tuple[Dict[str, int], Any], List[str]]:
         """
         Lists the contents of a directory on the remote file system.
 
