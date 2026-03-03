@@ -6,6 +6,7 @@ import tempfile
 from typing import Generator, Optional
 
 from b2luigi.core.settings import get_setting
+from b2luigi.core.task import Task
 
 
 class FileSystemTarget(luigi.target.FileSystemTarget):
@@ -53,7 +54,7 @@ class FileSystemTarget(luigi.target.FileSystemTarget):
         return _temp_path
 
     @contextmanager
-    def get_temporary_input(self, task: Optional[luigi.Task] = None, **tmp_file_kwargs) -> Generator[str, None, None]:
+    def get_temporary_input(self, task: Optional[Task] = None, **tmp_file_kwargs) -> Generator[str, None, None]:
         """Create a temporary copy of the input file for processing.
 
         Creates a temporary copy of the input file in the scratch directory, allowing
@@ -84,7 +85,7 @@ class FileSystemTarget(luigi.target.FileSystemTarget):
             yield tmp_path
 
     @contextmanager
-    def temporary_path(self, task: Optional[luigi.Task] = None, **tmp_file_kwargs) -> Generator[str, None, None]:
+    def temporary_path(self, task: Optional[Task] = None, **tmp_file_kwargs) -> Generator[str, None, None]:
         """Create a temporary file for output that will be moved to the final location.
 
         Implements atomic write operations by first writing to a temporary location
