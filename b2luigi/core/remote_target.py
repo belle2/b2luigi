@@ -1,11 +1,11 @@
 import tempfile
+import luigi
 from luigi.target import FileSystem
 import os
 from contextlib import contextmanager
 from typing import Any, List, Optional, Tuple, Dict, Generator, Union
 from b2luigi.core.target import FileSystemTarget
 from b2luigi.core.settings import get_setting
-from b2luigi.core.task import Task
 
 
 class RemoteFileSystem(FileSystem):
@@ -194,7 +194,7 @@ class RemoteTarget(FileSystemTarget):
         raise NotImplementedError("RemoteTarget does not support open yet.")
 
     @contextmanager
-    def get_temporary_input(self, task: Optional[Task] = None, **tmp_file_kwargs) -> Generator[str, None, None]:
+    def get_temporary_input(self, task: Optional[luigi.Task] = None, **tmp_file_kwargs) -> Generator[str, None, None]:
         """
         Create a temporary local copy of a remote input file.
 
