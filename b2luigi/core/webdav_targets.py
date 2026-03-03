@@ -219,7 +219,7 @@ class WebDAVSystem(FileSystem):
             local_path: Path to the file on the local file system.
             remote_path: Path to the file on the remote file system.
         """
-        self.copy_file_to_remote(path, dest)
+        self.copy_file_to_remote(path, dest, force=True)
 
 
 class WebDAVTarget(FileSystemTarget):
