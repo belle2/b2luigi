@@ -2,7 +2,7 @@ import tempfile
 from luigi.target import FileSystem
 import os
 from contextlib import contextmanager
-from typing import Any, Optional, Tuple, Dict, Generator
+from typing import Any, List, Optional, Tuple, Dict, Generator, Union
 from b2luigi.core.target import FileSystemTarget
 from b2luigi.core.settings import get_setting
 from b2luigi.core.task import Task
@@ -113,7 +113,7 @@ class RemoteFileSystem(FileSystem):
         """
         raise NotImplementedError("The remove method must be implemented by subclasses of RemoteFileSystem.")
 
-    def listdir(self, path: str, print_entries: bool = False) -> Tuple[Dict[str, int], Any]:
+    def listdir(self, path: str, print_entries: bool = False) -> Union[Tuple[Dict[str, int], Any], List[str]]:
         """
         Lists the contents of a directory on the remote file system.
 
@@ -121,10 +121,6 @@ class RemoteFileSystem(FileSystem):
 
         Args:
             path (str): Path to the directory on the remote file system.
-
-        Returns:
-            Tuple[Dict[str, int], Any]: A dictionary mapping paths to their type (1 for directories, 0 for files),
-            and the raw listing object.
         """
         raise NotImplementedError("The listdir method must be implemented by subclasses of RemoteFileSystem.")
 
