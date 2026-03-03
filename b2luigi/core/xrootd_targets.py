@@ -142,7 +142,7 @@ class XRootDSystem(FileSystem):
             logging.warning(f"Failed to move file from {source_path} to {dest_path}: {status.message}")
         assert status.ok, f"Move operation failed: {status.message}"
 
-    def mkdir(self, path: str) -> None:
+    def mkdir(self, path: str, parents: bool = True, raise_if_exists: bool = False) -> None:
         """
         A function to create a directory on the remote file system.
         In case the creation fails, a warning will be printed and a assertion will fail.
@@ -188,7 +188,7 @@ class XRootDSystem(FileSystem):
         assert status.ok, f"Locate operation failed: {status.message}"
         return True
 
-    def remove(self, path: str) -> None:
+    def remove(self, path: str, recursive: bool = True, skip_trash: bool = True) -> None:
         """
         A function to remove a file from the remote file system.
         This function can not remove directories. Use ``remove_dir`` for that.
