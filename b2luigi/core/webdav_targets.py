@@ -318,7 +318,7 @@ class WebDAVTarget(FileSystemTarget):
         raise NotImplementedError("WebDAVTarget does not support open yet.")
 
     @contextmanager
-    def get_temporary_input(self, task: Optional[Task] = None) -> Generator[str, None, None]:
+    def get_temporary_input(self, task: Optional[Task] = None, **tmp_file_kwargs) -> Generator[str, None, None]:
         """
         Create a temporary local copy of a remote input file.
 
