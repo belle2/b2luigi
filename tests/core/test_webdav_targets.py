@@ -157,7 +157,6 @@ class TestWebDAVSystem(unittest.TestCase):
         self.get_setting.side_effect = fake_get_setting
         self.ensure = self.p_ensure.start()
 
-        # Fake client instance with .session.cert
         self.client = MagicMock()
         self.Client.return_value = self.client
         self.system = WebDAVSystem("https://example/")
