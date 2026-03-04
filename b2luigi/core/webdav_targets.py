@@ -6,15 +6,12 @@ from typing import Any, Dict, List, Tuple, Union
 from webdav3.client import Client
 
 from b2luigi.core.remote_target import RemoteFileSystem, RemoteTarget
-from b2luigi.core.settings import get_setting
+from b2luigi.core.settings import get_setting, _no_value
 
 
-def ensure_requests_ca_bundle(extra: str) -> None:
+def ensure_requests_ca_bundle(extra: str) -> Path:
     """
     Ensure REQUESTS_CA_BUNDLE includes `extra` (file or directory).
-
-    Always converts everything into a temporary directory-based
-    CA store and rehashes it.
     """
 
     extra_path = Path(extra).expanduser().resolve()
@@ -26,14 +23,11 @@ def ensure_requests_ca_bundle(extra: str) -> None:
     # If nothing is set, just use extra directly
     if not existing:
         os.environ["REQUESTS_CA_BUNDLE"] = str(extra_path)
-        return
+        return extra_path
 
     existing_path = Path(existing).expanduser().resolve()
-    if not existing_path.exists():
-        raise FileNotFoundError(existing_path)
-
     if existing_path == extra_path:
-        return
+        return extra_path
 
     # Always merge into a new temporary directory
     # (slow if directories are well populated,
@@ -55,6 +49,8 @@ def ensure_requests_ca_bundle(extra: str) -> None:
     # Keep reference alive so TemporaryDirectory isn't GC’d
     ensure_requests_ca_bundle._temp_dir = temp_dir_obj
 
+    return temp_dir
+
 
 class WebDAVSystem(RemoteFileSystem):
     """
@@ -74,15 +70,15 @@ class WebDAVSystem(RemoteFileSystem):
         self.client = Client(options)
 
         # Get the X509 proxy path from settings or environment variables
-        x509_proxy = get_setting("X509_USER_PROXY", os.environ.get("X509_USER_PROXY", None))
-        if x509_proxy is None:
+        x509_proxy = get_setting("X509_USER_PROXY", os.environ.get("X509_USER_PROXY", _no_value))
+        if x509_proxy is _no_value:
             raise ValueError("X509_USER_PROXY is not set in environment variables or settings.")
 
         self.client.session.cert = x509_proxy
 
         # Get the X509 certificate directory from settings or environment variables
-        x509_cert_dir = get_setting("X509_CERT_DIR", os.environ.get("X509_CERT_DIR", None))
-        if x509_cert_dir is None:
+        x509_cert_dir = get_setting("X509_CERT_DIR", os.environ.get("X509_CERT_DIR", _no_value))
+        if x509_cert_dir is _no_value:
             raise ValueError("X509_CERT_DIR is not set in environment variables or settings.")
 
         # Export as environment variable for the requests library used by webdav3
