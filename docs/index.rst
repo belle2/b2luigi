@@ -73,7 +73,7 @@ that we have learned with time.
 
 
 Why are you still talking, let's use it!
----------------------------------------
+----------------------------------------
 
 Have a look into the :ref:`quick-start-label` and/or the :ref:`starterkit_label`.
 You can also start reading the :ref:`api-documentation-label` or the code on GitHub_.

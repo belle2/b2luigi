@@ -28,7 +28,7 @@ Inputs
 
 A tasks inputs can be accessed via the :meth:`b2luigi.Task.get_input_file_names` method.
 Since a task can have multiple inputs of the same type (e.g.: different background processes run through the same selection),
- :meth:`get_input_file_names <b2luigi.Task.get_input_file_names>` always returns a list.
+:meth:`get_input_file_names <b2luigi.Task.get_input_file_names>` always returns a list.
 
 Sometimes a task requires multiple input files from various previous tasks.
 Handling these can get tedious.

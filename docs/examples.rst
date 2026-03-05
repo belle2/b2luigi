@@ -1,10 +1,10 @@
-.. _`examples-label`:
+.. _examples-label:
 
 Examples
 ========
 
-Some examples of b2luigi in Belle II
-------------------------------------
+Belle II and b2luigi
+--------------------
 
 These are some examples of how to use b2luigi in Belle II.
 Please keep in mind, that some of these examples are based on older versions of b2luigi.
