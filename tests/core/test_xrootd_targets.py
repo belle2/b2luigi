@@ -1,6 +1,6 @@
 import unittest
 from unittest.mock import MagicMock
-from b2luigi.core.xrootd_targets import XRootDSystem
+from b2luigi.core.remote_target.xrootd import XRootDSystem
 
 
 def XRootD_available():
