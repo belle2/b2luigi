@@ -1,17 +1,11 @@
-import tempfile
-from luigi.target import FileSystem
 import os
-from contextlib import contextmanager
 import logging
-from typing import Any, Optional, Tuple, Dict, Generator
 
-from b2luigi.core.target import FileSystemTarget
-from b2luigi.core.settings import get_setting
-from b2luigi.core.task import Task
-from b2luigi.core.temporary_wrapper import EnsuredTemporaryScratchDirectory
+from typing import Any, List, Tuple, Dict, Union
+from b2luigi.core.remote_target import RemoteFileSystem, RemoteTarget
 
 
-class XRootDSystem(FileSystem):
+class XRootDSystem(RemoteFileSystem):
     """
     XRootD file system for ``b2luigi`` Targets. Inspiration taken from `RHofsaess <https://github.com/RHofsaess/xrd-interactive/blob/main/XRootD_utils.py>`_.
     It implements some standard file system operations, which can be used by the :obj:`XRootDTarget`.
@@ -31,11 +25,11 @@ class XRootDSystem(FileSystem):
             logging.error("The XRootD python package is not imported.")
             raise err
 
+        super().__init__(server_path)
         self.dir_list_flags = DirListFlags
         self.open_flags = OpenFlags
         self.mk_dir_flags = MkDirFlags
 
-        self.server_path = server_path
         self.client = client.FileSystem(self.server_path)
 
     def exists(self, path: str) -> bool:
@@ -78,14 +72,6 @@ class XRootDSystem(FileSystem):
 
     def copy_file_from_remote(self, remote_path: str, local_path: str, force: bool = False) -> None:
         """
-        Function to copy a file from the remote file system to the local file system.
-        In case the copy fails, a warning will be printed and a assertion will fail.
-
-        Args:
-            remote_path: Path to the file on the remote file system.
-            local_path: Path to the file on the local file system.
-            force: If True, the file will be overwritten if it already exists. Default is False.
-
         This method uses the client to perform the file transfer. If the copy operation
         fails, a warning message is logged, and an assertion error is raised.
 
@@ -144,7 +130,7 @@ class XRootDSystem(FileSystem):
             logging.warning(f"Failed to move file from {source_path} to {dest_path}: {status.message}")
         assert status.ok, f"Move operation failed: {status.message}"
 
-    def mkdir(self, path: str) -> None:
+    def mkdir(self, path: str, parents: bool = True, raise_if_exists: bool = False) -> None:
         """
         A function to create a directory on the remote file system.
         In case the creation fails, a warning will be printed and a assertion will fail.
@@ -190,16 +176,11 @@ class XRootDSystem(FileSystem):
         assert status.ok, f"Locate operation failed: {status.message}"
         return True
 
-    def remove(self, path: str) -> None:
+    def remove(self, path: str, recursive: bool = True, skip_trash: bool = True) -> None:
         """
         A function to remove a file from the remote file system.
         This function can not remove directories. Use ``remove_dir`` for that.
         In case the removal fails, a warning will be printed and a assertion will fail.
-
-        Args:
-            path: Path to the file on the remote file system.
-
-        This method deletes a single file and does not support directory removal.
 
         Args:
             path (str): The path to the file on the remote file system.
@@ -212,7 +193,7 @@ class XRootDSystem(FileSystem):
             logging.warning(f"Failed to remove file {path}: {status.message}")
         assert status.ok, f"File removal failed: {status.message}"
 
-    def listdir(self, path: str, print_entries: bool = False) -> Tuple[Dict[str, int], Any]:
+    def listdir(self, path: str, print_entries: bool = False) -> Union[Tuple[Dict[str, int], Any], List[str]]:
         """
         Lists the contents of a directory on the remote file system.
 
@@ -280,102 +261,11 @@ class XRootDSystem(FileSystem):
             logging.warning(f"Failed to remove directory {path}: {status.message}")
         assert status.ok, f"Directory removal failed: {status.message}"
 
-    def rename_dont_move(self, path: str, dest: str) -> None:
-        """
-        Overwriting a the luigi function used to handle the atomic write problem.
-        (See https://github.com/spotify/luigi/blob/master/luigi/target.py#L303)
-        In this case it is just an alias for ``copy_file_to_remote`` with ``force=True``.
 
-        Args:
-            local_path: Path to the file on the local file system.
-            remote_path: Path to the file on the remote file system.
-        """
-        self.copy_file_to_remote(path, dest, force=True)
-
-
-class XRootDTarget(FileSystemTarget):
+class XRootDTarget(RemoteTarget):
     """
-    Luigi target implementation for the XRootD file system.
+    XRootD target for ``b2luigi``. It has the same interface as the :obj:`RemoteTarget`.
+    The use of the class is mainly to not brake the naming scheme of the first implementation of remote targets.
     """
 
-    def __init__(self, path: str, file_system: XRootDSystem):
-        """
-        Initialize the XRootDTarget.
-
-        Args:
-            path (str): Path to the file on the remote file system.
-            file_system (XRootDSystem): Instance of the XRootDSystem.
-        """
-        self._file_system = file_system
-        super().__init__(path)
-
-    @property
-    def base_name(self) -> str:
-        """Get the base name of the target path."""
-        return os.path.basename(self.path)
-
-    @property
-    def fs(self) -> XRootDSystem:
-        """Get the associated file system."""
-        return self._file_system
-
-    def makedirs(self) -> None:
-        """Create the target's directory on the remote file system."""
-        self.fs.mkdir(self.path)
-
-    def move(self) -> None:
-        """Move the target to a new location."""
-        self.fs.move(self.path)
-
-    def get(self, path: str = "~") -> str:
-        """
-        A function to copy the file from the remote file system to the local file system.
-
-        Args:
-            path: Path to copy the file to.
-
-        Returns:
-            Path to the copied file.
-        """
-        self.fs.copy_file_from_remote(self.path, f"{path}/{self.base_name}")
-        return f"{path}/{self.base_name}"
-
-    def open(self, mode: str) -> None:
-        """Raise NotImplementedError as open is not supported."""
-        raise NotImplementedError("XRootDTarget does not support open yet.")
-
-    @contextmanager
-    def get_temporary_input(self, task: Optional[Task] = None) -> Generator[str, None, None]:
-        """
-        Create a temporary local copy of a remote input file.
-
-        Downloads the remote file to a temporary local directory for processing,
-        allowing safe concurrent access to the same remote input file by multiple tasks.
-
-        Args:
-            task (Optional[Task]): Task instance used to determine scratch directory settings.
-                If None, uses default settings.
-
-        Yields:
-            str: Absolute path to the temporary local copy of the remote input file.
-
-        Note:
-            - The temporary file and its parent directory are automatically cleaned up
-              when exiting the context manager.
-            - Files are downloaded to the scratch directory specified in settings
-              (defaults to the path returned by ``tempfile.gettempdir()`` if not set).
-
-        Example:
-            .. code-block:: python
-
-                target = XRootDTarget("root://server/path/data.root", fs)
-                with target.get_temporary_input() as tmp_input:
-                    process_local_file(tmp_input)
-                # Temporary file is automatically cleaned up.
-        """
-        with EnsuredTemporaryScratchDirectory(
-            dir=get_setting("scratch_dir", task=task, default=tempfile.gettempdir())
-        ) as tmp_dir:
-            tmp_path = os.path.join(tmp_dir, self.base_name)
-            self.fs.copy_file_from_remote(self.path, tmp_path)
-            yield tmp_path
+    pass
