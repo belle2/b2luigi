@@ -82,11 +82,9 @@ class TestEnsureRequestsCABundle(unittest.TestCase):
             bundle_path = Path(os.environ["REQUESTS_CA_BUNDLE"])
             self.assertEqual(bundle_path.resolve(), out_dir.resolve())
 
-            files = []
-            for file in out_dir.iterdir():
-                files.append(file.name)
-
-            self.assertListEqual(files, ["a.txt", "b.txt", "c.txt", "d.txt", "e.txt"])
+            files = {file.name for file in out_dir.iterdir()}
+            expected = {"a.txt", "b.txt", "c.txt", "d.txt", "e.txt"}
+            self.assertEqual(files, expected)
 
             shutil.rmtree(out_dir)
 
