@@ -264,12 +264,12 @@ class EnsuredTemporaryScratchDirectory(tempfile.TemporaryDirectory):
     directory is created.
     """
 
-    def __init__(self, suffix=None, prefix=None, dir=None, ignore_cleanup_errors=False):
+    def __init__(self, dir=None, **tmp_file_kwargs):
         try:
             if dir is not None:
                 os.makedirs(name=dir, exist_ok=True)
-            super().__init__(suffix=suffix, prefix=prefix, dir=dir, ignore_cleanup_errors=ignore_cleanup_errors)
+            super().__init__(dir=dir, **tmp_file_kwargs)
         except PermissionError:
             raise PermissionError(
-                f"You do not have the permission to write to to the temporary directory {dir}! Please set a different 'scratch_dir' using 'b2luigi.set_setting('scratch_dir', <scratch_dir>)'."
+                f"You do not have the permission to write to the temporary directory {dir}! Please set a different 'scratch_dir' using 'b2luigi.set_setting('scratch_dir', <scratch_dir>)'."
             )
