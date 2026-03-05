@@ -4,9 +4,11 @@ import os
 from contextlib import contextmanager
 import logging
 from typing import Any, Optional, Tuple, Dict, Generator
+
 from b2luigi.core.target import FileSystemTarget
 from b2luigi.core.settings import get_setting
 from b2luigi.core.task import Task
+from b2luigi.core.temporary_wrapper import EnsuredTemporaryScratchDirectory
 
 
 class XRootDSystem(FileSystem):
@@ -371,7 +373,7 @@ class XRootDTarget(FileSystemTarget):
                     process_local_file(tmp_input)
                 # Temporary file is automatically cleaned up.
         """
-        with tempfile.TemporaryDirectory(
+        with EnsuredTemporaryScratchDirectory(
             dir=get_setting("scratch_dir", task=task, default=tempfile.gettempdir())
         ) as tmp_dir:
             tmp_path = os.path.join(tmp_dir, self.base_name)
