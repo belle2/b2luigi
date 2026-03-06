@@ -21,7 +21,7 @@ A few highlights are already included in the :ref:`luigi-features-label` section
     api/utilities
     api/tasks
     api/target
-    api/xrootdtargets
+    api/remote_targets
     api/parameters
     api/settings
     api/on_temporary

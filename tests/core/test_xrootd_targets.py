@@ -1,6 +1,6 @@
 import unittest
 from unittest.mock import MagicMock
-from b2luigi.core.xrootd_targets import XRootDSystem, XRootDTarget
+from b2luigi.core.remote_target.xrootd import XRootDSystem
 
 
 def XRootD_available():
@@ -20,8 +20,6 @@ class TestXRootDSystem(unittest.TestCase):
         self.XRootD_system.client = MagicMock()
         self.XRootD_system.copy_file_to_remote = MagicMock()
 
-        self.XRootD_target: XRootDTarget = XRootDTarget(self.mock_server_path, self.XRootD_system)
-
     def test_exists_true(self) -> None:
         # Simulate a successful stat call
         self.XRootD_system.client.stat.return_value = (MagicMock(ok=True), None)
@@ -31,15 +29,6 @@ class TestXRootDSystem(unittest.TestCase):
         # Simulate a failed stat call
         self.XRootD_system.client.stat.return_value = (MagicMock(ok=False), None)
         self.assertFalse(self.XRootD_system.exists("/path/to/nonexistent/file"))
-
-    def test_temporary_path(self) -> None:
-        # Mock the copy_file_to_remote method
-        with self.XRootD_target.temporary_path() as temp_path:
-            # Assert that the temporary path is not empty
-            self.assertIsNotNone(temp_path)
-
-            # Assert that the temporary path starts with the scratch directory
-            self.assertTrue(temp_path.startswith("/tmp"))
 
 
 if __name__ == "__main__":

@@ -28,7 +28,8 @@ requires = [
 	 "cachetools>=2.1.0",
 	 "jinja2",
      "setuptools",
-	 "tenacity>=8,<9"
+	 "tenacity>=8,<9",
+     "webdavclient3>=3.14.7"
 
 ]
 requires-python = ">=3.8"
