@@ -16,3 +16,4 @@ Also checkout our :ref:`examples-label` and :ref:`starterkit_label` for some wor
     features/parameter_grouping
     features/input_output
     features/settings
+    features/remote_targets

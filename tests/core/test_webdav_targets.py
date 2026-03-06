@@ -5,9 +5,10 @@ import tempfile
 import unittest
 from unittest.mock import MagicMock, patch
 import b2luigi
-import b2luigi.core.webdav_targets
+from b2luigi import WebDAVSystem
 from b2luigi.core.settings import _no_value
-from b2luigi.core.webdav_targets import WebDAVSystem, ensure_requests_ca_bundle
+import b2luigi.core.remote_target.webdav
+from b2luigi.core.remote_target.webdav import ensure_requests_ca_bundle
 
 
 class TestEnsureRequestsCABundle(unittest.TestCase):
@@ -116,7 +117,7 @@ class TestWebDAVSystemInit(unittest.TestCase):
                 return _no_value
             return default
 
-        with patch("b2luigi.core.webdav_targets.get_setting", side_effect=fake_get_setting):
+        with patch("b2luigi.core.remote_target.webdav.get_setting", side_effect=fake_get_setting):
             with self.assertRaises(ValueError):
                 WebDAVSystem("https://example/")
 
@@ -128,8 +129,8 @@ class TestWebDAVSystemInit(unittest.TestCase):
                 return "/certs"
             return default
 
-        with patch.object(b2luigi.core.webdav_targets, "ensure_requests_ca_bundle") as ensure, patch(
-            "b2luigi.core.webdav_targets.get_setting", side_effect=fake_get_setting
+        with patch.object(b2luigi.core.remote_target.webdav, "ensure_requests_ca_bundle") as ensure, patch(
+            "b2luigi.core.remote_target.webdav.get_setting", side_effect=fake_get_setting
         ):
             fs = WebDAVSystem("https://host/")
             self.assertEqual(fs.client.session.cert, "/tmp/proxy")
@@ -138,9 +139,9 @@ class TestWebDAVSystemInit(unittest.TestCase):
 
 class TestWebDAVSystem(unittest.TestCase):
     def setUp(self):
-        self.p_client = patch("b2luigi.core.webdav_targets.Client")
-        self.p_get_setting = patch("b2luigi.core.webdav_targets.get_setting")
-        self.p_ensure = patch("b2luigi.core.webdav_targets.ensure_requests_ca_bundle")
+        self.p_client = patch("b2luigi.core.remote_target.webdav.Client")
+        self.p_get_setting = patch("b2luigi.core.remote_target.webdav.get_setting")
+        self.p_ensure = patch("b2luigi.core.remote_target.webdav.ensure_requests_ca_bundle")
 
         self.Client = self.p_client.start()
         self.get_setting = self.p_get_setting.start()
