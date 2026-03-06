@@ -1,6 +1,5 @@
 import os
 import logging
-
 from typing import Any, List, Tuple, Dict, Union
 from b2luigi.core.remote_target import RemoteFileSystem, RemoteTarget
 
