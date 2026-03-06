@@ -32,24 +32,25 @@ def ensure_requests_ca_bundle(extra: str) -> Path:
     # Always merge into a new temporary directory
     # (slow if directories are well populated,
     # but ensures a clean state and works for both files and directories)
-    temp_dir_obj = tempfile.TemporaryDirectory(prefix="requests-ca-dir-")
-    temp_dir = Path(temp_dir_obj.name)
+    scratch_dir = Path(get_setting("scratch_dir", default=tempfile.gettempdir())).expanduser().resolve()
+    cache_root = scratch_dir / "requests-ca"
+    if cache_root.exists() and any(cache_root.iterdir()):
+        return cache_root
+
+    cache_root.mkdir(parents=True, exist_ok=True)
 
     def copy_into_dir(src: Path):
         if src.is_dir():
-            shutil.copytree(src, temp_dir, dirs_exist_ok=True)
+            shutil.copytree(src, cache_root, dirs_exist_ok=True)
         else:
-            shutil.copy2(src, temp_dir / src.name)
+            shutil.copy2(src, cache_root / src.name)
 
     copy_into_dir(existing_path)
     copy_into_dir(extra_path)
 
-    os.environ["REQUESTS_CA_BUNDLE"] = str(temp_dir)
+    os.environ["REQUESTS_CA_BUNDLE"] = str(cache_root)
 
-    # Keep reference alive so TemporaryDirectory isn't GC’d
-    ensure_requests_ca_bundle._temp_dir = temp_dir_obj
-
-    return temp_dir
+    return cache_root
 
 
 class WebDAVSystem(RemoteFileSystem):

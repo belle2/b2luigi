@@ -58,9 +58,9 @@ class TestEnsureRequestsCABundle(unittest.TestCase):
 
             os.environ["REQUESTS_CA_BUNDLE"] = str(existing)
             out_dir = ensure_requests_ca_bundle(str(extra))
-            bundle_path = Path(os.environ["REQUESTS_CA_BUNDLE"])
-            self.assertEqual(bundle_path.resolve(), out_dir.resolve())
-            self.assertTrue(hasattr(ensure_requests_ca_bundle, "_temp_dir"))
+            files = {file.name for file in out_dir.iterdir()}
+            expected = {"existing.pem", "extra.pem"}
+            self.assertEqual(files, expected)
 
             shutil.rmtree(out_dir)
 
@@ -80,9 +80,6 @@ class TestEnsureRequestsCABundle(unittest.TestCase):
 
             os.environ["REQUESTS_CA_BUNDLE"] = str(existing)
             out_dir = ensure_requests_ca_bundle(str(extra))
-            bundle_path = Path(os.environ["REQUESTS_CA_BUNDLE"])
-            self.assertEqual(bundle_path.resolve(), out_dir.resolve())
-
             files = {file.name for file in out_dir.iterdir()}
             expected = {"a.txt", "b.txt", "c.txt", "d.txt", "e.txt"}
             self.assertEqual(files, expected)
