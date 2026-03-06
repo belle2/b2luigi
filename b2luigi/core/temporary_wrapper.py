@@ -2,6 +2,8 @@ from contextlib import ExitStack
 from functools import wraps
 from multiprocessing.pool import ThreadPool
 from typing import Optional
+import tempfile
+import os
 
 from b2luigi import Task
 from b2luigi.core import utils
@@ -251,3 +253,23 @@ def on_temporary_files(run_function):
             run_function(self, *args, **kwargs)
 
     return run
+
+
+class EnsuredTemporaryScratchDirectory(tempfile.TemporaryDirectory):
+    """
+    A TemporaryDirectory that ensures the parent directory exists.
+
+    This subclass behaves like `tempfile.TemporaryDirectory`, but if the `dir` argument is provided,
+    the directory is created automatically (using `os.makedirs(..., exist_ok=True)`) before the temporary
+    directory is created.
+    """
+
+    def __init__(self, dir=None, **tmp_file_kwargs):
+        try:
+            if dir is not None:
+                os.makedirs(name=dir, exist_ok=True)
+            super().__init__(dir=dir, **tmp_file_kwargs)
+        except PermissionError:
+            raise PermissionError(
+                f"You do not have the permission to write to the temporary directory {dir}! Please set a different 'scratch_dir' using 'b2luigi.set_setting('scratch_dir', <scratch_dir>)'."
+            )

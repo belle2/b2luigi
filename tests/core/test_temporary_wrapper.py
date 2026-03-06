@@ -1,6 +1,13 @@
-import b2luigi
+import os
+import shutil
+import tempfile
+import unittest
+from unittest import mock
 
-from b2luigi.core.temporary_wrapper import TemporaryFileContextManager
+
+import b2luigi
+from b2luigi.core.temporary_wrapper import EnsuredTemporaryScratchDirectory, TemporaryFileContextManager
+
 
 from ..helpers import B2LuigiTestCase
 
@@ -80,3 +87,42 @@ class TemporaryFileContextManagerTestCase(B2LuigiTestCase):
             # Using assertNotEqual as a dummy check here. The important part is, that the replaced function is called
             self.assertNotEqual(not_temp_path_req1, temp_path_req1)
             self.assertNotEqual(not_temp_path_req2, temp_path_req2)
+
+
+class TestPatchedTemporaryDirectory(unittest.TestCase):
+    def setUp(self):
+        self.base_dir = tempfile.mkdtemp()
+
+    def tearDown(self):
+        shutil.rmtree(self.base_dir, ignore_errors=True)
+
+    def test_creates_parent_directory_if_missing(self):
+        parent = os.path.join(self.base_dir, "nonexistent_parent")
+
+        # Ensure parent doesn't exist beforehand
+        self.assertFalse(os.path.exists(parent))
+
+        with EnsuredTemporaryScratchDirectory(dir=parent) as tmpdir:
+            self.assertTrue(os.path.exists(parent))
+            self.assertTrue(os.path.isdir(tmpdir))
+            self.assertTrue(tmpdir.startswith(parent))
+
+    def test_works_when_parent_exists(self):
+        parent = os.path.join(self.base_dir, "existing_parent")
+        os.makedirs(parent)
+
+        with EnsuredTemporaryScratchDirectory(dir=parent) as tmpdir:
+            self.assertTrue(os.path.isdir(tmpdir))
+            self.assertTrue(tmpdir.startswith(parent))
+
+    @mock.patch("os.makedirs")
+    def test_permission_error_message(self, mock_makedirs):
+        mock_makedirs.side_effect = PermissionError()
+
+        with self.assertRaises(PermissionError) as ctx:
+            EnsuredTemporaryScratchDirectory(dir="/restricted/path")
+
+        self.assertIn(
+            "You do not have the permission to write to the temporary directory",
+            str(ctx.exception),
+        )

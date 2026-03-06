@@ -6,6 +6,7 @@ from contextlib import contextmanager
 from typing import Any, List, Optional, Tuple, Dict, Generator, Union
 from b2luigi.core.target import FileSystemTarget
 from b2luigi.core.settings import get_setting
+from b2luigi.core.temporary_wrapper import EnsuredTemporaryScratchDirectory
 
 
 class RemoteFileSystem(FileSystem):
@@ -222,7 +223,7 @@ class RemoteTarget(FileSystemTarget):
                     process_local_file(tmp_input)
                 # Temporary file is automatically cleaned up.
         """
-        with tempfile.TemporaryDirectory(
+        with EnsuredTemporaryScratchDirectory(
             dir=get_setting("scratch_dir", task=task, default=tempfile.gettempdir())
         ) as tmp_dir:
             tmp_path = os.path.join(tmp_dir, self.base_name)

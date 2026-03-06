@@ -6,6 +6,7 @@ import tempfile
 from typing import Generator, Optional
 
 from b2luigi.core.settings import get_setting
+from b2luigi.core.temporary_wrapper import EnsuredTemporaryScratchDirectory
 
 
 class FileSystemTarget(luigi.target.FileSystemTarget):
@@ -60,7 +61,7 @@ class FileSystemTarget(luigi.target.FileSystemTarget):
         safe concurrent access to the same input file by multiple tasks.
 
         Args:
-            **tmp_file_kwargs: Keyword arguments passed to :class:`tempfile.TemporaryDirectory`
+            **tmp_file_kwargs: Keyword arguments passed to :class:`EnsuredTemporaryScratchDirectory`
 
         Yields:
             str: Absolute path to the temporary copy of the input file
@@ -76,7 +77,7 @@ class FileSystemTarget(luigi.target.FileSystemTarget):
                 with target.get_temporary_input() as tmp_input:
                     process_file(tmp_input)
         """
-        with tempfile.TemporaryDirectory(
+        with EnsuredTemporaryScratchDirectory(
             dir=get_setting("scratch_dir", task=task, default=tempfile.gettempdir()), **tmp_file_kwargs
         ) as tmp_path:
             tmp_path = os.path.join(tmp_path, self.tmp_name)
@@ -91,7 +92,7 @@ class FileSystemTarget(luigi.target.FileSystemTarget):
         and then moving the file to its final destination only after successful completion.
 
         Args:
-            **tmp_file_kwargs: Keyword arguments passed to ``tempfile.TemporaryDirectory()``
+            **tmp_file_kwargs: Keyword arguments passed to :class:`EnsuredTemporaryScratchDirectory`
 
         Yields:
             str: Absolute path to the temporary file for writing
@@ -112,7 +113,7 @@ class FileSystemTarget(luigi.target.FileSystemTarget):
                 # File is automatically moved to target location after context exit
         """
         # Use a temporary directory
-        with tempfile.TemporaryDirectory(
+        with EnsuredTemporaryScratchDirectory(
             dir=get_setting("scratch_dir", task=task, default=tempfile.gettempdir()), **tmp_file_kwargs
         ) as tmp_dir:
             tmp_path = os.path.join(tmp_dir, self.tmp_name)
