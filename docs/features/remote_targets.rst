@@ -7,6 +7,11 @@ To ease the work with files stored on the grid or local dCache instances, ``b2lu
 At this moment, two different remote file systems are supported: `XRootD <https://xrootd.org/docs.html>`_ and `WebDAV <https://en.wikipedia.org/wiki/WebDAV>`_.
 Community contributions for different systems and protocols are very much welcome!
 
+.. hint::
+    For both protocols to work, you need to set as environment variable.
+
+    ``X509_USER_PROXY`` points to the location of the user proxy, usually of the form `/tmp/x509up_uXXXXX`.
+
 XRootD
 ------
 
@@ -14,9 +19,6 @@ In the background, the implementation for the :obj:`XRootDSystem` relies on the 
 
 .. hint::
     For Belle II users, the XRootD client is already installed in basf2 environments.
-
-.. hint::
-    To access the remote storage you will need a valid VOMS proxy.
 
 WebDAV
 ------
@@ -30,14 +32,12 @@ In the background, the implementation for the :obj:`WebDAVSystem` relies on the 
 .. hint::
     For the :obj:`WebDAVSystem` to work, you need to set ``X509_USER_PROXY`` and ``X509_CERT_DIR`` either as ``b2luigi`` setting or as environment variable.
 
-    ``X509_USER_PROXY`` points to the location of the user proxy, usually of the form `/tmp/x509up_uXXXXX`.
-
     ``X509_CERT_DIR`` points to the location of the certificates.
 
 General Usage
 =============
 
-To use the targets, you will have to pass the :obj:`RemoteTarget` class and the keyword arguments to the :meth:`add_to_output <b2luigi.Task.add_to_output>` function.
+To use the targets, you will have to pass the :obj:`RemoteTarget` class and the keyword arguments to the :meth:`add_to_output <b2luigi.Task.add_to_output>` function or set the :obj:`default_task_target_class` and :obj:`target_class_kwargs` settings as demonstrated below.
 This requires some additional setup compared to the standard :class:`LocalTarget <b2luigi.core.target.LocalTarget>`.
 
 First you need to create a ``FileSystem`` object, which is used to connect to the remote server.
