@@ -10,8 +10,7 @@ from rich.console import Console
 from rich.panel import Panel
 import sys
 
-from b2luigi.cli.apps.run import run_app
-from b2luigi.cli.apps.test import test_app
+from b2luigi.cli.apps import list_of_apps
 from b2luigi.cli.errors import CliUserError, _render_cli_error
 from b2luigi.cli.templates import PARAMS_TEMPLATE, TASKS_TEMPLATE
 
@@ -34,8 +33,9 @@ app = App(
 app.register_install_completion_command()
 
 # Register the user commands
-app.command(run_app)
-app.command(test_app)
+for app_i in list_of_apps:
+    app.command(app_i)
+
 
 console = Console()
 

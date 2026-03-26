@@ -115,13 +115,13 @@ def process(
     #     runner.run_test_mode(task_list, cli_args, kwargs)
     # elif cli_args.batch_runner:
     #     runner.run_as_batch_worker(task_list, cli_args, kwargs)
-    # elif cli_args.remove or remove:
-    #     runner.remove_outputs(
-    #         task_list,
-    #         target_tasks=cli_args.remove or remove,
-    #         auto_confirm=auto_confirm or cli_args.yes,
-    #         keep_tasks=cli_args.keep or keep_tasks,
-    #     )
+    elif remove:
+        runner.remove_outputs(
+            task_list,
+            target_tasks=remove,
+            auto_confirm=auto_confirm,
+            keep_tasks=keep_tasks,
+        )
     # elif cli_args.remove_only or remove_only:
     #     runner.remove_outputs(
     #         task_list,
