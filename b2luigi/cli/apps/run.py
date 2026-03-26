@@ -19,9 +19,10 @@ def run_task(
     task_filename="tasks.py",
     parameters_file="parameters.py",
     overrides: Optional[Dict[str, object]] = None,
+    **kwargs,
 ) -> None:
     task_instance = get_task_instance(class_name, task_filename, parameters_file, overrides)
-    process_task_instance(task_instance)
+    process_task_instance(task_instance, **kwargs)
 
 
 def parse_kv_params(items: List[str]) -> Dict[str, object]:
@@ -68,7 +69,7 @@ def run(
     ] = [],
     dry_run: Annotated[
         bool,
-        Parameter(name="--dry-run", help="Instead of running the task(s), write out which tasks will be executed."),
+        Parameter(name=["--dry", "-d"], help="Instead of running the task(s), write out which tasks will be executed."),
     ] = False,
     scheduler_host: Annotated[
         Optional[str],
@@ -96,7 +97,15 @@ def run(
         raise CliUserError(msg)
 
     overrides = parse_kv_params(params)
-    run_task(class_name=classname, task_filename=d.task_file, parameters_file=d.params_file, overrides=overrides)
+    run_task(
+        class_name=classname,
+        task_filename=d.task_file,
+        parameters_file=d.params_file,
+        overrides=overrides,
+        dry_run=dry_run,
+        scheduler_host=scheduler_host,
+        scheduler_port=scheduler_port,
+    )
 
 
 @run_app.command
