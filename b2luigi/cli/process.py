@@ -1,5 +1,4 @@
 from b2luigi.cli import runner
-from b2luigi.cli.arguments import get_cli_arguments
 
 
 __has_run_already = False
@@ -106,23 +105,23 @@ def process(
         task_list = task_like_elements
 
     # Check the CLI arguments and run as requested
-    cli_args = get_cli_arguments(ignore_additional_command_line_args=ignore_additional_command_line_args)
+    # cli_args = get_cli_arguments(ignore_additional_command_line_args=ignore_additional_command_line_args)
 
-    if cli_args.show_output or show_output:
-        runner.show_all_outputs(task_list)
-    # elif cli_args.dry_run or dry_run:
-    #     runner.dry_run(task_list)
+    # if cli_args.show_output or show_output:
+    #     runner.show_all_outputs(task_list)
+    if dry_run:
+        runner.dry_run(task_list)
     # elif cli_args.test or test:
     #     runner.run_test_mode(task_list, cli_args, kwargs)
     # elif cli_args.batch_runner:
     #     runner.run_as_batch_worker(task_list, cli_args, kwargs)
-    elif cli_args.remove or remove:
-        runner.remove_outputs(
-            task_list,
-            target_tasks=cli_args.remove or remove,
-            auto_confirm=auto_confirm or cli_args.yes,
-            keep_tasks=cli_args.keep or keep_tasks,
-        )
+    # elif cli_args.remove or remove:
+    #     runner.remove_outputs(
+    #         task_list,
+    #         target_tasks=cli_args.remove or remove,
+    #         auto_confirm=auto_confirm or cli_args.yes,
+    #         keep_tasks=cli_args.keep or keep_tasks,
+    #     )
     # elif cli_args.remove_only or remove_only:
     #     runner.remove_outputs(
     #         task_list,
