@@ -179,8 +179,9 @@ class TestWebDAVSystem(unittest.TestCase):
         self.client.list.assert_called_once_with("some/dir")
 
     def test_mkdir(self):
+        self.client.check.return_value = False
         self.system.mkdir("new/dir")
-        self.client.mkdir.assert_called_once_with(remote_path="new/dir")
+        self.client.mkdir.assert_called_once_with(remote_path="new/dir", recursive=True)
 
     def test_move(self):
         self.system.move("src", "dst")
