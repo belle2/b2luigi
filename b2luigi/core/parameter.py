@@ -104,10 +104,11 @@ def wrap_parameter() -> None:
 
                 def _hash_function(x) -> str:
                     try:
-                        if len(x) < 5:
-                            return "grouped_" + "_".join(str(i) for i in sorted(x))
-                        else:
-                            return "grouped_" + hashlib.md5(str(x).encode()).hexdigest()
+                        default_str = "_".join(str(i) for i in sorted(x))
+                        if len(default_str) > 25:
+                            default_str = hashlib.md5(str(x).encode()).hexdigest()
+
+                        return "grouped_" + default_str
 
                     except TypeError:
                         return str(x)
