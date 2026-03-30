@@ -376,7 +376,13 @@ class Task(luigi.Task):
         # Finally, use the given target class
         return setting_target_class(filename, **kwargs)
 
-    def _remove_output_file_target(self, base_filename: str) -> None:
+    def _remove_output_file_target(
+        self,
+        base_filename: str,
+        target_class: Optional[Type[FileSystemTarget]] = None,
+        result_dir: Optional[str] = None,
+        **kwargs: Any,
+    ) -> None:
         """
         Removes the output file target associated with the given base filename.
 
@@ -390,7 +396,9 @@ class Task(luigi.Task):
         Raises:
             NotImplementedError: If the target does not have a `remove` method.
         """
-        target: FileSystemTarget = self._get_output_file_target(base_filename)
+        target: FileSystemTarget = self._get_output_file_target(
+            base_filename=base_filename, target_class=target_class, result_dir=result_dir, **kwargs
+        )
         if hasattr(target, "remove"):
             target.remove()
         else:
@@ -398,7 +406,12 @@ class Task(luigi.Task):
                 f"Cannot remove output file target for {base_filename}. The target does not have a remove method."
             )
 
-    def _remove_output(self) -> None:
+    def _remove_output(
+        self,
+        target_class: Optional[Type[FileSystemTarget]] = None,
+        result_dir: Optional[str] = None,
+        **kwargs: Any,
+    ) -> None:
         """
         Removes all output file targets associated with the task.
 
@@ -427,7 +440,9 @@ class Task(luigi.Task):
         """
         for key in self.get_all_output_file_names():
             try:
-                self._remove_output_file_target(key)
+                self._remove_output_file_target(
+                    base_filename=key, target_class=target_class, result_dir=result_dir, **kwargs
+                )
             except Exception as ex:
                 print(f"Could not remove output file {key}: {ex}")
 
