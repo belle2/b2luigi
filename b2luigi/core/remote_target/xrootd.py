@@ -140,12 +140,11 @@ class XRootDSystem(RemoteFileSystem):
         Raises:
             AssertionError: If the directory creation operation fails.
         """
-        dir_path, _ = os.path.split(path)
-        if self.exists(dir_path):
-            logging.warning(f"Directory already exists: {dir_path}")
+        if self.exists(path):
+            logging.warning(f"Directory already exists: {path}")
             return
 
-        status, _ = self.client.mkdir(dir_path, self.mk_dir_flags.MAKEPATH)
+        status, _ = self.client.mkdir(path, self.mk_dir_flags.MAKEPATH)
         if not status.ok:
             logging.warning(f"Failed to create directory {path}: {status.message}")
             if "File exists" in status.message:
