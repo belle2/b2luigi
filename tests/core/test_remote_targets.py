@@ -69,7 +69,7 @@ class TestRemoteTarget(unittest.TestCase):
 
     def test_makedirs(self):
         self.target.makedirs()
-        self.system.mkdir.assert_called_once_with(self.mock_path)
+        self.system.mkdir.assert_called_once_with("foo")
 
     def test_get(self):
         output = self.target.get("zoo")
