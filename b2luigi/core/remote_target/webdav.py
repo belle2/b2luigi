@@ -1,4 +1,3 @@
-import logging
 from pathlib import Path
 import shutil
 import tempfile
@@ -164,11 +163,11 @@ class WebDAVSystem(RemoteFileSystem):
         Args:
             path (str): The path of the directory to create.
         """
-        dir_path, _ = os.path.split(path)
-        if self.exists(dir_path):
-            logging.warning(f"Directory already exists: {dir_path}")
-            return
-        self.client.mkdir(remote_path=dir_path, recursive=True)
+        if raise_if_exists:
+            if self.exists(path=path):
+                raise FileExistsError(f"Directory with the name {path} already exists on the remote server.")
+
+        self.client.mkdir(remote_path=path, recursive=parents)
 
     def locate(self, path: str) -> bool:
         """
