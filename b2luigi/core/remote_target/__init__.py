@@ -1,3 +1,4 @@
+from pathlib import Path
 import tempfile
 import luigi
 from luigi.target import FileSystem
@@ -161,12 +162,13 @@ class RemoteTarget(FileSystemTarget):
             file_system (RemoteFileSystem): Instance of the RemoteFileSystem.
         """
         self._file_system = file_system
+        self._path = Path(path)
         super().__init__(path)
 
     @property
     def base_name(self) -> str:
         """Get the base name of the target path."""
-        return os.path.basename(self.path)
+        return self._path.name
 
     @property
     def fs(self) -> RemoteFileSystem:
@@ -175,7 +177,7 @@ class RemoteTarget(FileSystemTarget):
 
     def makedirs(self) -> None:
         """Create the target's directory on the remote file system."""
-        self.fs.mkdir(self.path)
+        self.fs.mkdir(str(self._path.parent))
 
     def get(self, path: str = "~") -> str:
         """
@@ -187,8 +189,9 @@ class RemoteTarget(FileSystemTarget):
         Returns:
             Path to the copied file.
         """
-        self.fs.copy_file_from_remote(self.path, f"{path}/{self.base_name}")
-        return f"{path}/{self.base_name}"
+        new_path = str(Path(path) / self.base_name)
+        self.fs.copy_file_from_remote(self.path, new_path)
+        return new_path
 
     def open(self, mode: str) -> None:
         """Raise NotImplementedError as open is not supported."""
@@ -226,6 +229,6 @@ class RemoteTarget(FileSystemTarget):
         with EnsuredTemporaryScratchDirectory(
             dir=get_setting("scratch_dir", task=task, default=tempfile.gettempdir())
         ) as tmp_dir:
-            tmp_path = os.path.join(tmp_dir, self.base_name)
+            tmp_path = str(Path(tmp_dir) / self.base_name)
             self.fs.copy_file_from_remote(self.path, tmp_path)
             yield tmp_path
