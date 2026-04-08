@@ -23,14 +23,19 @@ following parameters that can be useful when executing ``basf2`` processes:
 - ``max_event``: maximum number of events to process. If set to ``0``, all events
   will be processed.
 
+- ``calculate_statistics``: pass ``calculateStatistics=True`` to ``basf2.process()`` to
+  print statistics after processing. Off by default.
+
 In contrast to the normal ``(b2)luigi`` tasks, the execution logic of a
 :class:`Basf2PathTask <b2luigi.basf2_helper.tasks.Basf2PathTask>` is not defined in
 a ``run`` method but in
 :meth:`create_path <b2luigi.basf2_helper.tasks.Basf2PathTask.create_path>`.
 The :meth:`create_path <b2luigi.basf2_helper.tasks.Basf2PathTask.create_path>` method needs
 to return the ``basf2`` path that is created in the steering file.
-Furthermore, the ``Progress`` module is automatically added and ``print(b2.statistics)``
-is called after the path is processed.
+ Furthermore, the ``Progress`` module is automatically added and, if
+``calculate_statistics`` is True, ``basf2`` statistics are printed after the path
+is processed. Note that ``calculate_statistics`` is False by default; set it to
+True to enable statistics output.
 
 .. warning::
     Due to technical reasons, the path needs to be created within the :meth:`create_path <b2luigi.basf2_helper.tasks.Basf2PathTask.create_path>`

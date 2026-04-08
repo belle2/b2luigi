@@ -68,5 +68,5 @@ supports_calculate_statistics = "calculateStatistics" in inspect.signature(basf2
 if supports_calculate_statistics:
     process_kwargs["calculateStatistics"] = {{ calculate_statistics }}
 basf2.process(**process_kwargs)
-if not supports_calculate_statistics:
+if {{ calculate_statistics }} and not supports_calculate_statistics:
     print(basf2.statistics)

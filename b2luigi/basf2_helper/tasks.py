@@ -70,7 +70,8 @@ class Basf2PathTask(Basf2Task):
     :meth:`create_path <b2luigi.basf2_helper.tasks.Basf2PathTask.create_path>`.
     The :meth:`create_path <b2luigi.basf2_helper.tasks.Basf2PathTask.create_path>` method needs
     to return the ``basf2`` path that is created in the steering file.
-    Furthermore, the ``Progress`` module is automatically added and ``print(b2.statistics)``
+    Furthermore, the ``Progress`` module is automatically added and
+    if ``self.calculate_statistics`` is set to True, ``print(b2.statistics)``
     is called after the path is processed.
 
     .. warning::
@@ -81,7 +82,7 @@ class Basf2PathTask(Basf2Task):
 
     num_processes = b2luigi.IntParameter(significant=False, default=0)
     max_event = b2luigi.IntParameter(significant=False, default=0)
-    calculate_statistics = b2luigi.BoolParameter(significant=False, default=True)
+    calculate_statistics = b2luigi.BoolParameter(significant=False, default=False)
 
     def create_path(self):
         raise NotImplementedError()
@@ -97,7 +98,8 @@ class Basf2PathTask(Basf2Task):
 
         Finally, it processes the path with the specified maximum number of events
         (``self.max_event``). If ``self.max_event`` is not set, it defaults to ``0``
-        (process all events). After processing, it prints the ``basf2`` statistics.
+        (process all events). After processing, if ``self.calculate_statistics``
+        is True, it prints the ``basf2`` statistics.
 
         Raises:
             ImportError: If the basf2 module cannot be found.
@@ -120,10 +122,8 @@ class Basf2PathTask(Basf2Task):
         if self.calculate_statistics and supports_calculate_statistics:
             process_kwargs["calculateStatistics"] = True
         basf2.process(**process_kwargs)
-        if not supports_calculate_statistics:
+        if self.calculate_statistics and not supports_calculate_statistics:
             print(basf2.statistics)
-
-        print(basf2.statistics)
 
 
 class SimplifiedOutputBasf2Task(Basf2PathTask):
