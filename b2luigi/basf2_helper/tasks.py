@@ -1,3 +1,4 @@
+import inspect
 import os
 import shutil
 
@@ -80,6 +81,7 @@ class Basf2PathTask(Basf2Task):
 
     num_processes = b2luigi.IntParameter(significant=False, default=0)
     max_event = b2luigi.IntParameter(significant=False, default=0)
+    calculate_statistics = b2luigi.BoolParameter(significant=False, default=True)
 
     def create_path(self):
         raise NotImplementedError()
@@ -113,7 +115,13 @@ class Basf2PathTask(Basf2Task):
         path.add_module("Progress")
         basf2.print_path(path)
         max_event = self.max_event if self.max_event else 0
-        basf2.process(path=path, max_event=max_event)
+        process_kwargs = {"path": path, "max_event": max_event}
+        supports_calculate_statistics = "calculateStatistics" in inspect.signature(basf2.process).parameters
+        if self.calculate_statistics and supports_calculate_statistics:
+            process_kwargs["calculateStatistics"] = True
+        basf2.process(**process_kwargs)
+        if not supports_calculate_statistics:
+            print(basf2.statistics)
 
         print(basf2.statistics)
 

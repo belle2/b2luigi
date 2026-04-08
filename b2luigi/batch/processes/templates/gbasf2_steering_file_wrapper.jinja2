@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+import inspect
 import os
 import pickle
 
@@ -62,5 +63,10 @@ set_log_level_from_file(pickle_file_path)
 path = b2pp.get_path_from_file(pickle_file_path)
 
 basf2.print_path(path)
-basf2.process(path, max_event={{ max_event }})
-print(basf2.statistics)
+process_kwargs = {"path": path, "max_event": {{ max_event }} }
+supports_calculate_statistics = "calculateStatistics" in inspect.signature(basf2.process).parameters
+if supports_calculate_statistics:
+    process_kwargs["calculateStatistics"] = True
+basf2.process(**process_kwargs)
+if not supports_calculate_statistics:
+    print(basf2.statistics)
