@@ -147,7 +147,7 @@ class WebDAVSystem(RemoteFileSystem):
 
     def move(self, source_path: str, dest_path: str) -> None:
         """
-        A function to move a file from one location to another on the XRootD server.
+        A function to move a file from one location to another on the WebDAV server.
 
         Args:
             source_path (str): The current path of the file on the remote file system.
@@ -163,7 +163,11 @@ class WebDAVSystem(RemoteFileSystem):
         Args:
             path (str): The path of the directory to create.
         """
-        self.client.mkdir(remote_path=path)
+        if raise_if_exists:
+            if self.exists(path=path):
+                raise FileExistsError(f"Directory with the name {path} already exists on the remote server.")
+
+        self.client.mkdir(remote_path=path, recursive=parents)
 
     def locate(self, path: str) -> bool:
         """
