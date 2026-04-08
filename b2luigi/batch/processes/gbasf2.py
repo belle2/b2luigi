@@ -713,6 +713,7 @@ class Gbasf2Process(BatchProcess):
             steering_file_stream = template.stream(
                 pickle_file_path=os.path.basename(self.pickle_file_path),
                 max_event=get_setting("max_event", default=0, task=self.task),
+                calculate_statistics=get_setting("calculate_statistics", default=True, task=self.task),
             )
             # write the template with the replacements to a new file which should be sent to the grid
             steering_file_stream.dump(self.wrapper_file_path)
