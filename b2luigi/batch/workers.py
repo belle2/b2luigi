@@ -96,7 +96,7 @@ class SendJobWorker(luigi.worker.Worker):
             process_class = LSFProcess
         elif batch_system == BatchSystems.htcondor:
             process_class = HTCondorProcess
-            if task.has_grouped_params:
+            if task.has_grouped_params():
                 logging.warning(
                     "Grouping of tasks is currently an experimental feature and should be treated with care!"
                 )
