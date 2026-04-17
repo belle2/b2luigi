@@ -181,6 +181,7 @@ class SlurmJobStatus(enum.Enum):
         completed (str): The job has completed successfully.
         pending (str): The job is waiting to be scheduled.
         running (str): The job is currently running.
+        configuring (str): The job is allocated resources but waiting for nodes to be prepared.
         suspended (str): The job has been suspended.
         preempted (str): The job has been preempted by another job.
         completing (str): The job is in the process of completing.
@@ -203,6 +204,7 @@ class SlurmJobStatus(enum.Enum):
     suspended = "SUSPENDED"
     preempted = "PREEMPTED"
     completing = "COMPLETING"
+    configuring = "CONFIGURING"
 
     # failed:
     boot_fail = "BOOT_FAIL"
@@ -296,6 +298,7 @@ class SlurmProcess(BatchProcess):
             SlurmJobStatus.suspended,
             SlurmJobStatus.preempted,
             SlurmJobStatus.completing,
+            SlurmJobStatus.configuring,
         ]:
             return JobStatus.running
         if job_status in [
