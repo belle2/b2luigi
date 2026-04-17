@@ -9,7 +9,7 @@ import unittest
 from unittest import mock
 
 import b2luigi
-from b2luigi.batch.processes.slurm import SlurmJobStatusCache, SlurmProcess
+from b2luigi.batch.processes.slurm import SlurmJobStatusCache, SlurmProcess, SlurmJobStatus
 
 from ..helpers import B2LuigiTestCase
 from .batch_task_1 import MyTask
@@ -172,3 +172,21 @@ class TestSlurmJobStatusCache(unittest.TestCase):
         # Run assertion test
         with self.assertRaises(AssertionError):
             self.slurm_job_status_cache._ask_for_job_status()
+
+
+class TestSlurmJobStatus:
+    def test_strenum_comparison_with_string(self):
+        """Test that SlurmJobStatus members can be compared with strings directly."""
+        assert SlurmJobStatus.configuring == "CONFIGURING"
+        assert SlurmJobStatus.running == "RUNNING"
+        assert SlurmJobStatus.completed == "COMPLETED"
+
+    def test_strenum_value_is_string(self):
+        """Test that SlurmJobStatus values are strings."""
+        assert isinstance(SlurmJobStatus.configuring.value, str)
+        assert isinstance(SlurmJobStatus.running.value, str)
+
+    def test_strenum_creation_from_string(self):
+        """Test that SlurmJobStatus can be created from a string value."""
+        status = SlurmJobStatus("CONFIGURING")
+        assert status == SlurmJobStatus.configuring
