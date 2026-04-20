@@ -132,10 +132,11 @@ class HTCondorJobStatusCache(BatchJobStatusCache):
                 else:
                     status_dict["ExitCode"] = 1
 
+            user_log = status_dict.get("UserLog", "<No user log>")
             if status_dict["JobStatus"] == HTCondorJobStatus.completed and status_dict["ExitCode"]:
-                self[status_dict["ClusterId"]] = (HTCondorJobStatus.failed, status_dict["UserLog"])
+                self[status_dict["ClusterId"]] = (HTCondorJobStatus.failed, user_log)
             else:
-                self[status_dict["ClusterId"]] = (status_dict["JobStatus"], status_dict["UserLog"])
+                self[status_dict["ClusterId"]] = (status_dict["JobStatus"], user_log)
 
             seen_ids.add(status_dict["ClusterId"])
 
