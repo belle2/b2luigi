@@ -1,6 +1,5 @@
 from cyclopts import App, Parameter
 import inspect
-import json
 from rich.console import Console
 from rich.markdown import Markdown
 from rich.panel import Panel
@@ -8,7 +7,14 @@ from rich.table import Table
 from typing import Annotated, Dict, List, Optional
 
 from b2luigi.cli.errors import CliUserError
-from b2luigi.cli.utils import get_task_classes, get_task_instance, process_task_instance, resolve_defaults, suggest
+from b2luigi.cli.utils import (
+    get_task_classes,
+    get_task_instance,
+    parse_kv_params,
+    process_task_instance,
+    resolve_defaults,
+    suggest,
+)
 
 run_app = App(name="run", help="Run a task class from tasks.py")
 console = Console()
@@ -23,27 +29,6 @@ def run_task(
 ) -> None:
     task_instance = get_task_instance(class_name, task_filename, parameters_file, overrides)
     process_task_instance(task_instance, **kwargs)
-
-
-def parse_kv_params(items: List[str]) -> Dict[str, object]:
-    out: Dict[str, object] = {}
-    for item in items:
-        if "=" not in item:
-            raise CliUserError(f"Invalid --param '{item}'. Use key=value.")
-        key, raw = item.split("=", 1)
-        key = key.strip()
-        raw = raw.strip()
-        if not key:
-            raise CliUserError(f"Invalid --param '{item}'. Key is empty.")
-
-        # Try JSON (covers: 1, 1.2, true, null, ["a"], {"x":1}, "string")
-        try:
-            val = json.loads(raw)
-        except Exception:
-            val = raw  # fallback as plain string
-
-        out[key] = val
-    return out
 
 
 @run_app.default
