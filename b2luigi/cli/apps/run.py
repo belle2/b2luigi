@@ -71,6 +71,12 @@ def run(
         bool,
         Parameter(name=["--dry", "-d"], help="Instead of running the task(s), write out which tasks will be executed."),
     ] = False,
+    batch: Annotated[
+        bool,
+        Parameter(
+            name=["--batch", "-b"], help="Submit tasks to the configured batch system instead of running locally."
+        ),
+    ] = False,
     scheduler_host: Annotated[
         Optional[str],
         Parameter(
@@ -103,6 +109,7 @@ def run(
         parameters_file=d.params_file,
         overrides=overrides,
         dry_run=dry_run,
+        batch=batch,
         scheduler_host=scheduler_host,
         scheduler_port=scheduler_port,
     )
