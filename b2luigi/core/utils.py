@@ -384,15 +384,50 @@ def get_task_file_dir(task):
 
 def get_filename():
     """
-    Retrieves the absolute path of the main script being executed.
+    Returns the absolute path of the task-definitions file.
+
+    Resolution order:
+
+    1. **``B2LUIGI_TASK_FILE`` environment variable** — set this when the task file
+       is not the script being executed directly (e.g. when using the ``b2luigi``
+       CLI with ``python -m b2luigi``).
+    2. **``__main__.__file__``** when it is a ``.py`` file — the classic
+       ``python tasks.py`` invocation; the executed script IS the task file.
+    3. **``os.getcwd()/tasks.py`` fallback** — used when the process is started via
+       a CLI binary (e.g. the installed ``b2luigi`` script, which has no ``.py``
+       extension).  The current working directory is the project root in this case,
+       and ``dirname(cwd/tasks.py) == cwd`` gives callers the correct base directory
+       for resolving relative paths.
 
     Returns:
-        str: The absolute path of the main script.
+        str: The absolute path of the task-definitions file.
+
+    Raises:
+        AttributeError: If ``__main__.__file__`` is not set (e.g. in a Jupyter
+            notebook) and ``B2LUIGI_TASK_FILE`` is also not set.
     """
     import __main__
 
-    pathname = os.environ.get("_B2LUIGI_MAIN_PATHNAME", None)
-    return os.path.abspath(pathname if pathname is not None else __main__.__file__)
+    # 1. Explicit override — wins unconditionally.
+    task_file = os.environ.get("B2LUIGI_TASK_FILE", None)
+    if task_file:
+        return os.path.abspath(task_file)
+
+    # 2. Direct script execution: python tasks.py
+    main_file = getattr(__main__, "__file__", None)
+    if main_file is None:
+        raise AttributeError("module '__main__' has no attribute '__file__'")
+
+    abs_main = os.path.abspath(main_file)
+    if abs_main.endswith(".py"):
+        return abs_main
+
+    # 3. CLI binary invocation (b2luigi run …): the binary has no .py extension.
+    #    Return a placeholder path so that os.path.dirname(get_filename()) resolves
+    #    to os.getcwd(), which is the project root when the user invokes b2luigi from
+    #    there — and on batch workers, create_executable_wrapper already does
+    #    'cd {working_dir}' before running, so os.getcwd() is also the project root.
+    return os.path.join(os.path.abspath(os.getcwd()), "tasks.py")
 
 
 def map_folder(input_folder):
@@ -521,12 +556,24 @@ def add_on_failure_function(task):
 
 def create_cmd_from_task(task):
     """
-    Constructs a command-line argument list based on the provided task and its settings.
+    Constructs a command-line argument list to execute a task on a batch worker node.
 
-    The executable string is made up of three key components::
+    The generated command invokes the ``batch-runner`` sub-command of the configured
+    CLI module so that the batch worker can reconstruct and execute the exact task::
 
-        <executable_prefix> <executable> <filename> --batch-runner --task-id ExampleTask_id_123 <task_cmd_additional_args>
+        <executable_prefix> <executable> -m <batch_runner_cli> batch-runner
+            --classname TaskFamily
+            --param key=value …
+            <task_cmd_additional_args>
 
+    The CLI module is set via the ``batch_runner_cli`` b2luigi setting (default: ``"b2luigi"``).
+    Projects that ship their own CLI built on top of b2luigi (e.g. ``flare``) can override this::
+
+        set_setting("batch_runner_cli", "flare")
+
+    The task-definitions file is resolved on the worker side via ``B2LUIGI_TASK_FILE``
+    (environment variable) or the default ``tasks.py``, matching the behaviour of
+    :func:`b2luigi.cli.utils.resolve_defaults`.
 
     Args:
         task: An object representing the task for which the command is being created.
@@ -539,32 +586,25 @@ def create_cmd_from_task(task):
             - The ``task_cmd_additional_args`` setting is not a list of strings.
             - The ``executable_prefix`` setting is not a list of strings.
             - The ``executable`` setting is not a list of strings.
-
-    Notes:
-        - The ``filename`` is included in the command if the ``add_filename_to_cmd``
-          setting is enabled. (Default: ``True``)
-        -
     """
-    filename = os.path.basename(get_filename()) if get_setting("add_filename_to_cmd", task=task, default=True) else ""
     task_cmd_additional_args = get_setting("task_cmd_additional_args", task=task, default=[])
-
     if isinstance(task_cmd_additional_args, str):
         raise ValueError("Your specified task_cmd_additional_args needs to be a list of strings, e.g. ['--foo', 'bar']")
 
     prefix = get_setting("executable_prefix", task=task, default=[], deprecated_keys=["cmd_prefix"])
-
     if isinstance(prefix, str):
         raise ValueError("Your specified executable_prefix needs to be a list of strings, e.g. [strace]")
 
-    cmd = prefix
-
     executable = get_setting("executable", task=task, default=[sys.executable])
-
     if isinstance(executable, str):
         raise ValueError("Your specified executable needs to be a list of strings, e.g. [python3]")
 
-    cmd += executable
-    cmd += [filename, "--batch-runner", "--task-id", task.task_id]
+    cli_module = get_setting("batch_runner_cli", task=task, default="b2luigi")
+
+    cmd = prefix + executable
+    cmd += ["-m", cli_module, "batch-runner", "--classname", task.get_task_family()]
+    for param_name, param_value in task.to_str_params().items():
+        cmd += ["--param", f"{param_name}={param_value}"]
     cmd += task_cmd_additional_args
 
     return cmd
