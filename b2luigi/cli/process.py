@@ -107,9 +107,9 @@ def process(
     # Check the CLI arguments and run as requested
     # cli_args = get_cli_arguments(ignore_additional_command_line_args=ignore_additional_command_line_args)
 
-    # if cli_args.show_output or show_output:
-    #     runner.show_all_outputs(task_list)
-    if dry_run:
+    if show_output:
+        runner.show_all_outputs(task_list)
+    elif dry_run:
         runner.dry_run(task_list)
     # elif cli_args.test or test:
     #     runner.run_test_mode(task_list, cli_args, kwargs)
@@ -129,7 +129,7 @@ def process(
     #         only=True,
     #         auto_confirm=auto_confirm or cli_args.yes,
     #     )
-    # elif cli_args.batch or batch:
-    #     runner.run_batched(task_list, cli_args, kwargs)
+    elif batch:
+        runner.run_batched(task_list, None, kwargs)
     else:
         runner.run_local(task_list, None, kwargs)
