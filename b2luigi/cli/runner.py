@@ -109,12 +109,14 @@ def run_luigi(task_list, cli_args, kwargs):
         - A custom worker-scheduler factory (:obj:`SendJobWorkerSchedulerFactory`)
           is set in the configuration.
     """
-    if "scheduler_host" in kwargs or "scheduler_port" in kwargs:
-        core_settings = luigi.interface.core()
-        host = core_settings.scheduler_host or kwargs.get("scheduler_host")
-        port = core_settings.scheduler_port or kwargs.get("scheduler_port")
-        kwargs["scheduler_host"] = host
-        kwargs["scheduler_port"] = port
+    scheduler_host = kwargs.pop("scheduler_host", None)
+    scheduler_port = kwargs.pop("scheduler_port", None)
+
+    if scheduler_host or scheduler_port:
+        if scheduler_host:
+            kwargs["scheduler_host"] = scheduler_host
+        if scheduler_port:
+            kwargs["scheduler_port"] = scheduler_port
     else:
         kwargs["local_scheduler"] = True
 
