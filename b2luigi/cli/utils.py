@@ -2,10 +2,12 @@ from dataclasses import dataclass
 import difflib
 import importlib.util
 import inspect
+import json
 import os
 from typing import Any, Dict, Generator, List, Optional, Tuple, Type
 
 import b2luigi
+from b2luigi.cli.errors import CliUserError
 
 
 @dataclass(frozen=True)
@@ -100,3 +102,36 @@ def get_task_instance(
 
 def process_task_instance(task_instance: Any, **kwargs) -> None:
     b2luigi.process(task_instance, ignore_additional_command_line_args=True, **kwargs)
+
+
+def parse_kv_params(items: List[str]) -> Dict[str, object]:
+    """Parse a list of ``key=value`` strings into a dict.
+
+    Values are interpreted as JSON when possible (covering integers, floats,
+    booleans, lists, dicts, and quoted strings).  Plain strings that are not
+    valid JSON are kept as-is.
+
+    Args:
+        items: List of ``"key=value"`` strings.
+
+    Returns:
+        Dict mapping parameter names to their parsed values.
+
+    Raises:
+        :class:`CliUserError`: If an item is missing ``=`` or the key is empty.
+    """
+    out: Dict[str, object] = {}
+    for item in items:
+        if "=" not in item:
+            raise CliUserError(f"Invalid --param '{item}'. Use key=value.")
+        key, raw = item.split("=", 1)
+        key = key.strip()
+        raw = raw.strip()
+        if not key:
+            raise CliUserError(f"Invalid --param '{item}'. Key is empty.")
+        try:
+            val = json.loads(raw)
+        except Exception:
+            val = raw
+        out[key] = val
+    return out
