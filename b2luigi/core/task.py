@@ -42,7 +42,7 @@ class Task(luigi.Task):
 
                   average = summed_numbers / counter
 
-                  with self.get_output_file("average.txt").open("w") as f:
+                  with self.get_output_file_name("average.txt").open("w") as f:
                       f.write(f"{average}\\n")
     """
 
@@ -84,12 +84,12 @@ class Task(luigi.Task):
 
         Args:
             output_file_name (str): the file name of the output file.
-                Refer to this file name as a key when using :obj:`get_input_file_names`,
-                :obj:`get_output_file_names` or :obj:`get_output_file`.
+                Refer to this file name as a key when using :obj:`get_input_file_names`
+                or :obj:`get_output_file_name`.
             target_class: which class of :obj:`FileSystemTarget` to instantiate for this target.
                 defaults to :class:`b2luigi.LocalTarget`
             result_dir (str, optional): Optionally pass a `result_dir` to the :obj:`create_output_file_name`.
-            kwargs: kwargs to be passed to the `__init__` of the Target_class via the :obj:`_get_output_file_target` function
+            kwargs: kwargs to be passed to the `__init__` of the target_class via the :obj:`_get_output_file_target` function
 
         Returns:
             A dictionary with the output file name as key and the target as value.
@@ -116,8 +116,8 @@ class Task(luigi.Task):
 
               class TheSuperFancyTask(b2luigi.Task):
                   def dry_run(self):
-                      for name in self.get_all_output_file_names():
-                          print(f"\t\toutput:\t{name}")
+                      for name in self.get_all_input_file_names():
+                          print(f"\t\tinput:\t{name}")
 
         Yields:
             Iterator[str]: An iterator over the input file paths as strings.
@@ -136,7 +136,7 @@ class Task(luigi.Task):
             key (str, optional): If given, only return a list of file paths with this given key.
 
         Return:
-            If key is none, returns a dictionary of keys to list of file paths.
+            If key is ``None``, returns a dictionary of keys to list of file paths.
             Else, returns only the list of file paths for this given key.
         """
         if key is not None:
@@ -189,7 +189,7 @@ class Task(luigi.Task):
             key (str, optional): If given, only return a list of file paths with this given key.
 
         Return:
-            If key is none, returns a dictionary of keys to list of file paths.
+            If key is ``None``, returns a dictionary of keys to list of file paths.
             Else, returns only the list of file paths for this given key.
         """
         if key is not None:
@@ -242,7 +242,7 @@ class Task(luigi.Task):
     def get_output_file_name(self, key: str) -> str:
         """
         Analogous to :obj:`get_input_file_names` this function returns
-        a an output file defined in out output function with
+        an output file defined in output function with
         the given key.
 
         In contrast to :obj:`get_input_file_names`, only a single file name
@@ -448,10 +448,22 @@ class Task(luigi.Task):
 
     @classmethod
     def grouped_param_names(cls):
+        """
+        Return the names of all parameters that have grouping enabled.
+
+        Returns:
+            list[str]: List of parameter names with grouping enabled.
+        """
         return [name for name, p in cls.get_params() if p.grouping]
 
     @classmethod
     def has_grouped_params(cls):
+        """
+        Check whether the task has any grouped parameters.
+
+        Returns:
+            bool: ``True`` if at least one parameter has grouping enabled.
+        """
         return bool(cls.grouped_param_names())
 
 
