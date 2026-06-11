@@ -4,6 +4,25 @@ from typing import Any, List, Tuple, Dict, Union
 from b2luigi.core.remote_target import RemoteFileSystem, RemoteTarget
 
 
+class XRootDError(Exception):
+    """Custom exception for XRootD-related errors."""
+
+    def __init__(self, message, xrootd_status):
+        message = (
+            message
+            + "\nxrootd status:"
+            + f"  message  :   {xrootd_status.message }\n"
+            + f"  ok       :   {xrootd_status.ok}\n"
+            + f"  error    :   {xrootd_status.error}\n"
+            + f"  fatal    :   {xrootd_status.fatal}\n"
+            + f"  status   :   {xrootd_status.status}\n"
+            + f"  code     :   {xrootd_status.code}\n"
+            + f"  shellcode: {xrootd_status.shellcode}\n"
+            + f"  errno    :   {xrootd_status.errno}\n"
+        )
+        super().__init__(message)
+
+
 class XRootDSystem(RemoteFileSystem):
     """
     XRootD file system for ``b2luigi`` Targets. Inspiration taken from `RHofsaess <https://github.com/RHofsaess/xrd-interactive/blob/main/XRootD_utils.py>`_.
@@ -66,8 +85,7 @@ class XRootDSystem(RemoteFileSystem):
 
         status, _ = self.client.copy("file://" + local_path, self.server_path + remote_path, force=force)
         if not status.ok:
-            logging.warning(status.message)
-        assert status.ok
+            raise XRootDError(f"Failed to copy file from {local_path} to {remote_path}", status)
 
     def copy_file_from_remote(self, remote_path: str, local_path: str, force: bool = False) -> None:
         """
@@ -89,7 +107,11 @@ class XRootDSystem(RemoteFileSystem):
             if "file exists" in status.message:
                 logging.info(f"File already exists: {local_path}")
                 status.ok = True
-        assert status.ok, f"File copy operation failed: {status.message}"
+            else:
+                raise XRootDError(
+                    f"Failed to copy file from {self.server_path}/{remote_path} to {local_path}." f"\nforce: {force}",
+                    status,
+                )
 
     def copy_dir_from_remote(self, remote_path: str, local_path: str, force: bool = False) -> None:
         """
@@ -109,8 +131,12 @@ class XRootDSystem(RemoteFileSystem):
             if entry.statinfo.size != 512:  # Check if the entry is not a directory
                 logging.info(f"Copying file: {entry.name}")
                 self.copy_file_from_remote(
-                    os.path.join(remote_path, entry.name), os.path.join(local_path, entry.name), force=force
+                    os.path.join(remote_path, entry.name),
+                    os.path.join(local_path, entry.name),
+                    force=force,
                 )
+            else:
+                logging.debug(f"Skipping directory: {entry.name}, size: {entry.statinfo.size} bytes")
 
     def move(self, source_path: str, dest_path: str) -> None:
         """
@@ -126,8 +152,7 @@ class XRootDSystem(RemoteFileSystem):
         """
         status, _ = self.client.mv(source_path, dest_path)
         if not status.ok:
-            logging.warning(f"Failed to move file from {source_path} to {dest_path}: {status.message}")
-        assert status.ok, f"Move operation failed: {status.message}"
+            raise XRootDError(f"Failed to move file from {source_path} to {dest_path}", status)
 
     def mkdir(self, path: str, parents: bool = True, raise_if_exists: bool = False) -> None:
         """
@@ -149,8 +174,8 @@ class XRootDSystem(RemoteFileSystem):
             logging.warning(f"Failed to create directory {path}: {status.message}")
             if "File exists" in status.message:
                 status.ok = True
-
-        assert status.ok, f"Directory creation failed: {status.message}"
+            else:
+                raise XRootDError(f"Failed to create directory {path}", status)
 
     def locate(self, path: str) -> bool:
         """
@@ -170,8 +195,7 @@ class XRootDSystem(RemoteFileSystem):
         """
         status, locations = self.client.locate(path, self.open_flags.REFRESH)
         if not status.ok:
-            logging.warning(f"Failed to locate file {path}: {status.message}")
-        assert status.ok, f"Locate operation failed: {status.message}"
+            raise XRootDError(f"Failed to locate file {path}", status)
         return True
 
     def remove(self, path: str, recursive: bool = True, skip_trash: bool = True) -> None:
@@ -188,8 +212,7 @@ class XRootDSystem(RemoteFileSystem):
         """
         status, _ = self.client.rm(path)
         if not status.ok:
-            logging.warning(f"Failed to remove file {path}: {status.message}")
-        assert status.ok, f"File removal failed: {status.message}"
+            raise XRootDError(f"Failed to remove file {path}", status)
 
     def listdir(self, path: str, print_entries: bool = False) -> Union[Tuple[Dict[str, int], Any], List[str]]:
         """
@@ -211,18 +234,21 @@ class XRootDSystem(RemoteFileSystem):
         dir_dict = {}
         status, listing = self.client.dirlist(path, self.dir_list_flags.STAT)
         if not status.ok:
-            logging.warning(f"Failed to list directory {path}: {status.message}")
-        assert status.ok, f"Directory listing failed: {status.message}"
+            raise XRootDError(f"Failed to list directory {path}", status)
 
         for entry in listing:
             if entry.statinfo.flags in {51, 19}:  # Directory flags
-                assert entry.statinfo.size == 512, "Unexpected size for a directory entry"
+                if entry.statinfo.size != 512:
+                    raise RuntimeError(
+                        f"Unexpected size for directory {path}/{entry.name}: {entry.statinfo.size} bytes",
+                    )
                 dir_dict[f"{listing.parent}{entry.name}/"] = 1
             elif entry.statinfo.flags in {48, 16}:  # File flags
                 dir_dict[f"{listing.parent}{entry.name}"] = 0
             else:
-                logging.warning(f"[get_directory_listing] Info: {entry}")
-                exit("Unknown flags. RO files, strange permissions?")
+                raise RuntimeError(
+                    f"Unexpected entry type for {path}/{entry.name}: flags={entry.statinfo.flags}, size={entry.statinfo.size}",
+                )
             if print_entries:
                 print(entry.name, f"{entry.statinfo.size/1024/1024} MB")
         return dir_dict, listing
@@ -240,14 +266,16 @@ class XRootDSystem(RemoteFileSystem):
         """
         status, listing = self.client.dirlist(path, self.dir_list_flags.STAT)
         if not status.ok:
-            logging.warning(f"Failed to list directory {path}: {status.message}")
-        assert status.ok, f"Directory listing failed: {status.message}"
+            raise XRootDError(f"Failed to list directory {path}", status)
 
         for entry in listing:
             entry_path = os.path.join(listing.parent, entry.name)
-            if entry.statinfo.size == 512:  # Check if the entry is a directory
-                logging.info(f"Recursively removing directory: {entry_path}")
-                assert entry.statinfo.flags in {51, 19}, "Unexpected flags for a directory entry"
+            if entry.statinfo.flags in {51, 19}:  # Directory flags
+                if entry.statinfo.size != 512:
+                    raise XRootDError(
+                        f"Unexpected size for directory {path}/{entry.name}: {entry.statinfo.size} bytes",
+                        status,
+                    )
                 self.remove_dir(entry_path)
             else:
                 logging.info(f"Removing file: {entry_path}")
@@ -256,8 +284,7 @@ class XRootDSystem(RemoteFileSystem):
         status, _ = self.client.rmdir(path)  # Remove the now-empty directory
         logging.info(f"Status: {status.message}")
         if not status.ok:
-            logging.warning(f"Failed to remove directory {path}: {status.message}")
-        assert status.ok, f"Directory removal failed: {status.message}"
+            raise XRootDError(f"Failed to remove directory {path}", status)
 
 
 class XRootDTarget(RemoteTarget):
