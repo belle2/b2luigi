@@ -3,6 +3,8 @@ import logging
 from typing import Any, List, Tuple, Dict, Union
 from b2luigi.core.remote_target import RemoteFileSystem, RemoteTarget
 
+logger = logging.getLogger(__name__)
+
 
 class XRootDError(Exception):
     """Custom exception for XRootD-related errors."""
@@ -40,7 +42,7 @@ class XRootDSystem(RemoteFileSystem):
             from XRootD.client.flags import DirListFlags, OpenFlags, MkDirFlags
 
         except ModuleNotFoundError as err:
-            logging.error("The XRootD python package is not imported.")
+            logger.error("The XRootD python package is not imported.")
             raise err
 
         super().__init__(server_path)
@@ -103,9 +105,9 @@ class XRootDSystem(RemoteFileSystem):
         """
         status, _ = self.client.copy(f"{self.server_path}/{remote_path}", local_path, force=force)
         if not status.ok:
-            logging.warning(f"Failed to copy file from {remote_path} to {local_path}: {status.message}")
+            logger.warning(f"Failed to copy file from {remote_path} to {local_path}: {status.message}")
             if "file exists" in status.message:
-                logging.info(f"File already exists: {local_path}")
+                logger.info(f"File already exists: {local_path}")
                 status.ok = True
             else:
                 raise XRootDError(
@@ -129,14 +131,14 @@ class XRootDSystem(RemoteFileSystem):
         _, directory_listing = self.listdir(remote_path)
         for entry in directory_listing:
             if entry.statinfo.size != 512:  # Check if the entry is not a directory
-                logging.info(f"Copying file: {entry.name}")
+                logger.info(f"Copying file: {entry.name}")
                 self.copy_file_from_remote(
                     os.path.join(remote_path, entry.name),
                     os.path.join(local_path, entry.name),
                     force=force,
                 )
             else:
-                logging.debug(f"Skipping directory: {entry.name}, size: {entry.statinfo.size} bytes")
+                logger.debug(f"Skipping directory: {entry.name}, size: {entry.statinfo.size} bytes")
 
     def move(self, source_path: str, dest_path: str) -> None:
         """
@@ -166,12 +168,12 @@ class XRootDSystem(RemoteFileSystem):
             AssertionError: If the directory creation operation fails.
         """
         if self.exists(path):
-            logging.warning(f"Directory already exists: {path}")
+            logger.warning(f"Directory already exists: {path}")
             return
 
         status, _ = self.client.mkdir(path, self.mk_dir_flags.MAKEPATH)
         if not status.ok:
-            logging.warning(f"Failed to create directory {path}: {status.message}")
+            logger.warning(f"Failed to create directory {path}: {status.message}")
             if "File exists" in status.message:
                 status.ok = True
             else:
@@ -278,11 +280,11 @@ class XRootDSystem(RemoteFileSystem):
                     )
                 self.remove_dir(entry_path)
             else:
-                logging.info(f"Removing file: {entry_path}")
+                logger.info(f"Removing file: {entry_path}")
                 self.remove(entry_path)
 
         status, _ = self.client.rmdir(path)  # Remove the now-empty directory
-        logging.info(f"Status: {status.message}")
+        logger.info(f"Status: {status.message}")
         if not status.ok:
             raise XRootDError(f"Failed to remove directory {path}", status)
 
