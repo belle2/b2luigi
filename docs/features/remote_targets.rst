@@ -100,3 +100,21 @@ Another example could be:
         def run(self):
             with open(self.get_output_file_name("Hello_world.txt"), "w") as f:
                 f.write("Hello World")
+
+It is also possible to mix different target classes in the same task.
+This could e.g. be useful if you want to create some control plots and store the larger data files on the remote storage.
+
+.. code-block:: python
+
+    import b2luigi
+
+    class MyTask(b2luigi.Task):
+
+        def output(self):
+            # adding a local file target
+            yield self.add_to_output("local_file.txt")
+            fs = b2luigi.XRootDSystem("root://eospublic.cern.ch")
+            yield self.add_to_output(
+                "remote_file.txt",
+                bluigi.RemoteTarget, file_system=fs
+            )
