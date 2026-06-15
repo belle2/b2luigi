@@ -111,10 +111,20 @@ This could e.g. be useful if you want to create some control plots and store the
     class MyTask(b2luigi.Task):
 
         def output(self):
+
             # adding a local file target
             yield self.add_to_output("local_file.txt")
+
+            # adding a remote file target
             fs = b2luigi.XRootDSystem("root://eospublic.cern.ch")
             yield self.add_to_output(
                 "remote_file.txt",
-                bluigi.RemoteTarget, file_system=fs
+                b2luigi.RemoteTarget, file_system=fs
             )
+
+        def run(self):
+            # accessing the targets works as usual
+
+            local_file_path = self.get_output_file_name("local_file.txt")
+
+            remote_file_path = self.get_output_file_name("remote_file.txt")
