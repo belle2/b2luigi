@@ -10,6 +10,32 @@ from b2luigi.core.utils import task_iterator, get_all_output_files_in_tree
 from b2luigi.core.utils import create_output_dirs
 
 
+def run_batch_worker(task):
+    """
+    Executes a single task directly as a batch worker.
+
+    This is the new-CLI counterpart to :obj:`run_as_batch_worker`.  Instead of searching
+    a task graph by ID, the caller is responsible for passing the already-reconstructed
+    task instance.  This avoids the need for ``cli_args`` and a full dependency-tree
+    traversal.
+
+    Args:
+        task: The task instance to execute.
+
+    Raises:
+        BaseException: If execution fails, the exception is re-raised after calling
+            the task's failure handler.
+    """
+    set_setting("_dispatch_local_execution", True)
+    try:
+        create_output_dirs(task)
+        task.run()
+        task.on_success()
+    except BaseException as ex:
+        task.on_failure(ex)
+        raise ex
+
+
 def run_as_batch_worker(task_list, cli_args, kwargs):
     """
     Executes a specific task from a list of tasks as a batch worker.
