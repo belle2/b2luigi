@@ -1,11 +1,7 @@
 from cyclopts import App, Parameter
-import inspect
-from rich.console import Console
-from rich.markdown import Markdown
-from rich.panel import Panel
-from rich.table import Table
 from typing import Annotated, Dict, List, Optional
 
+from b2luigi.cli import runner
 from b2luigi.cli.errors import CliUserError
 from b2luigi.cli.utils import (
     get_task_classes,
@@ -13,20 +9,31 @@ from b2luigi.cli.utils import (
     parse_kv_params,
     process_task_instance,
     resolve_defaults,
-    suggest,
+    validate_classnames,
 )
 
 run_app = App(name="run", help="Run a task class from tasks.py")
-console = Console()
 
 
 def run_task(
     class_name: str,
-    task_filename="tasks.py",
-    parameters_file="parameters.py",
+    task_filename: str = "tasks.py",
+    parameters_file: str = "parameters.py",
     overrides: Optional[Dict[str, object]] = None,
     **kwargs,
 ) -> None:
+    """Instantiate a task class by name and execute it via :func:`process_task_instance`.
+
+    :param class_name: The name of the task class to run.
+    :type class_name: str
+    :param task_filename: Path to the Python file that defines the task classes.
+    :type task_filename: str
+    :param parameters_file: Path to the parameters file exposing a ``config`` dict.
+    :type parameters_file: str
+    :param overrides: Optional parameter overrides applied on top of the parameters file.
+    :type overrides: Optional[Dict[str, object]]
+    :param kwargs: Additional keyword arguments forwarded to :func:`process_task_instance`.
+    """
     task_instance = get_task_instance(class_name, task_filename, parameters_file, overrides)
     process_task_instance(task_instance, **kwargs)
 
@@ -51,7 +58,7 @@ def run(
             name=["--param", "-P"],
             help="Override task parameters (repeatable): key=value. Values are parsed as JSON when possible.",
         ),
-    ] = [],
+    ] = (),
     dry_run: Annotated[
         bool,
         Parameter(name=["--dry", "-d"], help="Instead of running the task(s), write out which tasks will be executed."),
@@ -76,16 +83,9 @@ def run(
     ] = None,
 ):
     d = resolve_defaults(task_filename, parameter_filename)
-    tasks = get_task_classes(d.task_file)
-    names = [cls.__name__ for cls in tasks]
+    available = {cls.__name__: cls for cls in get_task_classes(d.task_file)}
 
-    if classname not in names:
-        suggestion = suggest(classname, names)
-        msg = f"Unknown task '{classname}'."
-        if suggestion:
-            msg += f" Did you mean '{suggestion}'?"
-        msg += " Use 'b2luigi run list' to see available tasks."
-        raise CliUserError(msg)
+    validate_classnames([classname], available)
 
     overrides = parse_kv_params(params)
     run_task(
@@ -110,17 +110,7 @@ def list(
     """List available task classes."""
     d = resolve_defaults(task_filename, None)
     tasks = get_task_classes(d.task_file)
-
-    table = Table(title="Available Tasks", show_lines=False)
-    table.add_column("Task", style="bold")
-    table.add_column("Description")
-
-    for cls in tasks:
-        doc = (getattr(cls, "__doc__", "") or "").strip().splitlines()
-        short = doc[0].strip() if doc else ""
-        table.add_row(cls.__name__, short)
-
-    console.print(Panel.fit(table, title="b2luigi", border_style="cyan"))
+    runner.render_task_list(tasks)
 
 
 @run_app.command(name="help")
@@ -137,6 +127,4 @@ def task_help(
     cls = tasks.get(classname)
     if not cls:
         raise CliUserError(f"Unknown task '{classname}'. Use 'b2luigi run list'.")
-
-    doc = inspect.getdoc(cls) or "(No docstring provided.)"
-    console.print(Panel.fit(Markdown(doc), title=f"{classname}", border_style="cyan"))
+    runner.render_task_help(cls)
