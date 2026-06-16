@@ -150,9 +150,9 @@ def status(
     :param task_filename: Path to the task definitions file (or ``$B2LUIGI_TASK_FILE``).
     :param parameter_filename: Path to the parameters file (or ``$B2LUIGI_PARAMS_FILE``).
     """
-    from b2luigi.cli.apps.show import show
+    from b2luigi.cli.apps.show import show_task
 
-    show(task_filename=task_filename, parameter_filename=parameter_filename)
+    show_task(task_filename=task_filename, parameter_filename=parameter_filename)
 
 
 def main() -> None:
