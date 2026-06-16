@@ -23,6 +23,23 @@ tasks_app = typer.Typer(
 )
 
 
+def _load_task_classes(task_filename: Optional[str]):
+    """Load task classes from *task_filename*, raising :class:`CliUserError` if none are found.
+
+    :param task_filename: Path to the task definitions file, or ``None`` for defaults.
+    :type task_filename: Optional[str]
+    :returns: Tuple of (list of task classes, resolved defaults object).
+    :raises CliUserError: If the file is missing or contains no ``b2luigi.Task`` subclasses.
+    """
+    d = resolve_defaults(task_filename, None)
+    try:
+        return get_task_classes(d.task_file), d
+    except ValueError:
+        raise CliUserError(
+            f"No b2luigi task classes found in '{d.task_file}'. " "Ensure your classes subclass b2luigi.Task."
+        )
+
+
 def list_tasks(task_filename: Optional[str] = None) -> None:
     """Render a table of all available task classes.
 
@@ -30,13 +47,7 @@ def list_tasks(task_filename: Optional[str] = None) -> None:
     :type task_filename: Optional[str]
     :raises CliUserError: If the task file is missing or contains no task classes.
     """
-    d = resolve_defaults(task_filename, None)
-    try:
-        tasks = get_task_classes(d.task_file)
-    except ValueError:
-        raise CliUserError(
-            f"No b2luigi task classes found in '{d.task_file}'. " "Ensure your classes subclass b2luigi.Task."
-        )
+    tasks, _ = _load_task_classes(task_filename)
     runner.render_task_list(tasks)
 
 
@@ -50,13 +61,7 @@ def show_task_info(classname: Optional[str] = None, task_filename: Optional[str]
     :raises CliUserError: If the task file is missing, contains no task classes,
         or ``classname`` does not exist in the task file.
     """
-    d = resolve_defaults(task_filename, None)
-    try:
-        tasks = get_task_classes(d.task_file)
-    except ValueError:
-        raise CliUserError(
-            f"No b2luigi task classes found in '{d.task_file}'. " "Ensure your classes subclass b2luigi.Task."
-        )
+    tasks, _ = _load_task_classes(task_filename)
     available = {cls.__name__: cls for cls in tasks}
     if classname is not None:
         validate_classnames([classname], available, hint_cmd="b2luigi tasks info")

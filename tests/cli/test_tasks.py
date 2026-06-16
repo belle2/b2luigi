@@ -5,6 +5,7 @@
 """
 
 import os
+import shutil
 
 from .helpers import CLITestCase
 
@@ -90,10 +91,16 @@ class TestTasks(CLITestCase):
 
     def test_tasks_custom_task_file(self) -> None:
         """Verify that --task-file points tasks to a non-default filename."""
-        import shutil
-
         alt_path = os.path.join(self.tmp_dir, "my_tasks.py")
         shutil.copy(os.path.join(self.tmp_dir, "tasks.py"), alt_path)
         returncode, stdout, stderr = self._run_cli("tasks", ["-f", alt_path])
+        self.assertEqual(returncode, 0, f"Command failed with stderr: {stderr}")
+        self.assertIn("LeafTask", stdout)
+
+    def test_tasks_info_custom_task_file(self) -> None:
+        """Verify that ``b2luigi tasks info -f <path>`` works with a non-default filename."""
+        alt_path = os.path.join(self.tmp_dir, "my_tasks.py")
+        shutil.copy(os.path.join(self.tmp_dir, "tasks.py"), alt_path)
+        returncode, stdout, stderr = self._run_cli("tasks", ["info", "-f", alt_path])
         self.assertEqual(returncode, 0, f"Command failed with stderr: {stderr}")
         self.assertIn("LeafTask", stdout)
