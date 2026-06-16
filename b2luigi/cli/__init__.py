@@ -1,47 +1,78 @@
-import subprocess
-from typing import Annotated, Literal
-from cyclopts import App, Parameter
-from importlib.metadata import PackageNotFoundError
-from importlib.metadata import version as get_version
 import os
 import platform
+import subprocess
+import sys
+from importlib.metadata import PackageNotFoundError
+from importlib.metadata import version as get_version
 from pathlib import Path
+from typing import Annotated, Optional
+
+import typer
 from rich.console import Console
 from rich.panel import Panel
-import sys
 
-from b2luigi.cli.apps import list_of_apps
+from b2luigi.cli.apps.batch_runner import batch_runner_app
+from b2luigi.cli.apps.remove import remove_app
+from b2luigi.cli.apps.run import run_app
+from b2luigi.cli.apps.show import show_app
+from b2luigi.cli.apps.test import test_app
 from b2luigi.cli.errors import CliUserError, _render_cli_error
 from b2luigi.cli.templates import PARAMS_TEMPLATE, TASKS_TEMPLATE
 
 
 def get_b2luigi_version() -> str:
-    # If you're installed as a package, this is the most robust.
+    """Return the installed b2luigi version string, or ``"0.0.0"`` as fallback.
+
+    :returns: Version string in semver format.
+    :rtype: str
+    """
     try:
         return get_version("b2luigi")
     except PackageNotFoundError:
         return "0.0.0"
 
 
-# TODO: Improve help message by a lot
-app = App(
+def _version_callback(value: bool) -> None:
+    if value:
+        typer.echo(get_b2luigi_version())
+        raise typer.Exit()
+
+
+app = typer.Typer(
     name="b2luigi",
     help="Run user-defined b2luigi tasks",
-    version=get_b2luigi_version(),
-    version_flags=["--version", "-V", "-v"],
+    add_completion=True,
+    no_args_is_help=True,
 )
-app.register_install_completion_command()
 
-# Register the user commands
-for app_i in list_of_apps:
-    app.command(app_i)
-
+app.add_typer(run_app, name="run")
+app.add_typer(show_app, name="show")
+app.add_typer(remove_app, name="remove")
+app.add_typer(test_app, name="test")
+app.add_typer(batch_runner_app, name="batch-runner", hidden=True)
 
 console = Console()
 
 
-@app.command
-def info():
+@app.callback()
+def main_callback(
+    version: Annotated[
+        Optional[bool],
+        typer.Option(
+            "--version",
+            "-V",
+            "-v",
+            callback=_version_callback,
+            is_eager=True,
+            help="Show the version and exit.",
+        ),
+    ] = None,
+) -> None:
+    """b2luigi — Belle II extension of the Luigi workflow management framework."""
+
+
+@app.command("info")
+def info() -> None:
     """Show environment and b2luigi installation info."""
     v = get_b2luigi_version()
 
@@ -56,15 +87,10 @@ def info():
     console.print(Panel.fit("\n".join(lines), title="Info", border_style="cyan"))
 
 
-@app.command
-def help(*args: str):
-    """Show help for b2luigi or a subcommand."""
-    sys.argv = [sys.argv[0], *args, "--help"]
-    app()
-
-
-@app.command
-def init(force: bool = False):
+@app.command("init")
+def init(
+    force: Annotated[bool, typer.Option("--force", help="Overwrite existing files.")] = False,
+) -> None:
     """Create starter tasks.py, parameters.py, and optional config."""
     files = {
         "tasks.py": TASKS_TEMPLATE,
@@ -79,18 +105,17 @@ def init(force: bool = False):
         console.print(f"[green]Wrote[/green] {name}")
 
 
-@app.command
-def version():
+@app.command("version")
+def version() -> None:
     """Print version and exit."""
     console.print(get_b2luigi_version())
 
 
-@app.command(name="self-update")
-def self_update():
+@app.command("self-update")
+def self_update() -> None:
     """Update b2luigi to the latest version in the current environment."""
     old = get_b2luigi_version()
 
-    # (Optional but recommended in the cookbook) keep pip fresh
     subprocess.check_call([sys.executable, "-m", "pip", "install", "--upgrade", "b2luigi"])
 
     new = get_version("b2luigi")
@@ -100,48 +125,17 @@ def self_update():
         console.print(f"[green]b2luigi updated: {old} → {new}[/green]")
 
 
-@app.command
-def completion(
-    shell: Annotated[
-        Literal["bash", "zsh", "fish"],
-        Parameter(help="Shell type to generate completion for."),
-    ],
-    install: Annotated[
-        bool,
-        Parameter(name="--install", help="Install completion to the default shell-specific location."),
-    ] = False,
-    output: Annotated[
-        Path | None,
-        Parameter(name=["--output", "-o"], help="Write completion script to this path instead of stdout."),
-    ] = None,
-):
-    """Generate or install shell completion for b2luigi."""
-    if install:
-        # Installs to the default location for the shell (or to `output` if provided).
-        installed_path = app.install_completion(shell=shell, output=output)
-        print(installed_path)  # raw stdout: shell scripts must not contain ANSI escape codes
-        return
-
-    script = app.generate_completion(shell=shell)
-
-    if output is not None:
-        output.write_text(script, encoding="utf-8")
-        print(output)  # raw stdout: shell scripts must not contain ANSI escape codes
-    else:
-        print(script)  # raw stdout: shell scripts must not contain ANSI escape codes
-
-
-@app.command
+@app.command("status")
 def status(
     task_filename: Annotated[
-        str | None,
-        Parameter(name=["--task-file", "-f"], help="Task definitions file (or $B2LUIGI_TASK_FILE)"),
+        Optional[str],
+        typer.Option("--task-file", "-f", help="Task definitions file (or $B2LUIGI_TASK_FILE)"),
     ] = None,
     parameter_filename: Annotated[
-        str | None,
-        Parameter(name=["--params-file", "-p"], help="Parameters file (or $B2LUIGI_PARAMS_FILE)"),
+        Optional[str],
+        typer.Option("--params-file", "-p", help="Parameters file (or $B2LUIGI_PARAMS_FILE)"),
     ] = None,
-):
+) -> None:
     """Show the output status of the full dependency tree.
 
     Equivalent to ``b2luigi show`` with no ``-t`` flag — displays every task in
@@ -156,6 +150,10 @@ def status(
 
 
 def main() -> None:
+    """Entry point for the ``b2luigi`` CLI binary.
+
+    :raises SystemExit: With the error exit code when a :class:`CliUserError` is raised.
+    """
     try:
         app()
     except CliUserError as e:
