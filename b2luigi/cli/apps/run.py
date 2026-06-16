@@ -2,8 +2,6 @@ from typing import Annotated, Dict, List, Optional
 
 import typer
 
-from b2luigi.cli import runner
-from b2luigi.cli.errors import CliUserError
 from b2luigi.cli.utils import (
     complete_task_names,
     get_task_classes,
@@ -14,7 +12,11 @@ from b2luigi.cli.utils import (
     validate_classnames,
 )
 
-run_app = typer.Typer(name="run", help="Run a task class from tasks.py")
+run_app = typer.Typer(
+    name="run",
+    help="Run a task class from tasks.py",
+    context_settings={"allow_interspersed_args": True},
+)
 
 
 def run_task(
@@ -42,18 +44,13 @@ def run_task(
 
 @run_app.callback(invoke_without_command=True)
 def run(
-    ctx: typer.Context,
     classname: Annotated[
-        Optional[str],
-        typer.Option(
-            "--task",
-            "-t",
-            "--classname",
-            "-c",
-            help="The name of the task class to run",
+        str,
+        typer.Argument(
+            help="The name of the task class to run.",
             shell_complete=complete_task_names,
         ),
-    ] = None,
+    ],
     task_filename: Annotated[
         Optional[str],
         typer.Option("--task-file", "-f", help="Task definitions file (or $B2LUIGI_TASK_FILE)"),
@@ -87,13 +84,12 @@ def run(
     scheduler_port: Annotated[
         Optional[int],
         typer.Option(
-            "--scheduler-port", help="Port of a central luigi scheduler to connect to (instead of running locally)"
+            "--scheduler-port", help="Host of a central luigi scheduler to connect to (instead of running locally)"
         ),
     ] = None,
 ) -> None:
     """Run a task class from tasks.py.
 
-    :param ctx: Typer context (injected; not used directly).
     :param classname: The name of the task class to run.
     :param task_filename: Path to the task definitions file.
     :param parameter_filename: Path to the parameters file.
@@ -103,15 +99,9 @@ def run(
     :param scheduler_host: Host of a central Luigi scheduler.
     :param scheduler_port: Port of a central Luigi scheduler.
     """
-    if ctx.invoked_subcommand is not None:
-        return
-    if classname is None:
-        raise typer.BadParameter("--task / -t is required", param_hint="'--task'")
     d = resolve_defaults(task_filename, parameter_filename)
     available = {cls.__name__: cls for cls in get_task_classes(d.task_file)}
-
     validate_classnames([classname], available)
-
     overrides = parse_kv_params(params or [])
     run_task(
         class_name=classname,
@@ -123,36 +113,3 @@ def run(
         scheduler_host=scheduler_host,
         scheduler_port=scheduler_port,
     )
-
-
-@run_app.command("list")
-def list_tasks(
-    task_filename: Annotated[
-        Optional[str],
-        typer.Option("--task-file", "-f", help="Task definitions file (or $B2LUIGI_TASK_FILE)"),
-    ] = None,
-) -> None:
-    """List available task classes."""
-    d = resolve_defaults(task_filename, None)
-    tasks = get_task_classes(d.task_file)
-    runner.render_task_list(tasks)
-
-
-@run_app.command("help")
-def task_help(
-    classname: Annotated[
-        str,
-        typer.Argument(help="Task class name to show help for."),
-    ],
-    task_filename: Annotated[
-        Optional[str],
-        typer.Option("--task-file", "-f", help="Task definitions file (or $B2LUIGI_TASK_FILE)"),
-    ] = None,
-) -> None:
-    """Show help for a specific task class."""
-    d = resolve_defaults(task_filename, None)
-    tasks = {cls.__name__: cls for cls in get_task_classes(d.task_file)}
-    cls = tasks.get(classname)
-    if not cls:
-        raise CliUserError(f"Unknown task '{classname}'. Use 'b2luigi run list'.")
-    runner.render_task_help(cls)
