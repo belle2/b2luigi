@@ -19,7 +19,6 @@ from b2luigi.cli.utils import (
 
 tasks_app = typer.Typer(
     name="tasks",
-    invoke_without_command=True,
     help="List and inspect available task classes.",
 )
 
@@ -35,7 +34,9 @@ def list_tasks(task_filename: Optional[str] = None) -> None:
     try:
         tasks = get_task_classes(d.task_file)
     except ValueError:
-        raise CliUserError("No task classes found. Run 'b2luigi init' to create a starter project.")
+        raise CliUserError(
+            f"No b2luigi task classes found in '{d.task_file}'. " "Ensure your classes subclass b2luigi.Task."
+        )
     runner.render_task_list(tasks)
 
 
@@ -53,7 +54,9 @@ def show_task_info(classname: Optional[str] = None, task_filename: Optional[str]
     try:
         tasks = get_task_classes(d.task_file)
     except ValueError:
-        raise CliUserError("No task classes found. Run 'b2luigi init' to create a starter project.")
+        raise CliUserError(
+            f"No b2luigi task classes found in '{d.task_file}'. " "Ensure your classes subclass b2luigi.Task."
+        )
     available = {cls.__name__: cls for cls in tasks}
     if classname is not None:
         validate_classnames([classname], available, hint_cmd="b2luigi tasks info")
@@ -63,7 +66,7 @@ def show_task_info(classname: Optional[str] = None, task_filename: Optional[str]
             runner.render_task_help(cls)
 
 
-@tasks_app.callback()
+@tasks_app.callback(invoke_without_command=True)
 def tasks(
     ctx: typer.Context,
     task_filename: Annotated[
