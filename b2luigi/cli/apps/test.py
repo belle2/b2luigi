@@ -1,19 +1,26 @@
-from cyclopts import App, Parameter
+from typing import Annotated, Optional
+
+import typer
 from rich.console import Console
-from typing import Annotated
 
 import b2luigi
 from b2luigi.cli.utils import process_task_instance
 
-test_app = App(name="test", help="Build a task from the given python script and execute it as b2luigi task.")
+test_app = typer.Typer(name="test", help="Build a task from the given python script and execute it as b2luigi task.")
 console = Console()
 
 
 def test_task(
     exec_script: str,
     output: str,
-    input: str | None = None,
+    input: Optional[str] = None,
 ) -> None:
+    """Build and run a one-off b2luigi task wrapping *exec_script*.
+
+    :param exec_script: Path to the Python script to execute inside the task.
+    :param output: Output filename registered as the task's output target.
+    :param input: Optional input filename; if given, a prerequisite task is created.
+    """
     if input is not None:
 
         class FastReqTask(b2luigi.Task):
@@ -46,19 +53,29 @@ def test_task(
     process_task_instance(FastTask())
 
 
-@test_app.default
+@test_app.callback(invoke_without_command=True)
 def test(
+    ctx: typer.Context,
     exec_script: Annotated[
         str,
-        Parameter(name=["-s"], help="The name of the task class to run"),
+        typer.Option("-s", help="Path to the Python script to execute as a b2luigi task."),
     ],
     output: Annotated[
         str,
-        Parameter(name=["-o"], help="Task definitions file (or $B2LUIGI_TASK_FILE)"),
+        typer.Option("-o", help="Output filename for the task target."),
     ],
     input: Annotated[
-        str | None,
-        Parameter(name=["-i"], help="Parameters file (or $B2LUIGI_PARAMS_FILE)"),
+        Optional[str],
+        typer.Option("-i", help="Optional input filename; creates a prerequisite task."),
     ] = None,
-):
+) -> None:
+    """Build and run a one-off b2luigi task wrapping a Python script.
+
+    :param ctx: Typer context (injected; not used directly).
+    :param exec_script: Path to the Python script to execute as a b2luigi task.
+    :param output: Output filename for the task target.
+    :param input: Optional input filename; creates a prerequisite task.
+    """
+    if ctx.invoked_subcommand is not None:
+        return
     test_task(exec_script=exec_script, output=output, input=input)
