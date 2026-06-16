@@ -7,6 +7,7 @@ from b2luigi.cli.utils import load_task_class, parse_kv_params, process_task_ins
 batch_runner_app = App(
     name="batch-runner",
     help="Execute a single task by task ID (used internally by the batch system).",
+    show=False,
 )
 
 
@@ -29,7 +30,7 @@ def batch_runner(
                 "Generated automatically by the batch submission; do not set by hand."
             ),
         ),
-    ] = [],
+    ] = (),
 ):
     """Execute a specific task by class name and parameters.
 
