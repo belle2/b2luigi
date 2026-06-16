@@ -74,8 +74,8 @@ def main_callback(
     """b2luigi — Belle II extension of the Luigi workflow management framework."""
 
 
-@app.command("info")
-def info() -> None:
+@app.command("about")
+def about() -> None:
     """Show environment and b2luigi installation info."""
     v = get_b2luigi_version()
 

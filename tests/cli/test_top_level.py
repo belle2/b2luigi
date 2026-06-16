@@ -1,6 +1,6 @@
-"""Integration tests for b2luigi top-level commands: version, info, and init.
+"""Integration tests for b2luigi top-level commands: version, about, and init.
 
-:Description: Tests ``b2luigi version``, ``b2luigi info``, and ``b2luigi init``
+:Description: Tests ``b2luigi version``, ``b2luigi about``, and ``b2luigi init``
     end-to-end, verifying exit codes, output content, and file creation.
 """
 
@@ -28,36 +28,37 @@ class TestVersion(CLITestCase):
         self.assertRegex(stdout.strip(), r"^\d+\.\d+\.\d+")
 
 
-class TestInfo(CLITestCase):
-    """Integration tests for the info command."""
+class TestAbout(CLITestCase):
+    """Integration tests for the about command."""
 
-    def test_info_exits_zero(self) -> None:
-        """Verify that ``b2luigi info`` exits with code 0."""
-        returncode, stdout, stderr = self._run_cli("info")
+    def test_about_exits_zero(self) -> None:
+        """Verify that ``b2luigi about`` exits with code 0."""
+        returncode, stdout, stderr = self._run_cli("about")
         self.assertEqual(returncode, 0, f"Command failed with stderr: {stderr}")
 
-    def test_info_contains_b2luigi_label(self) -> None:
-        """Verify that the info output contains the ``b2luigi:`` label."""
-        _, stdout, _ = self._run_cli("info")
+    def test_about_contains_b2luigi_label(self) -> None:
+        """Verify that the about output contains the ``b2luigi:`` label."""
+        _, stdout, _ = self._run_cli("about")
         self.assertIn("b2luigi:", stdout)
 
-    def test_info_contains_python_label(self) -> None:
-        """Verify that the info output contains the ``python:`` label."""
-        _, stdout, _ = self._run_cli("info")
+    def test_about_contains_python_label(self) -> None:
+        """Verify that the about output contains the ``python:`` label."""
+        _, stdout, _ = self._run_cli("about")
         self.assertIn("python:", stdout)
 
-    def test_info_contains_cwd_label(self) -> None:
-        """Verify that the info output contains ``cwd:`` and the temp directory path."""
-        returncode, stdout, stderr = self._run_cli("info")
+    def test_about_contains_cwd_label(self) -> None:
+        """Verify that the about output contains ``cwd:`` and the temp directory path."""
+        returncode, stdout, stderr = self._run_cli("about")
         self.assertEqual(returncode, 0)
         self.assertIn("cwd:", stdout)
-        # Use realpath to handle macOS /var -> /private/var symlink
+        import os
+
         self.assertIn(os.path.realpath(self.tmp_dir), stdout)
 
-    def test_info_unset_env_vars_show_unset(self) -> None:
+    def test_about_unset_env_vars_show_unset(self) -> None:
         """Verify that ``(unset)`` appears when B2LUIGI_* env vars are not set."""
         _, stdout, _ = self._run_cli(
-            "info",
+            "about",
             exclude_env={"B2LUIGI_TASK_FILE", "B2LUIGI_PARAMS_FILE"},
         )
         self.assertIn("(unset)", stdout)
