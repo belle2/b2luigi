@@ -6,6 +6,7 @@ import json
 import os
 from typing import Any, Dict, Generator, List, Optional, Tuple, Type
 
+import luigi
 import b2luigi
 from b2luigi.cli.errors import CliUserError
 
@@ -30,7 +31,9 @@ def suggest(bad: str, candidates: List[str]) -> str | None:
 def import_from_file(filename: str, module_name: str) -> Any:
     path = os.path.join(os.getcwd(), filename)  # TODO: Replace getcwd
     if not os.path.exists(path):
-        raise FileNotFoundError(f"{filename} not found in the current directory")
+        raise CliUserError(
+            f"'{filename}' not found in the current directory. Run 'b2luigi init' to create a starter project."
+        )
 
     spec = importlib.util.spec_from_file_location(module_name, path)
     if spec is None or spec.loader is None:
@@ -100,8 +103,67 @@ def get_task_instance(
     return TaskClass(**params)
 
 
+def get_root_tasks(task_list: List) -> List:
+    """Return only the tasks in ``task_list`` that are not required by any other task in the list.
+
+    Passing these as traversal roots to ``get_all_output_files_in_tree`` ensures
+    each task's outputs appear exactly once.
+    """
+    required_ids = set()
+    for task in task_list:
+        for dep in luigi.task.flatten(task.requires()):
+            required_ids.add(dep.task_id)
+    return [t for t in task_list if t.task_id not in required_ids]
+
+
 def process_task_instance(task_instance: Any, **kwargs) -> None:
     b2luigi.process(task_instance, ignore_additional_command_line_args=True, **kwargs)
+
+
+def parse_classnames(raw: str | None) -> list[str] | None:
+    """Split a comma-separated class name string into a list, or return ``None`` if empty.
+
+    Whitespace-only tokens and blank entries are stripped and ignored.  If every
+    token is blank (e.g. ``"  ,  ,  "``), the function returns ``None`` rather
+    than an empty list so that callers can rely on a simple ``if names is None``
+    check.
+
+    :param raw: Comma-separated task class names, or ``None``.
+    :type raw: str | None
+    :returns: List of stripped, non-empty names, or ``None`` if ``raw`` is falsy
+        or contains only whitespace.
+    :rtype: list[str] | None
+    """
+    if not raw:
+        return None
+    names = [n.strip() for n in raw.split(",") if n.strip()]
+    return names if names else None
+
+
+def validate_classnames(
+    names: list[str],
+    available: dict[str, Any],
+    hint_cmd: str = "b2luigi run list",
+) -> None:
+    """Raise :class:`CliUserError` for any name not present in ``available``.
+
+    :param names: Task class names to validate.
+    :type names: list[str]
+    :param available: Mapping of class name to class, from :func:`get_task_classes`.
+    :type available: dict[str, Any]
+    :param hint_cmd: The CLI command shown in the error message to help the user
+        discover available tasks.  Defaults to ``"b2luigi run list"``.
+    :type hint_cmd: str
+    :raises CliUserError: If any name is unknown, with a typo suggestion when possible.
+    """
+    for name in names:
+        if name not in available:
+            suggestion = suggest(name, list(available))
+            msg = f"Unknown task '{name}'."
+            if suggestion:
+                msg += f" Did you mean '{suggestion}'?"
+            msg += f" Use '{hint_cmd}' to see available tasks."
+            raise CliUserError(msg)
 
 
 def parse_kv_params(items: List[str]) -> Dict[str, object]:
@@ -111,14 +173,11 @@ def parse_kv_params(items: List[str]) -> Dict[str, object]:
     booleans, lists, dicts, and quoted strings).  Plain strings that are not
     valid JSON are kept as-is.
 
-    Args:
-        items: List of ``"key=value"`` strings.
-
-    Returns:
-        Dict mapping parameter names to their parsed values.
-
-    Raises:
-        :class:`CliUserError`: If an item is missing ``=`` or the key is empty.
+    :param items: List of ``"key=value"`` strings.
+    :type items: List[str]
+    :returns: Dict mapping parameter names to their parsed values.
+    :rtype: Dict[str, object]
+    :raises CliUserError: If an item is missing ``=`` or the key is empty.
     """
     out: Dict[str, object] = {}
     for item in items:
