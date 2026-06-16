@@ -145,7 +145,7 @@ def parse_classnames(raw: str | None) -> list[str] | None:
 def validate_classnames(
     names: list[str],
     available: dict[str, Any],
-    hint_cmd: str = "b2luigi run list",
+    hint_cmd: str = "b2luigi tasks",
 ) -> None:
     """Raise :class:`CliUserError` for any name not present in ``available``.
 
@@ -154,7 +154,7 @@ def validate_classnames(
     :param available: Mapping of class name to class, from :func:`get_task_classes`.
     :type available: dict[str, Any]
     :param hint_cmd: The CLI command shown in the error message to help the user
-        discover available tasks.  Defaults to ``"b2luigi run list"``.
+        discover available tasks.  Defaults to ``"b2luigi tasks"``.
     :type hint_cmd: str
     :raises CliUserError: If any name is unknown, with a typo suggestion when possible.
     """
