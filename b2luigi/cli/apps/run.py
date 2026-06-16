@@ -84,7 +84,7 @@ def run(
     scheduler_port: Annotated[
         Optional[int],
         typer.Option(
-            "--scheduler-port", help="Host of a central luigi scheduler to connect to (instead of running locally)"
+            "--scheduler-port", help="Port of a central luigi scheduler to connect to (instead of running locally)"
         ),
     ] = None,
 ) -> None:
@@ -101,7 +101,7 @@ def run(
     """
     d = resolve_defaults(task_filename, parameter_filename)
     available = {cls.__name__: cls for cls in get_task_classes(d.task_file)}
-    validate_classnames([classname], available)
+    validate_classnames([classname], available, hint_cmd="b2luigi tasks")
     overrides = parse_kv_params(params or [])
     run_task(
         class_name=classname,
