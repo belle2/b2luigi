@@ -12,7 +12,6 @@ batch_runner_app = typer.Typer(
 
 @batch_runner_app.callback(invoke_without_command=True)
 def batch_runner(
-    ctx: typer.Context,
     classname: Annotated[
         str,
         typer.Option("--classname", "-c", help="The task class name (task family)."),
@@ -41,13 +40,10 @@ def batch_runner(
 
     **Do not invoke this command manually.**  Use ``b2luigi run`` instead.
 
-    :param ctx: Typer context (injected; not used directly).
     :param classname: The fully-qualified task class name to instantiate.
     :param task_filename: Path to the task definitions file.
     :param params: Serialised ``key=value`` parameter strings.
     """
-    if ctx.invoked_subcommand is not None:
-        return
     d = resolve_defaults(task_filename, None)
 
     TaskClass = load_task_class(classname, d.task_file)

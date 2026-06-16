@@ -18,7 +18,6 @@ remove_app = typer.Typer(name="remove", help="Remove output files of task(s).")
 
 @remove_app.callback(invoke_without_command=True)
 def remove(
-    ctx: typer.Context,
     classnames: Annotated[
         Optional[str],
         typer.Option(
@@ -60,7 +59,6 @@ def remove(
     By default only the named tasks are removed (not their dependents); pass
     ``--with-dependents`` to also remove tasks that depend on the named ones.
 
-    :param ctx: Typer context (injected; not used directly).
     :param classnames: Comma-separated task class names, or ``None`` to target all.
     :param task_filename: Path to the task definitions file.
     :param parameter_filename: Path to the parameters file.
@@ -69,8 +67,6 @@ def remove(
     :param keep: Comma-separated task class names whose outputs should be preserved.
     :param params: Key=value overrides applied on top of the parameters file.
     """
-    if ctx.invoked_subcommand is not None:
-        return
     d = resolve_defaults(task_filename, parameter_filename)
     available = {cls.__name__: cls for cls in get_task_classes(d.task_file)}
     base_params = load_parameters(d.params_file)

@@ -55,7 +55,6 @@ def test_task(
 
 @test_app.callback(invoke_without_command=True)
 def test(
-    ctx: typer.Context,
     exec_script: Annotated[
         str,
         typer.Option("-s", help="Path to the Python script to execute as a b2luigi task."),
@@ -71,11 +70,8 @@ def test(
 ) -> None:
     """Build and run a one-off b2luigi task wrapping a Python script.
 
-    :param ctx: Typer context (injected; not used directly).
     :param exec_script: Path to the Python script to execute as a b2luigi task.
     :param output: Output filename for the task target.
     :param input: Optional input filename; creates a prerequisite task.
     """
-    if ctx.invoked_subcommand is not None:
-        return
     test_task(exec_script=exec_script, output=output, input=input)

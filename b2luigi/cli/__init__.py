@@ -33,6 +33,7 @@ def get_b2luigi_version() -> str:
 
 
 def _version_callback(value: bool) -> None:
+    """Eager callback for --version/-V/-v: print version and exit immediately."""
     if value:
         typer.echo(get_b2luigi_version())
         raise typer.Exit()
