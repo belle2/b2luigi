@@ -3,7 +3,7 @@ from typing import Any, List, Tuple, Dict, Union
 from b2luigi.core.remote_target import RemoteFileSystem, RemoteTarget
 from b2luigi.core.utils import get_luigi_logger
 
-logger = get_luigi_logger(__name__)
+logger = get_luigi_logger()
 
 
 class XRootDError(Exception):
