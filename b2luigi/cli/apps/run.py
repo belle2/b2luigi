@@ -1,9 +1,11 @@
-from cyclopts import App, Parameter
 from typing import Annotated, Dict, List, Optional
+
+import typer
 
 from b2luigi.cli import runner
 from b2luigi.cli.errors import CliUserError
 from b2luigi.cli.utils import (
+    complete_task_names,
     get_task_classes,
     get_task_instance,
     parse_kv_params,
@@ -12,7 +14,7 @@ from b2luigi.cli.utils import (
     validate_classnames,
 )
 
-run_app = App(name="run", help="Run a task class from tasks.py")
+run_app = typer.Typer(name="run", help="Run a task class from tasks.py")
 
 
 def run_task(
@@ -38,56 +40,79 @@ def run_task(
     process_task_instance(task_instance, **kwargs)
 
 
-@run_app.default
+@run_app.callback(invoke_without_command=True)
 def run(
+    ctx: typer.Context,
     classname: Annotated[
-        str,
-        Parameter(name=["--task", "-t", "--classname", "-c"], help="The name of the task class to run"),
-    ],
+        Optional[str],
+        typer.Option(
+            "--task",
+            "-t",
+            "--classname",
+            "-c",
+            help="The name of the task class to run",
+            shell_complete=complete_task_names,
+        ),
+    ] = None,
     task_filename: Annotated[
-        str | None,
-        Parameter(name=["--task-file", "-f"], help="Task definitions file (or $B2LUIGI_TASK_FILE)"),
+        Optional[str],
+        typer.Option("--task-file", "-f", help="Task definitions file (or $B2LUIGI_TASK_FILE)"),
     ] = None,
     parameter_filename: Annotated[
-        str | None,
-        Parameter(name=["--params-file", "-p"], help="Parameters file (or $B2LUIGI_PARAMS_FILE)"),
+        Optional[str],
+        typer.Option("--params-file", "-p", help="Parameters file (or $B2LUIGI_PARAMS_FILE)"),
     ] = None,
     params: Annotated[
-        List[str],
-        Parameter(
-            name=["--param", "-P"],
+        Optional[List[str]],
+        typer.Option(
+            "--param",
+            "-P",
             help="Override task parameters (repeatable): key=value. Values are parsed as JSON when possible.",
         ),
-    ] = (),
+    ] = None,
     dry_run: Annotated[
         bool,
-        Parameter(name=["--dry", "-d"], help="Instead of running the task(s), write out which tasks will be executed."),
+        typer.Option("--dry", "-d", help="Instead of running the task(s), write out which tasks will be executed."),
     ] = False,
     batch: Annotated[
         bool,
-        Parameter(
-            name=["--batch", "-b"], help="Submit tasks to the configured batch system instead of running locally."
-        ),
+        typer.Option("--batch", "-b", help="Submit tasks to the configured batch system instead of running locally."),
     ] = False,
     scheduler_host: Annotated[
         Optional[str],
-        Parameter(
-            name="--scheduler-host", help="Host of a central luigi scheduler to connect to (instead of running locally)"
+        typer.Option(
+            "--scheduler-host", help="Host of a central luigi scheduler to connect to (instead of running locally)"
         ),
     ] = None,
     scheduler_port: Annotated[
         Optional[int],
-        Parameter(
-            name="--scheduler-port", help="Port of a central luigi scheduler to connect to (instead of running locally)"
+        typer.Option(
+            "--scheduler-port", help="Port of a central luigi scheduler to connect to (instead of running locally)"
         ),
     ] = None,
-):
+) -> None:
+    """Run a task class from tasks.py.
+
+    :param ctx: Typer context (injected; not used directly).
+    :param classname: The name of the task class to run.
+    :param task_filename: Path to the task definitions file.
+    :param parameter_filename: Path to the parameters file.
+    :param params: Key=value parameter overrides (repeatable).
+    :param dry_run: If ``True``, print which tasks would run without executing them.
+    :param batch: If ``True``, submit to the configured batch system.
+    :param scheduler_host: Host of a central Luigi scheduler.
+    :param scheduler_port: Port of a central Luigi scheduler.
+    """
+    if ctx.invoked_subcommand is not None:
+        return
+    if classname is None:
+        raise typer.BadParameter("--task / -t is required", param_hint="'--task'")
     d = resolve_defaults(task_filename, parameter_filename)
     available = {cls.__name__: cls for cls in get_task_classes(d.task_file)}
 
     validate_classnames([classname], available)
 
-    overrides = parse_kv_params(params)
+    overrides = parse_kv_params(params or [])
     run_task(
         class_name=classname,
         task_filename=d.task_file,
@@ -100,27 +125,30 @@ def run(
     )
 
 
-@run_app.command
-def list(
+@run_app.command("list")
+def list_tasks(
     task_filename: Annotated[
-        str | None,
-        Parameter(name=["--task-file", "-f"], help="Task definitions file (or $B2LUIGI_TASK_FILE)"),
+        Optional[str],
+        typer.Option("--task-file", "-f", help="Task definitions file (or $B2LUIGI_TASK_FILE)"),
     ] = None,
-):
+) -> None:
     """List available task classes."""
     d = resolve_defaults(task_filename, None)
     tasks = get_task_classes(d.task_file)
     runner.render_task_list(tasks)
 
 
-@run_app.command(name="help")
+@run_app.command("help")
 def task_help(
-    classname: str,
+    classname: Annotated[
+        str,
+        typer.Argument(help="Task class name to show help for."),
+    ],
     task_filename: Annotated[
-        str | None,
-        Parameter(name=["--task-file", "-f"], help="Task definitions file (or $B2LUIGI_TASK_FILE)"),
+        Optional[str],
+        typer.Option("--task-file", "-f", help="Task definitions file (or $B2LUIGI_TASK_FILE)"),
     ] = None,
-):
+) -> None:
     """Show help for a specific task class."""
     d = resolve_defaults(task_filename, None)
     tasks = {cls.__name__: cls for cls in get_task_classes(d.task_file)}
