@@ -63,7 +63,7 @@ def show_task_info(classname: Optional[str] = None, task_filename: Optional[str]
             runner.render_task_help(cls)
 
 
-@tasks_app.callback(invoke_without_command=True)
+@tasks_app.callback()
 def tasks(
     ctx: typer.Context,
     task_filename: Annotated[
