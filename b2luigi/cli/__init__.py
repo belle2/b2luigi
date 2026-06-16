@@ -82,7 +82,7 @@ def init(force: bool = False):
 @app.command
 def version():
     """Print version and exit."""
-    print(get_b2luigi_version())
+    console.print(get_b2luigi_version())
 
 
 @app.command(name="self-update")
@@ -95,9 +95,9 @@ def self_update():
 
     new = get_version("b2luigi")
     if new == old:
-        print(f"b2luigi is already up-to-date ({new}).")
+        console.print(f"[yellow]b2luigi is already up-to-date ({new}).[/yellow]")
     else:
-        print(f"b2luigi updated: {old} → {new}")
+        console.print(f"[green]b2luigi updated: {old} → {new}[/green]")
 
 
 @app.command
@@ -119,16 +119,40 @@ def completion(
     if install:
         # Installs to the default location for the shell (or to `output` if provided).
         installed_path = app.install_completion(shell=shell, output=output)
-        print(installed_path)
+        print(installed_path)  # raw stdout: shell scripts must not contain ANSI escape codes
         return
 
     script = app.generate_completion(shell=shell)
 
     if output is not None:
         output.write_text(script, encoding="utf-8")
-        print(output)
+        print(output)  # raw stdout: shell scripts must not contain ANSI escape codes
     else:
-        print(script)
+        print(script)  # raw stdout: shell scripts must not contain ANSI escape codes
+
+
+@app.command
+def status(
+    task_filename: Annotated[
+        str | None,
+        Parameter(name=["--task-file", "-f"], help="Task definitions file (or $B2LUIGI_TASK_FILE)"),
+    ] = None,
+    parameter_filename: Annotated[
+        str | None,
+        Parameter(name=["--params-file", "-p"], help="Parameters file (or $B2LUIGI_PARAMS_FILE)"),
+    ] = None,
+):
+    """Show the output status of the full dependency tree.
+
+    Equivalent to ``b2luigi show`` with no ``-t`` flag — displays every task in
+    the dependency tree together with whether its outputs exist.
+
+    :param task_filename: Path to the task definitions file (or ``$B2LUIGI_TASK_FILE``).
+    :param parameter_filename: Path to the parameters file (or ``$B2LUIGI_PARAMS_FILE``).
+    """
+    from b2luigi.cli.apps.show import show
+
+    show(task_filename=task_filename, parameter_filename=parameter_filename)
 
 
 def main() -> None:
