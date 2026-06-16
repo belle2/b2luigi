@@ -94,6 +94,18 @@ class TestCompleteTaskNames(unittest.TestCase):
 
         mock_get.assert_called_once_with("env_tasks.py")
 
+    def test_no_task_found_sentinel_is_excluded(self) -> None:
+        """The NoTaskFound sentinel returned by get_task_classnames is not suggested."""
+        from b2luigi.cli.utils import complete_task_names
+
+        ctx = self._make_ctx()
+        param = MagicMock()
+
+        with patch("b2luigi.cli.utils.get_task_classnames", return_value=["NoTaskFound"]):
+            result = complete_task_names(ctx, param, "")
+
+        self.assertEqual(result, [])
+
 
 if __name__ == "__main__":
     unittest.main()

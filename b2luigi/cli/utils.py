@@ -168,7 +168,7 @@ def validate_classnames(
             raise CliUserError(msg)
 
 
-def complete_task_names(ctx: ClickContext, param: ClickParameter, incomplete: str) -> list[CompletionItem]:
+def complete_task_names(ctx: ClickContext, _param: ClickParameter, incomplete: str) -> list[CompletionItem]:
     """Shell completion callback that returns task class names matching *incomplete*.
 
     Loaded from :func:`get_task_classnames` using the task file resolved from
@@ -178,17 +178,22 @@ def complete_task_names(ctx: ClickContext, param: ClickParameter, incomplete: st
 
     :param ctx: The current Click context (provides already-parsed params).
     :type ctx: click.Context
-    :param param: The Click parameter being completed (unused).
-    :type param: click.Parameter
+    :param _param: The Click parameter being completed (unused).
+    :type _param: click.Parameter
     :param incomplete: The partial string the user has typed so far.
     :type incomplete: str
     :returns: List of :class:`~click.shell_completion.CompletionItem` whose
         values start with *incomplete*.
     :rtype: list[CompletionItem]
     """
-    task_file = ctx.params.get("task_filename") or os.environ.get("B2LUIGI_TASK_FILE", "tasks.py")
+    task_file = ctx.params.get("task_filename") or os.getenv("B2LUIGI_TASK_FILE", "tasks.py")
     try:
-        return [CompletionItem(name) for name in get_task_classnames(task_file) if name.startswith(incomplete)]
+        # get_task_classnames returns ["NoTaskFound"] when the file has no tasks; exclude it from completions
+        return [
+            CompletionItem(name)
+            for name in get_task_classnames(task_file)
+            if name.startswith(incomplete) and name != "NoTaskFound"
+        ]
     except Exception:
         return []
 
