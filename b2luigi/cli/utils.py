@@ -9,6 +9,8 @@ from typing import Any, Dict, Generator, List, Optional, Tuple, Type
 import luigi
 import b2luigi
 from b2luigi.cli.errors import CliUserError
+from click import Context as ClickContext, Parameter as ClickParameter
+from click.shell_completion import CompletionItem
 
 
 @dataclass(frozen=True)
@@ -164,6 +166,31 @@ def validate_classnames(
                 msg += f" Did you mean '{suggestion}'?"
             msg += f" Use '{hint_cmd}' to see available tasks."
             raise CliUserError(msg)
+
+
+def complete_task_names(ctx: ClickContext, param: ClickParameter, incomplete: str) -> list[CompletionItem]:
+    """Shell completion callback that returns task class names matching *incomplete*.
+
+    Loaded from :func:`get_task_classnames` using the task file resolved from
+    ``ctx.params["task_filename"]``, the ``B2LUIGI_TASK_FILE`` env var, or the
+    default ``"tasks.py"``.  Any exception during discovery is silently ignored
+    so that a missing or broken ``tasks.py`` never breaks tab completion.
+
+    :param ctx: The current Click context (provides already-parsed params).
+    :type ctx: click.Context
+    :param param: The Click parameter being completed (unused).
+    :type param: click.Parameter
+    :param incomplete: The partial string the user has typed so far.
+    :type incomplete: str
+    :returns: List of :class:`~click.shell_completion.CompletionItem` whose
+        values start with *incomplete*.
+    :rtype: list[CompletionItem]
+    """
+    task_file = ctx.params.get("task_filename") or os.environ.get("B2LUIGI_TASK_FILE", "tasks.py")
+    try:
+        return [CompletionItem(name) for name in get_task_classnames(task_file) if name.startswith(incomplete)]
+    except Exception:
+        return []
 
 
 def parse_kv_params(items: List[str]) -> Dict[str, object]:
