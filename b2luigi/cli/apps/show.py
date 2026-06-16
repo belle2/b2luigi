@@ -1,23 +1,30 @@
 from cyclopts import App, Parameter
-from typing import Annotated
+from typing import Annotated, List
 
-from b2luigi.cli.errors import CliUserError
-from b2luigi.cli.utils import get_task_classes, get_task_instance, process_task_instance, resolve_defaults, suggest
+from b2luigi.cli import runner
+from b2luigi.cli.utils import (
+    get_root_tasks,
+    get_task_classes,
+    load_parameters,
+    parse_classnames,
+    parse_kv_params,
+    resolve_defaults,
+    validate_classnames,
+)
 
-show_app = App(name="show", help="Show the output of a given task")
-
-
-def show_task(class_name: str, task_filename="tasks.py", parameters_file="parameters.py") -> None:
-    task_instance = get_task_instance(class_name, task_filename, parameters_file)
-    process_task_instance(task_instance, show_output=[class_name])
+show_app = App(name="show", help="Show output files of task(s). Without a task name shows the full dependency tree.")
 
 
 @show_app.default
 def show(
-    classname: Annotated[
-        str,
-        Parameter(name=["--task", "-t", "--classname", "-c"], help="The name of the task class to run"),
-    ],
+    classnames: Annotated[
+        str | None,
+        Parameter(
+            name=["--task", "-t"],
+            help="Task class name(s) to show, comma-separated (e.g. MyTask,MyOtherTask). "
+            "Omit to show the full dependency tree for all tasks in tasks.py.",
+        ),
+    ] = None,
     task_filename: Annotated[
         str | None,
         Parameter(name=["--task-file", "-f"], help="Task definitions file (or $B2LUIGI_TASK_FILE)"),
@@ -26,21 +33,50 @@ def show(
         str | None,
         Parameter(name=["--params-file", "-p"], help="Parameters file (or $B2LUIGI_PARAMS_FILE)"),
     ] = None,
+    with_dependents: Annotated[
+        bool,
+        Parameter(
+            name="--with-dependents",
+            help="Also show outputs of all tasks that depend on the specified task(s). Requires -t/--task.",
+        ),
+    ] = False,
+    params: Annotated[
+        List[str],
+        Parameter(
+            name=["--param", "-P"],
+            help="Override task parameters (repeatable): key=value. Values are parsed as JSON when possible.",
+        ),
+    ] = (),
 ):
+    """Show output files of task(s).
+
+    Without ``-t`` shows the full dependency tree for all tasks in ``tasks.py``.
+    With ``-t`` shows only the named tasks (and optionally their dependents).
+
+    :param classnames: Comma-separated task class names, or ``None`` to show all.
+    :param task_filename: Path to the task definitions file.
+    :param parameter_filename: Path to the parameters file.
+    :param with_dependents: If ``True``, also show tasks that depend on the specified tasks.
+    :param params: Key=value overrides applied on top of the parameters file.
+    """
     d = resolve_defaults(task_filename, parameter_filename)
-    tasks = get_task_classes(d.task_file)
-    names = [cls.__name__ for cls in tasks]
+    available = {cls.__name__: cls for cls in get_task_classes(d.task_file)}
+    base_params = load_parameters(d.params_file)
+    overrides = parse_kv_params(params)
+    merged_params = {**base_params, **overrides}
 
-    if classname not in names:
-        suggestion = suggest(classname, names)
-        msg = f"Unknown task '{classname}'."
-        if suggestion:
-            msg += f" Did you mean '{suggestion}'?"
-        msg += " Use 'b2luigi run list' to see available tasks."
-        raise CliUserError(msg)
+    names = parse_classnames(classnames)
 
-    show_task(
-        class_name=classname,
-        task_filename=d.task_file,
-        parameters_file=d.params_file,
-    )
+    if names is None:
+        all_tasks = [cls(**merged_params) for cls in available.values()]
+        runner.show_all_outputs(get_root_tasks(all_tasks))
+        return
+
+    validate_classnames(names, available)
+    task_list = [available[name](**merged_params) for name in names]
+
+    if with_dependents:
+        all_tasks = [cls(**merged_params) for cls in available.values()]
+        runner.show_dependents_outputs(get_root_tasks(all_tasks), task_list)
+    else:
+        runner.show_task_outputs(task_list)
