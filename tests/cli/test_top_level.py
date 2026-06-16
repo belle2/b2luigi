@@ -51,8 +51,7 @@ class TestAbout(CLITestCase):
         returncode, stdout, stderr = self._run_cli("about")
         self.assertEqual(returncode, 0)
         self.assertIn("cwd:", stdout)
-        import os
-
+        # Use realpath to handle macOS /var -> /private/var symlink
         self.assertIn(os.path.realpath(self.tmp_dir), stdout)
 
     def test_about_unset_env_vars_show_unset(self) -> None:

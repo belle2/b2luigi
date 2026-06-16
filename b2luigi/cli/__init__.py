@@ -87,7 +87,7 @@ def about() -> None:
         f"B2LUIGI_TASK_FILE: {os.getenv('B2LUIGI_TASK_FILE', '(unset)')}",
         f"B2LUIGI_PARAMS_FILE: {os.getenv('B2LUIGI_PARAMS_FILE', '(unset)')}",
     ]
-    console.print(Panel.fit("\n".join(lines), title="Info", border_style="cyan"))
+    console.print(Panel.fit("\n".join(lines), title="About", border_style="cyan"))
 
 
 @app.command("init")
