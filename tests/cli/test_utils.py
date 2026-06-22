@@ -8,7 +8,7 @@ from unittest import TestCase
 
 import b2luigi
 from b2luigi.cli.errors import CliUserError
-from b2luigi.cli.utils import parse_classnames, parse_kv_params, validate_classnames, try_instantiate
+from b2luigi.cli.utils import parse_classnames, parse_kv_params, validate_classnames, try_instantiate, build_task_list
 
 
 class TestParseClassnames(TestCase):
@@ -153,3 +153,74 @@ class TestTryInstantiate(TestCase):
         result = try_instantiate(MyTask, {})
         self.assertIsInstance(result, MyTask)
         self.assertEqual(result.value, 42)
+
+
+class _ParentTask(b2luigi.Task):
+    parent_param = b2luigi.IntParameter()
+
+    def requires(self):
+        return _ChildTask(child_param=self.parent_param * 2)
+
+    def output(self):
+        return b2luigi.LocalTarget(f"parent_{self.parent_param}.txt")
+
+
+class _ChildTask(b2luigi.Task):
+    child_param = b2luigi.IntParameter()
+
+    def output(self):
+        return b2luigi.LocalTarget(f"child_{self.child_param}.txt")
+
+
+_AVAILABLE = {"_ParentTask": _ParentTask, "_ChildTask": _ChildTask}
+_PARAMS = {"parent_param": 3}  # child_param intentionally absent
+
+
+class TestBuildTaskList(TestCase):
+    """Tests for build_task_list path-selection logic."""
+
+    def test_direct_path_when_params_sufficient(self) -> None:
+        """Returns only the named target when its params are fully provided."""
+        task_list, unresolved = build_task_list(
+            ["_ParentTask"], _AVAILABLE, _PARAMS, direct_mode=False, with_dependents=False
+        )
+        self.assertEqual(len(task_list), 1)
+        self.assertIsInstance(task_list[0], _ParentTask)
+        self.assertEqual(unresolved, set())
+
+    def test_discovery_path_when_params_missing(self) -> None:
+        """Falls back to all instantiatable roots when target params are absent."""
+        task_list, unresolved = build_task_list(
+            ["_ChildTask"], _AVAILABLE, _PARAMS, direct_mode=False, with_dependents=False
+        )
+        # Falls back to all roots — only _ParentTask can be instantiated from _PARAMS
+        self.assertEqual(len(task_list), 1)
+        self.assertIsInstance(task_list[0], _ParentTask)
+        self.assertEqual(unresolved, set())
+
+    def test_direct_mode_returns_unresolved_when_params_missing(self) -> None:
+        """In direct mode, returns unresolved names instead of falling back."""
+        task_list, unresolved = build_task_list(
+            ["_ChildTask"], _AVAILABLE, _PARAMS, direct_mode=True, with_dependents=False
+        )
+        self.assertEqual(task_list, [])
+        self.assertIn("_ChildTask", unresolved)
+
+    def test_with_dependents_always_returns_all_roots(self) -> None:
+        """with_dependents=True always returns all instantiatable roots."""
+        task_list, unresolved = build_task_list(
+            ["_ParentTask"], _AVAILABLE, _PARAMS, direct_mode=True, with_dependents=True
+        )
+        self.assertEqual(len(task_list), 1)
+        self.assertIsInstance(task_list[0], _ParentTask)
+        self.assertEqual(unresolved, set())
+
+    def test_with_dependents_skips_uninstantiatable_classes(self) -> None:
+        """with_dependents=True silently skips classes with missing required params."""
+        task_list, unresolved = build_task_list(
+            ["_ChildTask"], _AVAILABLE, _PARAMS, direct_mode=False, with_dependents=True
+        )
+        # _ChildTask cannot be instantiated (child_param missing) — only _ParentTask in roots
+        class_names = [t.__class__.__name__ for t in task_list]
+        self.assertNotIn("_ChildTask", class_names)
+        self.assertEqual(unresolved, set())

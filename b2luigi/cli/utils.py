@@ -114,6 +114,69 @@ def try_instantiate(cls: Type[b2luigi.Task], params: Dict[str, Any]) -> Optional
         return None
 
 
+def build_task_list(
+    target_names: List[str],
+    available: Dict[str, Type[b2luigi.Task]],
+    merged_params: Dict[str, Any],
+    direct_mode: bool,
+    with_dependents: bool,
+) -> Tuple[List[b2luigi.Task], set[str]]:
+    """Build the list of task instances for ``show`` and ``remove``.
+
+    Selects between a direct instantiation path (fast, no graph traversal)
+    and a discovery path (traverses from all instantiatable root tasks).
+
+    Path selection:
+
+    - ``with_dependents=True``: always returns all instantiatable roots so
+      the caller can traverse the full dependency graph to find dependents.
+    - All named targets directly resolvable: returns only those instances
+      (no traversal needed).
+    - Any named target unresolvable in ``direct_mode``: returns an empty
+      list and the set of unresolved names for the caller to raise an error.
+    - Any named target unresolvable without ``direct_mode``: falls back to
+      all instantiatable roots so the caller can discover the target via
+      graph traversal.
+
+    :param target_names: Task class names the caller wants to act on.
+    :type target_names: List[str]
+    :param available: Mapping of class name to class for all classes in tasks.py.
+    :type available: Dict[str, Type[b2luigi.Task]]
+    :param merged_params: Combined params from parameters.py and ``--param`` overrides.
+    :type merged_params: Dict[str, Any]
+    :param direct_mode: If ``True``, never fall back to graph traversal.
+    :type direct_mode: bool
+    :param with_dependents: If ``True``, always return all instantiatable roots.
+    :type with_dependents: bool
+    :returns: ``(task_list, unresolved)`` — task instances for the runner and
+        any target names that could not be directly instantiated.
+    :rtype: Tuple[List[b2luigi.Task], set[str]]
+    """
+
+    def _all_roots() -> List[b2luigi.Task]:
+        return [inst for cls in available.values() if (inst := try_instantiate(cls, merged_params)) is not None]
+
+    if with_dependents:
+        return _all_roots(), set()
+
+    direct_instances: List[b2luigi.Task] = []
+    unresolved: set[str] = set()
+    for name in target_names:
+        inst = try_instantiate(available[name], merged_params)
+        if inst is not None:
+            direct_instances.append(inst)
+        else:
+            unresolved.add(name)
+
+    if not unresolved:
+        return direct_instances, set()
+
+    if direct_mode:
+        return [], unresolved
+
+    return _all_roots(), set()
+
+
 def get_task_instance(
     class_name: str,
     task_filename="tasks.py",
