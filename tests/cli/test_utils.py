@@ -6,8 +6,9 @@
 
 from unittest import TestCase
 
+import b2luigi
 from b2luigi.cli.errors import CliUserError
-from b2luigi.cli.utils import parse_classnames, parse_kv_params, validate_classnames
+from b2luigi.cli.utils import parse_classnames, parse_kv_params, validate_classnames, try_instantiate
 
 
 class TestParseClassnames(TestCase):
@@ -110,3 +111,45 @@ class TestValidateClassnames(TestCase):
         available = {"Task1": None}
         with self.assertRaisesRegex(CliUserError, "custom-command"):
             validate_classnames(["Unknown"], available, hint_cmd="custom-command")
+
+
+class TestTryInstantiate(TestCase):
+    """Tests for the try_instantiate helper."""
+
+    def test_returns_instance_when_params_sufficient(self) -> None:
+        """Returns a task instance when all required params are provided."""
+
+        class MyTask(b2luigi.Task):
+            value = b2luigi.IntParameter()
+
+        result = try_instantiate(MyTask, {"value": 7})
+        self.assertIsInstance(result, MyTask)
+        self.assertEqual(result.value, 7)
+
+    def test_filters_out_unknown_params(self) -> None:
+        """Ignores keys in params that the task class does not declare."""
+
+        class MyTask(b2luigi.Task):
+            value = b2luigi.IntParameter()
+
+        result = try_instantiate(MyTask, {"value": 7, "other": 99})
+        self.assertIsInstance(result, MyTask)
+
+    def test_returns_none_when_required_param_missing(self) -> None:
+        """Returns None when a required parameter (no default) is absent."""
+
+        class MyTask(b2luigi.Task):
+            value = b2luigi.IntParameter()
+
+        result = try_instantiate(MyTask, {})
+        self.assertIsNone(result)
+
+    def test_returns_instance_when_missing_param_has_default(self) -> None:
+        """Returns an instance when the only absent param has a default value."""
+
+        class MyTask(b2luigi.Task):
+            value = b2luigi.IntParameter(default=42)
+
+        result = try_instantiate(MyTask, {})
+        self.assertIsInstance(result, MyTask)
+        self.assertEqual(result.value, 42)

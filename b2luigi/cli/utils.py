@@ -92,6 +92,28 @@ def load_task_class(class_name: str, filename="tasks.py") -> Type[b2luigi.Task]:
     return getattr(tasks_module, class_name)
 
 
+def try_instantiate(cls: Type[b2luigi.Task], params: Dict[str, Any]) -> Optional[b2luigi.Task]:
+    """Try to instantiate ``cls`` using only the params it declares.
+
+    Filters ``params`` to keys declared by ``cls``, then attempts instantiation.
+    Returns the instance on success, or ``None`` if a required parameter
+    (one without a default) is not present in the filtered params.
+
+    :param cls: The task class to instantiate.
+    :type cls: Type[b2luigi.Task]
+    :param params: The full merged params dict (may contain keys for other classes).
+    :type params: Dict[str, Any]
+    :returns: A task instance, or ``None`` if required params are missing.
+    :rtype: Optional[b2luigi.Task]
+    """
+    accepted = {name for name, _ in cls.get_params()}
+    filtered = {k: v for k, v in params.items() if k in accepted}
+    try:
+        return cls(**filtered)
+    except luigi.parameter.MissingParameterException:
+        return None
+
+
 def get_task_instance(
     class_name: str,
     task_filename="tasks.py",
