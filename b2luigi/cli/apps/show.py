@@ -1,4 +1,4 @@
-from typing import Annotated, Any, List, Optional, Type
+from typing import Annotated, Any, Type
 
 import luigi
 import typer
@@ -29,13 +29,9 @@ def _raise_unresolvable_error(
     as a ``CliUserError`` with an actionable hint.
 
     :param name: Task class name (used in the error message).
-    :type name: str
     :param cls: The task class that failed to instantiate.
-    :type cls: Type[b2luigi.Task]
     :param merged_params: Combined params dict (unfiltered).
-    :type merged_params: dict[str, Any]
     :param hint: Optional extra sentence inserted before the ``--param`` hint.
-    :type hint: str
     """
     filtered = {k: v for k, v in merged_params.items() if k in {n for n, _ in cls.get_params()}}
     try:
@@ -56,11 +52,11 @@ show_app = typer.Typer(
 
 
 def show_task(
-    classnames: Optional[List[str]] = None,
-    task_filename: Optional[str] = None,
-    parameter_filename: Optional[str] = None,
+    classnames: list[str] | None = None,
+    task_filename: str | None = None,
+    parameter_filename: str | None = None,
     with_dependents: bool = False,
-    params: Optional[List[str]] = None,
+    params: list[str] | None = None,
     direct: bool = False,
 ) -> None:
     """Show output files of task(s).
@@ -134,6 +130,8 @@ def show_task(
         # Direct mode: never fall back to traversal — raise a clear error instead.
         for name in unresolvable:
             _raise_unresolvable_error(name, available[name], merged_params)
+        # Should be unreachable: _raise_unresolvable_error raises for any unresolved name.
+        raise AssertionError(f"Expected CliUserError from _raise_unresolvable_error, got none for: {unresolvable!r}")
 
     # Fallback: traverse from all instantiatable roots so the target can be discovered.
     all_roots = [inst for cls in available.values() if (inst := try_instantiate(cls, merged_params)) is not None]
@@ -144,18 +142,18 @@ def show_task(
 def show(
     ctx: typer.Context,
     classnames: Annotated[
-        Optional[List[str]],
+        list[str] | None,
         typer.Argument(
             help="Task class name(s) to show. Omit to show the full dependency tree for all tasks.",
             shell_complete=complete_task_names,
         ),
     ] = None,
     task_filename: Annotated[
-        Optional[str],
+        str | None,
         typer.Option("--task-file", "-f", help="Task definitions file (or $B2LUIGI_TASK_FILE)"),
     ] = None,
     parameter_filename: Annotated[
-        Optional[str],
+        str | None,
         typer.Option("--params-file", "-p", help="Parameters file (or $B2LUIGI_PARAMS_FILE)"),
     ] = None,
     with_dependents: Annotated[
@@ -166,7 +164,7 @@ def show(
         ),
     ] = False,
     params: Annotated[
-        Optional[List[str]],
+        list[str] | None,
         typer.Option("--param", "-P", help="Override task parameters (repeatable): key=value."),
     ] = None,
     direct: Annotated[
