@@ -1,9 +1,12 @@
 from typing import Annotated, List, Optional
 
+import luigi
 import typer
 
 from b2luigi.cli import runner
+from b2luigi.cli.errors import CliUserError
 from b2luigi.cli.utils import (
+    build_task_list,
     complete_task_names,
     get_task_classes,
     load_parameters,
@@ -12,19 +15,21 @@ from b2luigi.cli.utils import (
     resolve_defaults,
     validate_classnames,
 )
+from b2luigi.core.settings import get_setting
 
-remove_app = typer.Typer(name="remove", help="Remove output files of task(s).")
+remove_app = typer.Typer(
+    name="remove",
+    help="Remove output files of task(s).",
+    context_settings={"allow_interspersed_args": True},
+)
 
 
 @remove_app.callback(invoke_without_command=True)
 def remove(
     classnames: Annotated[
-        Optional[str],
-        typer.Option(
-            "--task",
-            "-t",
-            help="Task class name(s) to remove, comma-separated (e.g. MyTask,MyOtherTask). "
-            "Omit to remove outputs for all tasks in tasks.py.",
+        Optional[List[str]],
+        typer.Argument(
+            help="Task class name(s) to remove. Omit to remove outputs for all tasks in tasks.py.",
             shell_complete=complete_task_names,
         ),
     ] = None,
@@ -52,20 +57,29 @@ def remove(
         Optional[List[str]],
         typer.Option("--param", "-P", help="Override task parameters (repeatable): key=value."),
     ] = None,
+    direct: Annotated[
+        bool,
+        typer.Option(
+            "--direct",
+            help="Skip dependency graph traversal. Requires all target task parameters to be "
+            "resolvable from parameters.py or --param. Useful for large graphs.",
+        ),
+    ] = False,
 ) -> None:
     """Remove output files of the named task(s).
 
-    Without ``-t`` removes outputs for all tasks in ``tasks.py``.
+    Without positional names removes outputs for all tasks in ``tasks.py``.
     By default only the named tasks are removed (not their dependents); pass
     ``--with-dependents`` to also remove tasks that depend on the named ones.
 
-    :param classnames: Comma-separated task class names, or ``None`` to target all.
+    :param classnames: Task class name(s) to remove, or ``None`` to target all.
     :param task_filename: Path to the task definitions file.
     :param parameter_filename: Path to the parameters file.
     :param yes: If ``True``, skip the confirmation prompt.
     :param with_dependents: If ``True``, also remove dependent tasks' outputs.
     :param keep: Comma-separated task class names whose outputs should be preserved.
     :param params: Key=value overrides applied on top of the parameters file.
+    :param direct: If ``True``, skip graph traversal (expert mode for large graphs).
     """
     d = resolve_defaults(task_filename, parameter_filename)
     available = {cls.__name__: cls for cls in get_task_classes(d.task_file)}
@@ -73,7 +87,7 @@ def remove(
     overrides = parse_kv_params(params or [])
     merged_params = {**base_params, **overrides}
 
-    names = parse_classnames(classnames)
+    names = classnames or None
     keep_tasks = parse_classnames(keep)
 
     if names is None:
@@ -82,8 +96,21 @@ def remove(
         validate_classnames(names, available)
         target_names = names
 
-    # All task instances are needed so remove_outputs can traverse the full dependency graph.
-    task_list = [cls(**merged_params) for cls in available.values()]
+    effective_direct = direct or bool(get_setting("direct_mode", default=False))
+
+    task_list, unresolved = build_task_list(target_names, available, merged_params, effective_direct, with_dependents)
+
+    if unresolved:
+        for name in sorted(unresolved):
+            cls = available[name]
+            filtered = {k: v for k, v in merged_params.items() if k in {n for n, _ in cls.get_params()}}
+            try:
+                cls(**filtered)
+            except luigi.parameter.MissingParameterException as e:
+                raise CliUserError(
+                    f"Cannot instantiate {name} directly — {e}\n"
+                    f"Add the missing parameter(s) with --param <key>=<value> or set in parameters.py."
+                ) from e
 
     runner.remove_outputs(
         task_list,

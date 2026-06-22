@@ -39,6 +39,23 @@ class CLITestCase(TestCase):
             os.path.join(self.tmp_dir, "parameters.py"),
         )
 
+    def _setup_multi_project_files(self) -> None:
+        """Copy multi-param task/parameter fixtures into the temp directory.
+
+        Use in tests that need a root task (ParentTask with ``parent_param``)
+        and a non-root task (ChildTask with ``child_param``) whose parameter
+        is not present in parameters.py.
+        """
+        test_dir = os.path.dirname(__file__)
+        shutil.copy(
+            os.path.join(test_dir, "cli_multi_tasks.py"),
+            os.path.join(self.tmp_dir, "tasks.py"),
+        )
+        shutil.copy(
+            os.path.join(test_dir, "cli_multi_parameters.py"),
+            os.path.join(self.tmp_dir, "parameters.py"),
+        )
+
     def _run_cli(
         self,
         subcmd: str,
