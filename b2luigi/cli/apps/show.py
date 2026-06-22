@@ -1,4 +1,4 @@
-from typing import Annotated, List, Optional
+from typing import Annotated, Any, List, Optional, Type
 
 import luigi
 import typer
@@ -17,6 +17,36 @@ from b2luigi.cli.utils import (
     validate_classnames,
 )
 from b2luigi.core.settings import get_setting
+
+
+def _raise_unresolvable_error(
+    name: str, cls: Type[b2luigi.Task], merged_params: dict[str, Any], hint: str = ""
+) -> None:
+    """Raise a :class:`CliUserError` explaining which parameter is missing.
+
+    Attempts to instantiate ``cls`` with its filtered params to obtain the
+    :class:`luigi.parameter.MissingParameterException` message, then re-raises
+    as a ``CliUserError`` with an actionable hint.
+
+    :param name: Task class name (used in the error message).
+    :type name: str
+    :param cls: The task class that failed to instantiate.
+    :type cls: Type[b2luigi.Task]
+    :param merged_params: Combined params dict (unfiltered).
+    :type merged_params: dict[str, Any]
+    :param hint: Optional extra sentence inserted before the ``--param`` hint.
+    :type hint: str
+    """
+    filtered = {k: v for k, v in merged_params.items() if k in {n for n, _ in cls.get_params()}}
+    try:
+        cls(**filtered)
+    except luigi.parameter.MissingParameterException as e:
+        msg = f"Cannot instantiate {name} directly — {e}\n"
+        if hint:
+            msg += hint + "\n"
+        msg += "Add the missing parameter(s) with --param <key>=<value> or set in parameters.py."
+        raise CliUserError(msg) from e
+
 
 show_app = typer.Typer(
     name="show",
@@ -53,7 +83,7 @@ def show_task(
     merged_params = {**base_params, **overrides}
 
     effective_direct = direct or bool(get_setting("direct_mode", default=False))
-    names = classnames or None
+    names = classnames
 
     if names is None:
         # Show all: only instantiate classes whose required params are covered.
@@ -67,21 +97,19 @@ def show_task(
     if with_dependents:
         # show_dependents_outputs needs named task instances directly (for task_id lookup).
         # Always use all instantiatable roots for traversal, but named tasks must be resolvable.
-        all_roots = [inst for cls in available.values() if (inst := try_instantiate(cls, merged_params)) is not None]
-        named_instances: List[b2luigi.Task] = []
+        all_roots = [
+            inst for task_cls in available.values() if (inst := try_instantiate(task_cls, merged_params)) is not None
+        ]
+        named_instances: list[b2luigi.Task] = []
         for name in names:
             inst = try_instantiate(available[name], merged_params)
             if inst is None:
-                cls = available[name]
-                filtered = {k: v for k, v in merged_params.items() if k in {n for n, _ in cls.get_params()}}
-                try:
-                    cls(**filtered)
-                except luigi.parameter.MissingParameterException as e:
-                    raise CliUserError(
-                        f"Cannot instantiate {name} directly — {e}\n"
-                        f"--with-dependents requires a resolvable task instance.\n"
-                        f"Add the missing parameter(s) with --param <key>=<value> or set in parameters.py."
-                    ) from e
+                _raise_unresolvable_error(
+                    name,
+                    available[name],
+                    merged_params,
+                    hint="--with-dependents requires a resolvable task instance.",
+                )
             else:
                 named_instances.append(inst)
         runner.show_dependents_outputs(get_root_tasks(all_roots), named_instances)
@@ -105,15 +133,7 @@ def show_task(
     if effective_direct:
         # Direct mode: never fall back to traversal — raise a clear error instead.
         for name in unresolvable:
-            cls = available[name]
-            filtered = {k: v for k, v in merged_params.items() if k in {n for n, _ in cls.get_params()}}
-            try:
-                cls(**filtered)
-            except luigi.parameter.MissingParameterException as e:
-                raise CliUserError(
-                    f"Cannot instantiate {name} directly — {e}\n"
-                    f"Add the missing parameter(s) with --param <key>=<value> or set in parameters.py."
-                ) from e
+            _raise_unresolvable_error(name, available[name], merged_params)
 
     # Fallback: traverse from all instantiatable roots so the target can be discovered.
     all_roots = [inst for cls in available.values() if (inst := try_instantiate(cls, merged_params)) is not None]

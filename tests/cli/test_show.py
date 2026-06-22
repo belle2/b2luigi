@@ -133,3 +133,11 @@ class TestShowMultiParam(CLITestCase):
         """show ParentTask --with-dependents works for a directly resolvable task."""
         returncode, stdout, stderr = self._run_cli("show", ["ParentTask", "--with-dependents"])
         self.assertEqual(returncode, 0, f"stderr: {stderr}")
+
+    def test_show_with_dependents_errors_when_child_param_missing(self) -> None:
+        """show ChildTask --with-dependents fails when ChildTask params are not provided."""
+        returncode, stdout, stderr = self._run_cli("show", ["ChildTask", "--with-dependents"])
+        self.assertNotEqual(returncode, 0)
+        combined = stdout + stderr
+        self.assertIn("ChildTask", combined)
+        self.assertIn("child_param", combined)
