@@ -1,4 +1,4 @@
-from typing import Annotated, Any, Type
+from typing import Annotated, Any
 
 import luigi
 import typer
@@ -20,7 +20,7 @@ from b2luigi.core.settings import get_setting
 
 
 def _raise_unresolvable_error(
-    name: str, cls: Type[b2luigi.Task], merged_params: dict[str, Any], hint: str = ""
+    name: str, cls: type[b2luigi.Task], merged_params: dict[str, Any], hint: str = ""
 ) -> None:
     """Raise a :class:`CliUserError` explaining which parameter is missing.
 
