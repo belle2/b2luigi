@@ -115,9 +115,9 @@ def try_instantiate(cls: Type[b2luigi.Task], params: Dict[str, Any]) -> Optional
 
 
 def build_task_list(
-    target_names: List[str],
-    available: Dict[str, Type[b2luigi.Task]],
-    merged_params: Dict[str, Any],
+    target_names: list[str],
+    available: dict[str, Type[b2luigi.Task]],
+    merged_params: dict[str, Any],
     direct_mode: bool,
     with_dependents: bool,
 ) -> tuple[list[b2luigi.Task], set[str]]:
@@ -139,11 +139,11 @@ def build_task_list(
       graph traversal.
 
     :param target_names: Task class names the caller wants to act on.
-    :type target_names: List[str]
+    :type target_names: list[str]
     :param available: Mapping of class name to class for all classes in tasks.py.
-    :type available: Dict[str, Type[b2luigi.Task]]
+    :type available: dict[str, Type[b2luigi.Task]]
     :param merged_params: Combined params from parameters.py and ``--param`` overrides.
-    :type merged_params: Dict[str, Any]
+    :type merged_params: dict[str, Any]
     :param direct_mode: If ``True``, never fall back to graph traversal.
     :type direct_mode: bool
     :param with_dependents: If ``True``, always return all instantiatable roots.
@@ -153,7 +153,7 @@ def build_task_list(
     :rtype: tuple[list[b2luigi.Task], set[str]]
     """
 
-    def _all_roots() -> List[b2luigi.Task]:
+    def _all_roots() -> list[b2luigi.Task]:
         return [inst for cls in available.values() if (inst := try_instantiate(cls, merged_params)) is not None]
 
     if with_dependents:
