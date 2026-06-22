@@ -120,7 +120,7 @@ def build_task_list(
     merged_params: Dict[str, Any],
     direct_mode: bool,
     with_dependents: bool,
-) -> Tuple[List[b2luigi.Task], set[str]]:
+) -> tuple[list[b2luigi.Task], set[str]]:
     """Build the list of task instances for ``show`` and ``remove``.
 
     Selects between a direct instantiation path (fast, no graph traversal)
@@ -150,7 +150,7 @@ def build_task_list(
     :type with_dependents: bool
     :returns: ``(task_list, unresolved)`` — task instances for the runner and
         any target names that could not be directly instantiated.
-    :rtype: Tuple[List[b2luigi.Task], set[str]]
+    :rtype: tuple[list[b2luigi.Task], set[str]]
     """
 
     def _all_roots() -> List[b2luigi.Task]:
@@ -159,10 +159,14 @@ def build_task_list(
     if with_dependents:
         return _all_roots(), set()
 
-    direct_instances: List[b2luigi.Task] = []
+    direct_instances: list[b2luigi.Task] = []
     unresolved: set[str] = set()
     for name in target_names:
-        inst = try_instantiate(available[name], merged_params)
+        cls = available.get(name)
+        if cls is None:
+            unresolved.add(name)
+            continue
+        inst = try_instantiate(cls, merged_params)
         if inst is not None:
             direct_instances.append(inst)
         else:
