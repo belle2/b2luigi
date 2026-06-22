@@ -80,6 +80,10 @@ def remove(
     :param keep: Comma-separated task class names whose outputs should be preserved.
     :param params: Key=value overrides applied on top of the parameters file.
     :param direct: If ``True``, skip graph traversal (expert mode for large graphs).
+
+    .. note::
+        Task names are passed as positional arguments. The ``-t``/``--task``
+        option that existed in earlier versions has been removed.
     """
     d = resolve_defaults(task_filename, parameter_filename)
     available = {cls.__name__: cls for cls in get_task_classes(d.task_file)}
@@ -87,7 +91,7 @@ def remove(
     overrides = parse_kv_params(params or [])
     merged_params = {**base_params, **overrides}
 
-    names = classnames or None
+    names = classnames
     keep_tasks = parse_classnames(keep)
 
     if names is None:
@@ -111,6 +115,13 @@ def remove(
                     f"Cannot instantiate {name} directly — {e}\n"
                     f"Add the missing parameter(s) with --param <key>=<value> or set in parameters.py."
                 ) from e
+        # Should be unreachable: build_task_list only populates unresolved when
+        # try_instantiate returned None, which means MissingParameterException will
+        # reproduce above. Guard against future exception hierarchy changes.
+        raise CliUserError(
+            f"Cannot instantiate task(s) {sorted(unresolved)!r} in direct mode. "
+            f"Add missing parameters with --param <key>=<value> or set in parameters.py."
+        )
 
     runner.remove_outputs(
         task_list,
