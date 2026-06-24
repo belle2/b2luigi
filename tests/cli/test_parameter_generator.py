@@ -110,5 +110,31 @@ class TestExpandParameters(unittest.TestCase):
         self.assertEqual(result, [{"v": 1, "fixed": 99}, {"v": 2, "fixed": 99}])
 
 
+class TestPublicAPI(unittest.TestCase):
+    """Smoke tests for top-level b2luigi namespace re-exports."""
+
+    def test_parameter_generator_importable_from_b2luigi(self) -> None:
+        import b2luigi
+
+        self.assertTrue(hasattr(b2luigi, "ParameterGenerator"))
+
+    def test_zipped_parameter_generator_importable_from_b2luigi(self) -> None:
+        import b2luigi
+
+        self.assertTrue(hasattr(b2luigi, "ZippedParameterGenerator"))
+
+    def test_parameter_generator_direct_import(self) -> None:
+        from b2luigi import ParameterGenerator
+
+        pg = ParameterGenerator([1, 2])
+        self.assertEqual(pg.values, [1, 2])
+
+    def test_zipped_parameter_generator_direct_import(self) -> None:
+        from b2luigi import ZippedParameterGenerator
+
+        zpg = ZippedParameterGenerator(x=[1, 2])
+        self.assertEqual(zpg.pairs, {"x": [1, 2]})
+
+
 if __name__ == "__main__":
     unittest.main()
