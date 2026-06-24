@@ -16,7 +16,6 @@ console = Console()
 
 
 def _render_cli_error(msg: str) -> None:
-    # Cyclopts uses Rich; this fits right in visually.
     console.print(
         Panel.fit(
             f"[bold red]Error:[/bold red] {msg}",

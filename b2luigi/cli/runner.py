@@ -266,7 +266,7 @@ def dry_run(task_list):
         console.print(f"In total {non_completed_tasks}")
         raise SystemExit(0)
     console.print("All tasks are finished!")
-    exit(0)
+    raise SystemExit(0)
 
 
 def remove_outputs(task_list, target_tasks, only=False, auto_confirm=False, keep_tasks=None):
@@ -386,7 +386,7 @@ def remove_outputs(task_list, target_tasks, only=False, auto_confirm=False, keep
     else:
         console.print("[yellow]No outputs were removed.[/yellow]")
 
-    exit(0)
+    raise SystemExit(0)
 
 
 def render_task_list(tasks: list) -> None:
