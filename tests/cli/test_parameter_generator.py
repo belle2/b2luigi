@@ -1,8 +1,13 @@
 """Unit and integration tests for ParameterGenerator and ZippedParameterGenerator."""
 
+import os
+import pathlib
+import shutil
 import unittest
 
 from b2luigi.cli.errors import CliUserError
+
+from .helpers import CLITestCase
 
 
 class TestParameterGeneratorConstruction(unittest.TestCase):
@@ -134,6 +139,64 @@ class TestPublicAPI(unittest.TestCase):
 
         zpg = ZippedParameterGenerator(x=[1, 2])
         self.assertEqual(zpg.pairs, {"x": [1, 2]})
+
+
+class TestParameterGeneratorIntegration(CLITestCase):
+    """Integration tests for ParameterGenerator expansion via b2luigi run."""
+
+    def setUp(self) -> None:
+        super().setUp()
+        test_dir = os.path.dirname(__file__)
+        shutil.copy(
+            os.path.join(test_dir, "cli_generator_tasks.py"),
+            os.path.join(self.tmp_dir, "tasks.py"),
+        )
+
+    def _write_parameters(self, content: str) -> None:
+        """Write a ``parameters.py`` file in the temp directory.
+
+        :param content: Full file content to write.
+        :type content: str
+        """
+        pathlib.Path(self.tmp_dir, "parameters.py").write_text(content)
+
+    def test_scalar_config_runs_single_task(self) -> None:
+        """Scalar config produces one task — no WrapperTask, existing behaviour."""
+        self._write_parameters("config = {'value': 42}\n")
+        returncode, stdout, stderr = self._run_cli("run", ["SimpleTask", "--dry"])
+        self.assertIn(returncode, (0, 256), stderr)
+        combined = stdout + stderr
+        self.assertNotIn("SimpleTaskWrapper", combined)
+
+    def test_parameter_generator_dry_run_lists_all_tasks(self) -> None:
+        """ParameterGenerator with 3 values → dry-run mentions all 3 SimpleTask instances."""
+        self._write_parameters(
+            "from b2luigi import ParameterGenerator\n" "config = {'value': ParameterGenerator([1, 2, 3])}\n"
+        )
+        returncode, stdout, stderr = self._run_cli("run", ["SimpleTask", "--dry"])
+        self.assertIn(returncode, (0, 256), stderr)
+        combined = stdout + stderr
+        self.assertIn("SimpleTask", combined)
+
+    def test_param_override_pins_generator(self) -> None:
+        """--param override replaces ParameterGenerator with a scalar → single task."""
+        self._write_parameters(
+            "from b2luigi import ParameterGenerator\n" "config = {'value': ParameterGenerator([1, 2, 3])}\n"
+        )
+        returncode, stdout, stderr = self._run_cli("run", ["SimpleTask", "--param", "value=99", "--dry"])
+        self.assertIn(returncode, (0, 256), stderr)
+        combined = stdout + stderr
+        self.assertNotIn("SimpleTaskWrapper", combined)
+
+    def test_zipped_parameter_generator_dry_run(self) -> None:
+        """ZippedParameterGenerator with 2 pairs → dry-run succeeds (2 tasks)."""
+        self._write_parameters(
+            "from b2luigi import ZippedParameterGenerator\n"
+            "config = {'_z': ZippedParameterGenerator(value=[10, 20])}\n"
+        )
+        returncode, stdout, stderr = self._run_cli("run", ["SimpleTask", "--dry"])
+        self.assertIn(returncode, (0, 256), stderr)
+        self.assertIn("SimpleTask", stdout + stderr)
 
 
 if __name__ == "__main__":

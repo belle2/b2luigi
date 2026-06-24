@@ -2,10 +2,14 @@ from typing import Annotated, Dict, List, Optional
 
 import typer
 
+import b2luigi
+
 from b2luigi.cli.utils import (
     complete_task_names,
+    expand_parameters,
     get_task_classes,
-    get_task_instance,
+    load_parameters,
+    load_task_class,
     parse_kv_params,
     process_task_instance,
     resolve_defaults,
@@ -19,6 +23,28 @@ run_app = typer.Typer(
 )
 
 
+def _make_wrapper_task(task_class: type, param_dicts: list[dict]) -> b2luigi.WrapperTask:
+    """Build a dynamic :class:`b2luigi.WrapperTask` that requires ``task_class`` for each param dict.
+
+    :param task_class: The task class to instantiate for each combination.
+    :type task_class: type
+    :param param_dicts: List of concrete parameter dicts, one per combination.
+    :type param_dicts: list[dict]
+    :returns: An instance of the dynamically-created wrapper task.
+    :rtype: b2luigi.WrapperTask
+    """
+
+    def requires(self):
+        return [task_class(**p) for p in param_dicts]
+
+    wrapper_cls = type(
+        f"{task_class.__name__}Wrapper",
+        (b2luigi.WrapperTask,),
+        {"requires": requires},
+    )
+    return wrapper_cls()
+
+
 def run_task(
     class_name: str,
     task_filename: str = "tasks.py",
@@ -28,6 +54,12 @@ def run_task(
 ) -> None:
     """Instantiate a task class by name and execute it via :func:`process_task_instance`.
 
+    When the ``parameters.py`` config contains
+    :class:`~b2luigi.cli.parameter_generator.ParameterGenerator` or
+    :class:`~b2luigi.cli.parameter_generator.ZippedParameterGenerator` values,
+    the config is expanded into all combinations and a dynamic
+    :class:`b2luigi.WrapperTask` is used to run them all.
+
     :param class_name: The name of the task class to run.
     :type class_name: str
     :param task_filename: Path to the Python file that defines the task classes.
@@ -35,10 +67,23 @@ def run_task(
     :param parameters_file: Path to the parameters file exposing a ``config`` dict.
     :type parameters_file: str
     :param overrides: Optional parameter overrides applied on top of the parameters file.
+        A scalar override can pin a :class:`~b2luigi.cli.parameter_generator.ParameterGenerator`
+        to a single value (e.g. via ``--param``).
     :type overrides: Optional[Dict[str, object]]
     :param kwargs: Additional keyword arguments forwarded to :func:`process_task_instance`.
     """
-    task_instance = get_task_instance(class_name, task_filename, parameters_file, overrides)
+    task_class = load_task_class(class_name, task_filename)
+    config = load_parameters(parameters_file)
+    if overrides:
+        config.update(overrides)
+
+    param_dicts = expand_parameters(config)
+
+    if len(param_dicts) == 1:
+        task_instance = task_class(**param_dicts[0])
+    else:
+        task_instance = _make_wrapper_task(task_class, param_dicts)
+
     process_task_instance(task_instance, **kwargs)
 
 
