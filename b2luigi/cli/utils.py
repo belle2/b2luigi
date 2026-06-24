@@ -2,6 +2,7 @@ from dataclasses import dataclass
 import difflib
 import importlib.util
 import inspect
+import itertools
 import json
 import os
 from typing import Any, Dict, Generator, List, Optional, Tuple, Type
@@ -83,6 +84,52 @@ def load_parameters(filename="parameters.py") -> Dict[str, Any]:
     if not hasattr(params_module, "config"):
         raise AttributeError(f"{filename} must define a 'config' variable")
     return params_module.config
+
+
+def expand_parameters(config: Dict[str, Any]) -> list[dict[str, Any]]:
+    """Expand a ``parameters.py`` config dict into a list of concrete param dicts.
+
+    Detects :class:`~b2luigi.cli.parameter_generator.ParameterGenerator` and
+    :class:`~b2luigi.cli.parameter_generator.ZippedParameterGenerator` values
+    and expands them:
+
+    - Each :class:`ParameterGenerator` contributes one cartesian slot.
+    - Each :class:`ZippedParameterGenerator` contributes one cartesian slot
+      whose entries are its zipped pairs.
+    - All cartesian slots are crossed via :func:`itertools.product`.
+    - Scalar values are merged unchanged into every combination.
+    - If no generators are present, returns ``[scalars]`` (single-element list)
+      so the caller can treat all cases uniformly.
+
+    :param config: Raw config dict from ``parameters.py``, possibly containing
+        generator objects.
+    :type config: Dict[str, Any]
+    :returns: List of fully-resolved parameter dicts, one per combination.
+    :rtype: list[dict[str, Any]]
+    """
+    from b2luigi.cli.parameter_generator import ParameterGenerator, ZippedParameterGenerator
+
+    scalars: Dict[str, Any] = {}
+    cartesian_slots: list[list[dict[str, Any]]] = []
+
+    for key, value in config.items():
+        if isinstance(value, ParameterGenerator):
+            cartesian_slots.append([{key: v} for v in value.values])
+        elif isinstance(value, ZippedParameterGenerator):
+            cartesian_slots.append([dict(zip(value.pairs.keys(), combo)) for combo in zip(*value.pairs.values())])
+        else:
+            scalars[key] = value
+
+    if not cartesian_slots:
+        return [scalars]
+
+    result: list[dict[str, Any]] = []
+    for combo in itertools.product(*cartesian_slots):
+        merged: dict[str, Any] = {**scalars}
+        for part in combo:
+            merged.update(part)
+        result.append(merged)
+    return result
 
 
 def load_task_class(class_name: str, filename="tasks.py") -> Type[b2luigi.Task]:
