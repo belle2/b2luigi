@@ -176,7 +176,9 @@ class TestParameterGeneratorIntegration(CLITestCase):
         returncode, stdout, stderr = self._run_cli("run", ["SimpleTask", "--dry"])
         self.assertIn(returncode, (0, 256), stderr)
         combined = stdout + stderr
-        self.assertIn("SimpleTask", combined)
+        self.assertIn("SimpleTaskWrapper", combined)
+        for v in (1, 2, 3):
+            self.assertIn(f"value={v}", combined)
 
     def test_param_override_pins_generator(self) -> None:
         """--param override replaces ParameterGenerator with a scalar → single task."""
