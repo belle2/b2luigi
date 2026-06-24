@@ -164,7 +164,7 @@ def try_instantiate(cls: Type[b2luigi.Task], params: Dict[str, Any]) -> Optional
 def build_task_list(
     target_names: list[str],
     available: dict[str, Type[b2luigi.Task]],
-    merged_params: dict[str, Any],
+    param_dicts: list[dict[str, Any]],
     direct_mode: bool,
     with_dependents: bool,
 ) -> tuple[list[b2luigi.Task], set[str]]:
@@ -172,6 +172,11 @@ def build_task_list(
 
     Selects between a direct instantiation path (fast, no graph traversal)
     and a discovery path (traverses from all instantiatable root tasks).
+
+    ``param_dicts`` is the output of :func:`expand_parameters` — a list of
+    fully-resolved concrete parameter dicts (one per generator combination).
+    Every class is attempted against every dict; duplicates are suppressed by
+    ``task_id``.
 
     Path selection:
 
@@ -189,8 +194,8 @@ def build_task_list(
     :type target_names: list[str]
     :param available: Mapping of class name to class for all classes in tasks.py.
     :type available: dict[str, Type[b2luigi.Task]]
-    :param merged_params: Combined params from parameters.py and ``--param`` overrides.
-    :type merged_params: dict[str, Any]
+    :param param_dicts: Expanded parameter dicts from :func:`expand_parameters`.
+    :type param_dicts: list[dict[str, Any]]
     :param direct_mode: If ``True``, never fall back to graph traversal.
     :type direct_mode: bool
     :param with_dependents: If ``True``, always return all instantiatable roots.
@@ -201,22 +206,35 @@ def build_task_list(
     """
 
     def _all_roots() -> list[b2luigi.Task]:
-        return [inst for cls in available.values() if (inst := try_instantiate(cls, merged_params)) is not None]
+        seen: set[str] = set()
+        result: list[b2luigi.Task] = []
+        for cls in available.values():
+            for pd in param_dicts:
+                inst = try_instantiate(cls, pd)
+                if inst is not None and inst.task_id not in seen:
+                    seen.add(inst.task_id)
+                    result.append(inst)
+        return result
 
     if with_dependents:
         return _all_roots(), set()
 
     direct_instances: list[b2luigi.Task] = []
+    seen: set[str] = set()
     unresolved: set[str] = set()
     for name in target_names:
         cls = available.get(name)
         if cls is None:
             unresolved.add(name)
             continue
-        inst = try_instantiate(cls, merged_params)
-        if inst is not None:
-            direct_instances.append(inst)
-        else:
+        found_any = False
+        for pd in param_dicts:
+            inst = try_instantiate(cls, pd)
+            if inst is not None and inst.task_id not in seen:
+                seen.add(inst.task_id)
+                direct_instances.append(inst)
+                found_any = True
+        if not found_any:
             unresolved.add(name)
 
     if not unresolved:

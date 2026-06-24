@@ -8,6 +8,7 @@ from b2luigi.cli.errors import CliUserError
 from b2luigi.cli.utils import (
     build_task_list,
     complete_task_names,
+    expand_parameters,
     get_task_classes,
     load_parameters,
     parse_classnames,
@@ -90,6 +91,7 @@ def remove(
     base_params = load_parameters(d.params_file)
     overrides = parse_kv_params(params or [])
     merged_params = {**base_params, **overrides}
+    param_dicts = expand_parameters(merged_params)
 
     names = classnames
     keep_tasks = parse_classnames(keep)
@@ -102,7 +104,7 @@ def remove(
 
     effective_direct = direct or bool(get_setting("direct_mode", default=False))
 
-    task_list, unresolved = build_task_list(target_names, available, merged_params, effective_direct, with_dependents)
+    task_list, unresolved = build_task_list(target_names, available, param_dicts, effective_direct, with_dependents)
 
     if unresolved:
         for name in sorted(unresolved):

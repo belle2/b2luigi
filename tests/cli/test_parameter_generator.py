@@ -215,6 +215,26 @@ class TestParameterGeneratorIntegration(CLITestCase):
         for v in (10, 20):
             self.assertIn(f"value={v}", combined)
 
+    def test_show_with_parameter_generator_no_repr_in_path(self) -> None:
+        """Regression: show must not render ParameterGenerator repr in output paths."""
+        self._write_parameters(
+            "from b2luigi import ParameterGenerator\n" "config = {'value': ParameterGenerator([1, 2, 3])}\n"
+        )
+        returncode, stdout, stderr = self._run_cli("show", ["SimpleTask"])
+        combined = stdout + stderr
+        self.assertNotIn("ParameterGenerator", combined)
+        self.assertNotIn("object at 0x", combined)
+
+    def test_show_all_with_parameter_generator(self) -> None:
+        """show with no task name expands generators and lists all task combinations."""
+        self._write_parameters(
+            "from b2luigi import ParameterGenerator\n" "config = {'value': ParameterGenerator([1, 2, 3])}\n"
+        )
+        returncode, stdout, stderr = self._run_cli("show", [])
+        combined = stdout + stderr
+        self.assertNotIn("ParameterGenerator", combined)
+        self.assertNotIn("object at 0x", combined)
+
 
 if __name__ == "__main__":
     unittest.main()

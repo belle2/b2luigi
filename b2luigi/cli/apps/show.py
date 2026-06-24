@@ -8,6 +8,7 @@ from b2luigi.cli import runner
 from b2luigi.cli.errors import CliUserError
 from b2luigi.cli.utils import (
     complete_task_names,
+    expand_parameters,
     get_root_tasks,
     get_task_classes,
     load_parameters,
@@ -77,15 +78,26 @@ def show_task(
     base_params = load_parameters(d.params_file)
     overrides = parse_kv_params(params or [])
     merged_params = {**base_params, **overrides}
+    param_dicts = expand_parameters(merged_params)
 
     effective_direct = direct or bool(get_setting("direct_mode", default=False))
     names = classnames
 
+    def _all_instantiatable(classes) -> list[b2luigi.Task]:
+        seen: set[str] = set()
+        result: list[b2luigi.Task] = []
+        for cls in classes:
+            for pd in param_dicts:
+                inst = try_instantiate(cls, pd)
+                if inst is not None and inst.task_id not in seen:
+                    seen.add(inst.task_id)
+                    result.append(inst)
+        return result
+
     if names is None:
         # Show all: only instantiate classes whose required params are covered.
         # Non-root tasks are discovered via requires() during traversal.
-        all_tasks = [inst for cls in available.values() if (inst := try_instantiate(cls, merged_params)) is not None]
-        runner.show_all_outputs(get_root_tasks(all_tasks))
+        runner.show_all_outputs(get_root_tasks(_all_instantiatable(available.values())))
         return
 
     validate_classnames(names, available)
@@ -93,32 +105,40 @@ def show_task(
     if with_dependents:
         # show_dependents_outputs needs named task instances directly (for task_id lookup).
         # Always use all instantiatable roots for traversal, but named tasks must be resolvable.
-        all_roots = [
-            inst for task_cls in available.values() if (inst := try_instantiate(task_cls, merged_params)) is not None
-        ]
+        all_roots = _all_instantiatable(available.values())
         named_instances: list[b2luigi.Task] = []
+        named_seen: set[str] = set()
         for name in names:
-            inst = try_instantiate(available[name], merged_params)
-            if inst is None:
+            found_any = False
+            for pd in param_dicts:
+                inst = try_instantiate(available[name], pd)
+                if inst is not None and inst.task_id not in named_seen:
+                    named_seen.add(inst.task_id)
+                    named_instances.append(inst)
+                    found_any = True
+            if not found_any:
                 _raise_unresolvable_error(
                     name,
                     available[name],
-                    merged_params,
+                    param_dicts[0],
                     hint="--with-dependents requires a resolvable task instance.",
                 )
-            else:
-                named_instances.append(inst)
         runner.show_dependents_outputs(get_root_tasks(all_roots), named_instances)
         return
 
-    # Try to directly instantiate all named tasks from the merged params.
+    # Try to directly instantiate all named tasks from the expanded params.
     direct_instances: list[b2luigi.Task] = []
+    seen_ids: set[str] = set()
     unresolvable: list[str] = []
     for name in names:
-        inst = try_instantiate(available[name], merged_params)
-        if inst is not None:
-            direct_instances.append(inst)
-        else:
+        found_any = False
+        for pd in param_dicts:
+            inst = try_instantiate(available[name], pd)
+            if inst is not None and inst.task_id not in seen_ids:
+                seen_ids.add(inst.task_id)
+                direct_instances.append(inst)
+                found_any = True
+        if not found_any:
             unresolvable.append(name)
 
     if not unresolvable:
@@ -129,13 +149,12 @@ def show_task(
     if effective_direct:
         # Direct mode: never fall back to traversal — raise a clear error instead.
         for name in unresolvable:
-            _raise_unresolvable_error(name, available[name], merged_params)
+            _raise_unresolvable_error(name, available[name], param_dicts[0])
         # Should be unreachable: _raise_unresolvable_error raises for any unresolved name.
         raise AssertionError(f"Expected CliUserError from _raise_unresolvable_error, got none for: {unresolvable!r}")
 
     # Fallback: traverse from all instantiatable roots so the target can be discovered.
-    all_roots = [inst for cls in available.values() if (inst := try_instantiate(cls, merged_params)) is not None]
-    runner.show_all_outputs(get_root_tasks(all_roots))
+    runner.show_all_outputs(get_root_tasks(_all_instantiatable(available.values())))
 
 
 @show_app.callback(invoke_without_command=True)

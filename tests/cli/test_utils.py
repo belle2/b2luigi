@@ -173,7 +173,7 @@ class _ChildTask(b2luigi.Task):
 
 
 _AVAILABLE = {"_ParentTask": _ParentTask, "_ChildTask": _ChildTask}
-_PARAMS = {"parent_param": 3}  # child_param intentionally absent
+_PARAMS = [{"parent_param": 3}]  # child_param intentionally absent; wrapped as expand_parameters() output
 
 
 class TestBuildTaskList(TestCase):
