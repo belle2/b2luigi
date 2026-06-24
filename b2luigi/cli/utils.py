@@ -86,7 +86,7 @@ def load_parameters(filename="parameters.py") -> Dict[str, Any]:
     return params_module.config
 
 
-def expand_parameters(config: Dict[str, Any]) -> list[dict[str, Any]]:
+def expand_parameters(config: dict[str, Any]) -> list[dict[str, Any]]:
     """Expand a ``parameters.py`` config dict into a list of concrete param dicts.
 
     Detects :class:`~b2luigi.cli.parameter_generator.ParameterGenerator` and
@@ -103,13 +103,13 @@ def expand_parameters(config: Dict[str, Any]) -> list[dict[str, Any]]:
 
     :param config: Raw config dict from ``parameters.py``, possibly containing
         generator objects.
-    :type config: Dict[str, Any]
+    :type config: dict[str, Any]
     :returns: List of fully-resolved parameter dicts, one per combination.
     :rtype: list[dict[str, Any]]
     """
     from b2luigi.cli.parameter_generator import ParameterGenerator, ZippedParameterGenerator
 
-    scalars: Dict[str, Any] = {}
+    scalars: dict[str, Any] = {}
     cartesian_slots: list[list[dict[str, Any]]] = []
 
     for key, value in config.items():

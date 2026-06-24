@@ -53,6 +53,12 @@ class TestZippedParameterGeneratorConstruction(unittest.TestCase):
         zpg = ZippedParameterGenerator(x=[1, 2, 3])
         self.assertEqual(zpg.pairs, {"x": [1, 2, 3]})
 
+    def test_empty_value_lists_raises(self) -> None:
+        from b2luigi.cli.parameter_generator import ZippedParameterGenerator
+
+        with self.assertRaises(CliUserError):
+            ZippedParameterGenerator(x=[], y=[])
+
 
 class TestExpandParameters(unittest.TestCase):
     """Unit tests for expand_parameters()."""

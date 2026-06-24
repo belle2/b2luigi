@@ -1,4 +1,4 @@
-from typing import Annotated, Dict, List, Optional
+from typing import Annotated, Any, List, Optional
 
 import typer
 
@@ -23,18 +23,18 @@ run_app = typer.Typer(
 )
 
 
-def _make_wrapper_task(task_class: type, param_dicts: list[dict]) -> b2luigi.WrapperTask:
+def _make_wrapper_task(task_class: type, param_dicts: list[dict[str, Any]]) -> b2luigi.WrapperTask:
     """Build a dynamic :class:`b2luigi.WrapperTask` that requires ``task_class`` for each param dict.
 
     :param task_class: The task class to instantiate for each combination.
     :type task_class: type
     :param param_dicts: List of concrete parameter dicts, one per combination.
-    :type param_dicts: list[dict]
+    :type param_dicts: list[dict[str, Any]]
     :returns: An instance of the dynamically-created wrapper task.
     :rtype: b2luigi.WrapperTask
     """
 
-    def requires(self):
+    def requires(self) -> list[b2luigi.Task]:
         return [task_class(**p) for p in param_dicts]
 
     wrapper_cls = type(
@@ -49,7 +49,7 @@ def run_task(
     class_name: str,
     task_filename: str = "tasks.py",
     parameters_file: str = "parameters.py",
-    overrides: Optional[Dict[str, object]] = None,
+    overrides: dict[str, Any] | None = None,
     **kwargs,
 ) -> None:
     """Instantiate a task class by name and execute it via :func:`process_task_instance`.
@@ -69,15 +69,22 @@ def run_task(
     :param overrides: Optional parameter overrides applied on top of the parameters file.
         A scalar override can pin a :class:`~b2luigi.cli.parameter_generator.ParameterGenerator`
         to a single value (e.g. via ``--param``).
-    :type overrides: Optional[Dict[str, object]]
+    :type overrides: dict[str, Any] | None
     :param kwargs: Additional keyword arguments forwarded to :func:`process_task_instance`.
     """
+    from b2luigi.cli.errors import CliUserError
+
     task_class = load_task_class(class_name, task_filename)
     config = load_parameters(parameters_file)
     if overrides:
         config.update(overrides)
 
     param_dicts = expand_parameters(config)
+    if not param_dicts:
+        raise CliUserError(
+            f"Parameter expansion for '{class_name}' produced zero combinations. "
+            "Check your ParameterGenerator or ZippedParameterGenerator values."
+        )
 
     if len(param_dicts) == 1:
         task_instance = task_class(**param_dicts[0])

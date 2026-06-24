@@ -6,6 +6,8 @@
     a :class:`b2luigi.WrapperTask` covering all parameter combinations.
 """
 
+from typing import Any
+
 from b2luigi.cli.errors import CliUserError
 
 
@@ -23,14 +25,14 @@ class ParameterGenerator:
         config = {"split": ParameterGenerator([1, 2, 3])}
 
     :param values: Non-empty list of concrete parameter values.
-    :type values: list
+    :type values: list[Any]
     :raises CliUserError: If ``values`` is empty.
     """
 
     def __init__(self, values: list) -> None:
         if not values:
             raise CliUserError("ParameterGenerator requires at least one value.")
-        self.values = values
+        self.values: list[Any] = values
 
 
 class ZippedParameterGenerator:
@@ -53,8 +55,8 @@ class ZippedParameterGenerator:
     :param kwargs: Each keyword argument names a task parameter; its value is
         the list of concrete values for that parameter. All lists must have the
         same length.
-    :type kwargs: list
-    :raises CliUserError: If no keyword arguments are given or list lengths differ.
+    :type kwargs: dict[str, list]
+    :raises CliUserError: If no keyword arguments are given, list lengths differ, or all lists are empty.
     """
 
     def __init__(self, **kwargs: list) -> None:
@@ -63,4 +65,6 @@ class ZippedParameterGenerator:
         lengths = {k: len(v) for k, v in kwargs.items()}
         if len(set(lengths.values())) > 1:
             raise CliUserError(f"ZippedParameterGenerator: all lists must have the same length, got {lengths}.")
+        if next(iter(lengths.values()), 1) == 0:
+            raise CliUserError("ZippedParameterGenerator requires non-empty lists.")
         self.pairs: dict[str, list] = dict(kwargs)
