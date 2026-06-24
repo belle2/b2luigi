@@ -58,6 +58,7 @@ def show_task(
     parameter_filename: str | None = None,
     params: list[str] | None = None,
     direct: bool = False,
+    with_requirements: bool = False,
 ) -> None:
     """Show output files of task(s).
 
@@ -69,6 +70,7 @@ def show_task(
     :param parameter_filename: Path to the parameters file.
     :param params: Key=value overrides applied on top of the parameters file.
     :param direct: If ``True``, skip graph traversal (expert mode for large graphs).
+    :param with_requirements: If ``True``, also show outputs of all tasks that the specified tasks require.
     """
     d = resolve_defaults(task_filename, parameter_filename)
     available = {cls.__name__: cls for cls in get_task_classes(d.task_file)}
@@ -112,7 +114,10 @@ def show_task(
             unresolvable.append(name)
 
     if not unresolvable:
-        runner.show_task_outputs(direct_instances)
+        if with_requirements:
+            runner.show_all_outputs(direct_instances)
+        else:
+            runner.show_task_outputs(direct_instances)
         return
 
     if effective_direct:
@@ -153,6 +158,13 @@ def show(
             "resolvable from parameters.py or --param. Useful for large graphs.",
         ),
     ] = False,
+    with_requirements: Annotated[
+        bool,
+        typer.Option(
+            "--with-requirements",
+            help="Also show outputs of all tasks that the specified task(s) require. Requires positional task name(s).",
+        ),
+    ] = False,
 ) -> None:
     """Show output files of task(s).
 
@@ -165,6 +177,7 @@ def show(
     :param parameter_filename: Path to the parameters file.
     :param params: Key=value overrides applied on top of the parameters file.
     :param direct: If ``True``, skip graph traversal (expert mode for large graphs).
+    :param with_requirements: If ``True``, also show the full requirement tree of the specified tasks.
     """
     if ctx.invoked_subcommand is not None:
         return
@@ -174,4 +187,5 @@ def show(
         parameter_filename=parameter_filename,
         params=params,
         direct=direct,
+        with_requirements=with_requirements,
     )

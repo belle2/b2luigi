@@ -57,6 +57,19 @@ class TestShow(CLITestCase):
         self.assertEqual(returncode, 0, f"Command failed with stderr: {stderr}")
         self.assertIn("LeafTask", stdout)
 
+    def test_show_with_requirements_leaf_task(self) -> None:
+        """show LeafTask --with-requirements shows only LeafTask (it has no requirements)."""
+        returncode, stdout, stderr = self._run_cli("show", ["LeafTask", "--with-requirements"])
+        self.assertEqual(returncode, 0, f"Command failed with stderr: {stderr}")
+        self.assertIn("LeafTask", stdout)
+
+    def test_show_with_requirements_root_task(self) -> None:
+        """show RootTask --with-requirements shows RootTask AND its requirement LeafTask."""
+        returncode, stdout, stderr = self._run_cli("show", ["RootTask", "--with-requirements"])
+        self.assertEqual(returncode, 0, f"Command failed with stderr: {stderr}")
+        self.assertIn("RootTask", stdout)
+        self.assertIn("LeafTask", stdout)
+
     def test_show_with_custom_task_file(self) -> None:
         """Verify that ``--task-file`` overrides the default tasks.py."""
         returncode, stdout, stderr = self._run_cli("show", ["-f", "tasks.py"])
