@@ -83,6 +83,7 @@ def remove(
     :param params: Key=value overrides applied on top of the parameters file.
     :param direct: If ``True``, skip graph traversal (expert mode for large graphs).
     :param with_requirements: If ``True``, also remove the full requirement tree of the named tasks.
+    :type with_requirements: bool
 
     .. note::
         Task names are passed as positional arguments. The ``-t``/``--task``

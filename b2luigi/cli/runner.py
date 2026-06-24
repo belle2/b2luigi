@@ -373,8 +373,10 @@ def remove_requirement_outputs(task_list: list, auto_confirm: bool = False) -> N
     :type task_list: list
     :param auto_confirm: If ``True``, skip confirmation prompt.
     :type auto_confirm: bool
+    :returns: None
+    :rtype: None
     """
-    seen: set = set()
+    seen: set[str] = set()
     flat_list: list = []
     for task in task_list:
         for t in task_iterator(task):
