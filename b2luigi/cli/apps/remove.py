@@ -62,10 +62,18 @@ def remove(
             "resolvable from parameters.py or --param. Useful for large graphs.",
         ),
     ] = False,
+    with_requirements: Annotated[
+        bool,
+        typer.Option(
+            "--with-requirements",
+            help="Also remove outputs of all tasks that the named task(s) require.",
+        ),
+    ] = False,
 ) -> None:
     """Remove output files of the named task(s).
 
     Without positional names removes outputs for all tasks in ``tasks.py``.
+    By default removes only the named tasks; pass ``--with-requirements`` to also remove their transitive requirements.
 
     :param classnames: Task class name(s) to remove, or ``None`` to target all.
     :param task_filename: Path to the task definitions file.
@@ -74,6 +82,7 @@ def remove(
     :param keep: Comma-separated task class names whose outputs should be preserved.
     :param params: Key=value overrides applied on top of the parameters file.
     :param direct: If ``True``, skip graph traversal (expert mode for large graphs).
+    :param with_requirements: If ``True``, also remove the full requirement tree of the named tasks.
 
     .. note::
         Task names are passed as positional arguments. The ``-t``/``--task``
@@ -118,9 +127,12 @@ def remove(
             f"Add missing parameters with --param <key>=<value> or set in parameters.py."
         )
 
-    runner.remove_outputs(
-        task_list,
-        target_tasks=target_names,
-        auto_confirm=yes,
-        keep_tasks=keep_tasks,
-    )
+    if with_requirements and names is not None:
+        runner.remove_requirement_outputs(task_list, auto_confirm=yes)
+    else:
+        runner.remove_outputs(
+            task_list,
+            target_tasks=target_names,
+            auto_confirm=yes,
+            keep_tasks=keep_tasks,
+        )

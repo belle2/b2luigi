@@ -55,6 +55,19 @@ class TestRemove(CLITestCase):
         returncode, stdout, stderr = self._run_cli("remove", ["LeafTask", "RootTask", "-y"])
         self.assertEqual(returncode, 0, f"Command failed with stderr: {stderr}")
 
+    def test_remove_with_requirements_leaf_task(self) -> None:
+        """remove LeafTask --with-requirements -y removes only LeafTask (leaf, no requirements)."""
+        returncode, stdout, stderr = self._run_cli("remove", ["LeafTask", "--with-requirements", "-y"])
+        self.assertEqual(returncode, 0, f"Command failed with stderr: {stderr}")
+
+    def test_remove_with_requirements_root_task(self) -> None:
+        """remove RootTask --with-requirements -y removes RootTask AND LeafTask."""
+        returncode, stdout, stderr = self._run_cli("remove", ["RootTask", "--with-requirements", "-y"])
+        self.assertEqual(returncode, 0, f"Command failed with stderr: {stderr}")
+        combined = stdout + stderr
+        self.assertIn("RootTask", combined)
+        self.assertIn("LeafTask", combined)
+
 
 class TestRemoveMultiParam(CLITestCase):
     """Integration tests for remove with tasks that have different parameters."""

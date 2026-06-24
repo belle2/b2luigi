@@ -363,6 +363,62 @@ def remove_outputs(task_list, target_tasks, auto_confirm=False, keep_tasks=None)
     raise SystemExit(0)
 
 
+def remove_requirement_outputs(task_list: list, auto_confirm: bool = False) -> None:
+    """Remove outputs for the given tasks and all tasks they transitively require.
+
+    Traverses the full dependency tree downward from each task in ``task_list``
+    via :func:`task_iterator` and removes outputs for every discovered task.
+
+    :param task_list: Task instances to start traversal from.
+    :type task_list: list
+    :param auto_confirm: If ``True``, skip confirmation prompt.
+    :type auto_confirm: bool
+    """
+    seen: set = set()
+    flat_list: list = []
+    for task in task_list:
+        for t in task_iterator(task):
+            if t.task_id not in seen:
+                seen.add(t.task_id)
+                flat_list.append(t)
+
+    if not flat_list:
+        console.print("Nothing to remove.")
+        raise SystemExit(0)
+
+    if not auto_confirm:
+        console.print("The following task outputs will be removed:")
+        for task_class in sorted({t.__class__.__name__ for t in flat_list}):
+            console.print(f"\t- [bold]{task_class}[/bold]")
+        console.print()
+        confirmed = Confirm.ask("Remove these outputs?")
+    else:
+        confirmed = True
+
+    if not confirmed:
+        console.print("[yellow]No tasks were removed.[/yellow]")
+        raise SystemExit(0)
+
+    removed_tasks = 0
+    for task in flat_list:
+        console.print(f"[bold]{task.__class__.__name__}[/bold]")
+        console.print(f"\t[green]Removing...[/green] {task}")
+        if hasattr(task, "remove_output"):
+            console.print("\tcall: remove_output()")
+            task.remove_output()
+            removed_tasks += 1
+        else:
+            console.print(f"\t[yellow]No remove_output() implemented for {task.__class__.__name__}.[/yellow]")
+        console.print()
+
+    if removed_tasks:
+        console.print(f"[green]Removed outputs for {removed_tasks} tasks.[/green]")
+    else:
+        console.print("[yellow]No outputs were removed.[/yellow]")
+
+    raise SystemExit(0)
+
+
 def render_task_list(tasks: list) -> None:
     """Render a Rich table listing all available task classes and their one-line docstrings.
 
