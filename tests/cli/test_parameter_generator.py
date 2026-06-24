@@ -59,6 +59,12 @@ class TestZippedParameterGeneratorConstruction(unittest.TestCase):
         with self.assertRaises(CliUserError):
             ZippedParameterGenerator(x=[], y=[])
 
+    def test_single_empty_value_list_raises(self) -> None:
+        from b2luigi.cli.parameter_generator import ZippedParameterGenerator
+
+        with self.assertRaises(CliUserError):
+            ZippedParameterGenerator(x=[])
+
 
 class TestExpandParameters(unittest.TestCase):
     """Unit tests for expand_parameters()."""
@@ -204,7 +210,10 @@ class TestParameterGeneratorIntegration(CLITestCase):
         )
         returncode, stdout, stderr = self._run_cli("run", ["SimpleTask", "--dry"])
         self.assertIn(returncode, (0, 256), stderr)
-        self.assertIn("SimpleTask", stdout + stderr)
+        combined = stdout + stderr
+        self.assertIn("SimpleTaskWrapper", combined)
+        for v in (10, 20):
+            self.assertIn(f"value={v}", combined)
 
 
 if __name__ == "__main__":

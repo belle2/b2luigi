@@ -29,7 +29,7 @@ class ParameterGenerator:
     :raises CliUserError: If ``values`` is empty.
     """
 
-    def __init__(self, values: list) -> None:
+    def __init__(self, values: list[Any]) -> None:
         if not values:
             raise CliUserError("ParameterGenerator requires at least one value.")
         self.values: list[Any] = values
@@ -59,7 +59,7 @@ class ZippedParameterGenerator:
     :raises CliUserError: If no keyword arguments are given, list lengths differ, or all lists are empty.
     """
 
-    def __init__(self, **kwargs: list) -> None:
+    def __init__(self, **kwargs: list[Any]) -> None:
         if not kwargs:
             raise CliUserError("ZippedParameterGenerator requires at least one keyword argument.")
         lengths = {k: len(v) for k, v in kwargs.items()}

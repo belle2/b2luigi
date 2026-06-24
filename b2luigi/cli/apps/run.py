@@ -80,6 +80,8 @@ def run_task(
         config.update(overrides)
 
     param_dicts = expand_parameters(config)
+    # Defensive: both generators reject empty inputs at construction, so this is
+    # currently unreachable — kept as a guard against future expansion changes.
     if not param_dicts:
         raise CliUserError(
             f"Parameter expansion for '{class_name}' produced zero combinations. "
