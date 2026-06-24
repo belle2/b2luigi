@@ -71,6 +71,7 @@ def show_task(
     :param params: Key=value overrides applied on top of the parameters file.
     :param direct: If ``True``, skip graph traversal (expert mode for large graphs).
     :param with_requirements: If ``True``, also show outputs of all tasks that the specified tasks require.
+    :type with_requirements: bool
     """
     d = resolve_defaults(task_filename, parameter_filename)
     available = {cls.__name__: cls for cls in get_task_classes(d.task_file)}
@@ -178,6 +179,7 @@ def show(
     :param params: Key=value overrides applied on top of the parameters file.
     :param direct: If ``True``, skip graph traversal (expert mode for large graphs).
     :param with_requirements: If ``True``, also show the full requirement tree of the specified tasks.
+    :type with_requirements: bool
     """
     if ctx.invoked_subcommand is not None:
         return
