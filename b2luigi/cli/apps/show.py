@@ -56,20 +56,17 @@ def show_task(
     classnames: list[str] | None = None,
     task_filename: str | None = None,
     parameter_filename: str | None = None,
-    with_dependents: bool = False,
     params: list[str] | None = None,
     direct: bool = False,
 ) -> None:
     """Show output files of task(s).
 
     Without ``classnames`` shows the full dependency tree for all tasks in
-    ``tasks.py``.  With ``classnames`` shows only the named tasks (and
-    optionally their dependents).
+    ``tasks.py``.  With ``classnames`` shows only the named tasks.
 
     :param classnames: List of task class names, or ``None`` to show all.
     :param task_filename: Path to the task definitions file.
     :param parameter_filename: Path to the parameters file.
-    :param with_dependents: If ``True``, also show tasks that depend on the specified tasks.
     :param params: Key=value overrides applied on top of the parameters file.
     :param direct: If ``True``, skip graph traversal (expert mode for large graphs).
     """
@@ -95,38 +92,11 @@ def show_task(
         return result
 
     if names is None:
-        # Show all: only instantiate classes whose required params are covered.
-        # Non-root tasks are discovered via requires() during traversal.
         runner.show_all_outputs(get_root_tasks(_all_instantiatable(available.values())))
         return
 
     validate_classnames(names, available)
 
-    if with_dependents:
-        # show_dependents_outputs needs named task instances directly (for task_id lookup).
-        # Always use all instantiatable roots for traversal, but named tasks must be resolvable.
-        all_roots = _all_instantiatable(available.values())
-        named_instances: list[b2luigi.Task] = []
-        named_seen: set[str] = set()
-        for name in names:
-            found_any = False
-            for pd in param_dicts:
-                inst = try_instantiate(available[name], pd)
-                if inst is not None and inst.task_id not in named_seen:
-                    named_seen.add(inst.task_id)
-                    named_instances.append(inst)
-                    found_any = True
-            if not found_any:
-                _raise_unresolvable_error(
-                    name,
-                    available[name],
-                    param_dicts[0],
-                    hint="--with-dependents requires a resolvable task instance.",
-                )
-        runner.show_dependents_outputs(get_root_tasks(all_roots), named_instances)
-        return
-
-    # Try to directly instantiate all named tasks from the expanded params.
     direct_instances: list[b2luigi.Task] = []
     seen_ids: set[str] = set()
     unresolvable: list[str] = []
@@ -142,18 +112,14 @@ def show_task(
             unresolvable.append(name)
 
     if not unresolvable:
-        # All named tasks resolved directly — show only those outputs, no traversal.
         runner.show_task_outputs(direct_instances)
         return
 
     if effective_direct:
-        # Direct mode: never fall back to traversal — raise a clear error instead.
         for name in unresolvable:
             _raise_unresolvable_error(name, available[name], param_dicts[0])
-        # Should be unreachable: _raise_unresolvable_error raises for any unresolved name.
         raise AssertionError(f"Expected CliUserError from _raise_unresolvable_error, got none for: {unresolvable!r}")
 
-    # Fallback: traverse from all instantiatable roots so the target can be discovered.
     runner.show_all_outputs(get_root_tasks(_all_instantiatable(available.values())))
 
 
@@ -175,13 +141,6 @@ def show(
         str | None,
         typer.Option("--params-file", "-p", help="Parameters file (or $B2LUIGI_PARAMS_FILE)"),
     ] = None,
-    with_dependents: Annotated[
-        bool,
-        typer.Option(
-            "--with-dependents",
-            help="Also show outputs of all tasks that depend on the specified task(s). Requires positional task name(s).",
-        ),
-    ] = False,
     params: Annotated[
         list[str] | None,
         typer.Option("--param", "-P", help="Override task parameters (repeatable): key=value."),
@@ -198,13 +157,12 @@ def show(
     """Show output files of task(s).
 
     Without positional names shows the full dependency tree for all tasks in ``tasks.py``.
-    With one or more names shows only those tasks (and optionally their dependents).
+    With one or more names shows only those tasks.
 
     :param ctx: Typer context (injected; used to detect subcommand invocation).
     :param classnames: Task class name(s) to show, or ``None`` to show all.
     :param task_filename: Path to the task definitions file.
     :param parameter_filename: Path to the parameters file.
-    :param with_dependents: If ``True``, also show tasks that depend on the specified tasks.
     :param params: Key=value overrides applied on top of the parameters file.
     :param direct: If ``True``, skip graph traversal (expert mode for large graphs).
     """
@@ -214,7 +172,6 @@ def show(
         classnames=classnames,
         task_filename=task_filename,
         parameter_filename=parameter_filename,
-        with_dependents=with_dependents,
         params=params,
         direct=direct,
     )

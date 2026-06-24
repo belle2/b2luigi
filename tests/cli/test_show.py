@@ -57,13 +57,6 @@ class TestShow(CLITestCase):
         self.assertEqual(returncode, 0, f"Command failed with stderr: {stderr}")
         self.assertIn("LeafTask", stdout)
 
-    def test_show_with_dependents(self) -> None:
-        """Verify that ``--with-dependents`` includes the dependent task."""
-        returncode, stdout, stderr = self._run_cli("show", ["LeafTask", "--with-dependents"])
-        self.assertEqual(returncode, 0, f"Command failed with stderr: {stderr}")
-        self.assertIn("LeafTask", stdout)
-        self.assertIn("RootTask", stdout)
-
     def test_show_with_custom_task_file(self) -> None:
         """Verify that ``--task-file`` overrides the default tasks.py."""
         returncode, stdout, stderr = self._run_cli("show", ["-f", "tasks.py"])
@@ -124,19 +117,6 @@ class TestShowMultiParam(CLITestCase):
     def test_show_direct_flag_errors_when_params_missing(self) -> None:
         """show ChildTask --direct fails with a clear error when params absent."""
         returncode, stdout, stderr = self._run_cli("show", ["ChildTask", "--direct"])
-        self.assertNotEqual(returncode, 0)
-        combined = stdout + stderr
-        self.assertIn("ChildTask", combined)
-        self.assertIn("child_param", combined)
-
-    def test_show_with_dependents_for_root_task(self) -> None:
-        """show ParentTask --with-dependents works for a directly resolvable task."""
-        returncode, stdout, stderr = self._run_cli("show", ["ParentTask", "--with-dependents"])
-        self.assertEqual(returncode, 0, f"stderr: {stderr}")
-
-    def test_show_with_dependents_errors_when_child_param_missing(self) -> None:
-        """show ChildTask --with-dependents fails when ChildTask params are not provided."""
-        returncode, stdout, stderr = self._run_cli("show", ["ChildTask", "--with-dependents"])
         self.assertNotEqual(returncode, 0)
         combined = stdout + stderr
         self.assertIn("ChildTask", combined)

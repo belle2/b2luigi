@@ -32,11 +32,6 @@ class TestRemove(CLITestCase):
         self.assertNotEqual(returncode, 0)
         self.assertIn("Unknown task", stdout + stderr)
 
-    def test_remove_with_dependents_flag(self) -> None:
-        """Verify that ``--with-dependents`` flag is accepted without error."""
-        returncode, stdout, stderr = self._run_cli("remove", ["LeafTask", "-y", "--with-dependents"])
-        self.assertEqual(returncode, 0, f"Command failed with stderr: {stderr}")
-
     def test_remove_with_keep_flag(self) -> None:
         """Verify that ``--keep RootTask`` preserves that task's outputs."""
         returncode, stdout, stderr = self._run_cli("remove", ["-y", "--keep", "RootTask"])
@@ -90,8 +85,3 @@ class TestRemoveMultiParam(CLITestCase):
         combined = stdout + stderr
         self.assertIn("ChildTask", combined)
         self.assertIn("child_param", combined)
-
-    def test_remove_with_dependents_always_traverses(self) -> None:
-        """--with-dependents triggers full traversal even with --direct."""
-        returncode, stdout, stderr = self._run_cli("remove", ["ChildTask", "-y", "--with-dependents", "--direct"])
-        self.assertEqual(returncode, 0, f"stderr: {stderr}")

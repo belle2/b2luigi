@@ -46,10 +46,6 @@ def remove(
         bool,
         typer.Option("-y", "--yes", help="Skip confirmation prompt."),
     ] = False,
-    with_dependents: Annotated[
-        bool,
-        typer.Option("--with-dependents", help="Also remove outputs of tasks that depend on the named task(s)."),
-    ] = False,
     keep: Annotated[
         Optional[str],
         typer.Option("--keep", help="Comma-separated task class names whose outputs should NOT be removed."),
@@ -70,14 +66,11 @@ def remove(
     """Remove output files of the named task(s).
 
     Without positional names removes outputs for all tasks in ``tasks.py``.
-    By default only the named tasks are removed (not their dependents); pass
-    ``--with-dependents`` to also remove tasks that depend on the named ones.
 
     :param classnames: Task class name(s) to remove, or ``None`` to target all.
     :param task_filename: Path to the task definitions file.
     :param parameter_filename: Path to the parameters file.
     :param yes: If ``True``, skip the confirmation prompt.
-    :param with_dependents: If ``True``, also remove dependent tasks' outputs.
     :param keep: Comma-separated task class names whose outputs should be preserved.
     :param params: Key=value overrides applied on top of the parameters file.
     :param direct: If ``True``, skip graph traversal (expert mode for large graphs).
@@ -104,7 +97,7 @@ def remove(
 
     effective_direct = direct or bool(get_setting("direct_mode", default=False))
 
-    task_list, unresolved = build_task_list(target_names, available, param_dicts, effective_direct, with_dependents)
+    task_list, unresolved = build_task_list(target_names, available, param_dicts, effective_direct)
 
     if unresolved:
         for name in sorted(unresolved):
@@ -128,7 +121,6 @@ def remove(
     runner.remove_outputs(
         task_list,
         target_tasks=target_names,
-        only=not with_dependents,
         auto_confirm=yes,
         keep_tasks=keep_tasks,
     )

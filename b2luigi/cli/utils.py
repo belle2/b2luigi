@@ -166,7 +166,6 @@ def build_task_list(
     available: dict[str, Type[b2luigi.Task]],
     param_dicts: list[dict[str, Any]],
     direct_mode: bool,
-    with_dependents: bool,
 ) -> tuple[list[b2luigi.Task], set[str]]:
     """Build the list of task instances for ``show`` and ``remove``.
 
@@ -180,8 +179,6 @@ def build_task_list(
 
     Path selection:
 
-    - ``with_dependents=True``: always returns all instantiatable roots so
-      the caller can traverse the full dependency graph to find dependents.
     - All named targets directly resolvable: returns only those instances
       (no traversal needed).
     - Any named target unresolvable in ``direct_mode``: returns an empty
@@ -198,8 +195,6 @@ def build_task_list(
     :type param_dicts: list[dict[str, Any]]
     :param direct_mode: If ``True``, never fall back to graph traversal.
     :type direct_mode: bool
-    :param with_dependents: If ``True``, always return all instantiatable roots.
-    :type with_dependents: bool
     :returns: ``(task_list, unresolved)`` — task instances for the runner and
         any target names that could not be directly instantiated.
     :rtype: tuple[list[b2luigi.Task], set[str]]
@@ -215,9 +210,6 @@ def build_task_list(
                     seen.add(inst.task_id)
                     result.append(inst)
         return result
-
-    if with_dependents:
-        return _all_roots(), set()
 
     direct_instances: list[b2luigi.Task] = []
     seen: set[str] = set()

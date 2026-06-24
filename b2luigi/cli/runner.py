@@ -269,68 +269,45 @@ def dry_run(task_list):
     raise SystemExit(0)
 
 
-def remove_outputs(task_list, target_tasks, only=False, auto_confirm=False, keep_tasks=None):
-    """
-    Removes the outputs of specified tasks and their dependent tasks.
+def remove_outputs(task_list, target_tasks, auto_confirm=False, keep_tasks=None):
+    """Remove the outputs of the specified tasks.
 
     :param task_list: A list of root tasks to traverse.
     :type task_list: list
     :param target_tasks: Task class names whose outputs should be removed.
     :type target_tasks: list
-    :param only: If ``True``, remove only the specified tasks' outputs.
-        If ``False``, also remove outputs of dependents.
-    :type only: bool
     :param auto_confirm: If ``True``, skip confirmation prompt.
     :type auto_confirm: bool
     :param keep_tasks: List of task class names to KEEP outputs for.
     :type keep_tasks: list | None
     """
-
-    # ---------- Build dynamic graph ----------
-    all_tasks = set()
-    task_by_class = collections.defaultdict(set)
-    child_to_parents = collections.defaultdict(set)
+    all_tasks: set = set()
+    task_by_class: collections.defaultdict = collections.defaultdict(set)
 
     def visit(task):
         if task in all_tasks:
             return
         all_tasks.add(task)
         task_by_class[task.__class__.__name__].add(task)
-
         try:
             children = luigi.task.flatten(task.requires())
         except Exception as e:
             console.print(f"[red]Failed to get requires() for {task}: {e}[/red]")
             children = []
-
         for child in children:
-            child_to_parents[child].add(task)
             visit(child)
 
     for root in task_list:
         visit(root)
 
-    # ---------- Determine tasks to remove ----------
-    to_be_removed_tasks = collections.defaultdict(set)
-    matched_target_tasks = set()
+    to_be_removed_tasks: collections.defaultdict = collections.defaultdict(set)
+    matched_target_tasks: set = set()
+    for target_class in target_tasks:
+        matched = task_by_class.get(target_class, set())
+        if matched:
+            matched_target_tasks.add(target_class)
+            to_be_removed_tasks[target_class].update(matched)
 
-    if only:
-        for target_class in target_tasks:
-            matched = task_by_class.get(target_class, set())
-            if matched:
-                matched_target_tasks.add(target_class)
-                to_be_removed_tasks[target_class].update(matched)
-    else:
-        for target_class in target_tasks:
-            matched = task_by_class.get(target_class, set())
-            if matched:
-                matched_target_tasks.add(target_class)
-                for task in matched:
-                    dependents = collect_all_dependents(task, child_to_parents)
-                    for dep in dependents:
-                        to_be_removed_tasks[dep.__class__.__name__].add(dep)
-
-    # ---------- Apply keep filter ----------
     if keep_tasks:
         keep_tasks = set(keep_tasks)
         for keep_class in keep_tasks:
@@ -339,14 +316,12 @@ def remove_outputs(task_list, target_tasks, only=False, auto_confirm=False, keep
                 del to_be_removed_tasks[keep_class]
         console.print()
 
-    # ---------- Identify unseen ----------
     unseen_tasks = set(target_tasks) - matched_target_tasks
 
     if not to_be_removed_tasks:
         console.print("Nothing to remove.")
         raise SystemExit(0)
 
-    # ---------- Confirm ----------
     if not auto_confirm:
         if unseen_tasks:
             console.print("[yellow]The following tasks were not found in the graph and can't be removed:[/yellow]")
@@ -367,7 +342,6 @@ def remove_outputs(task_list, target_tasks, only=False, auto_confirm=False, keep
         console.print("[yellow]No tasks were removed.[/yellow]")
         raise SystemExit(0)
 
-    # ---------- Execute removal ----------
     removed_tasks = 0
     for task_class in sorted(to_be_removed_tasks):
         console.print(f"[bold]{task_class}[/bold]")
@@ -442,63 +416,3 @@ def render_task_help(cls) -> None:
 
     if cls.get_params():
         console.print(Panel(param_table, title="Parameters", border_style="cyan"))
-
-
-def show_dependents_outputs(task_list: list, target_tasks: list) -> None:
-    """Show outputs for the target tasks and all tasks that transitively depend on them.
-
-    Traverses the full dependency graph upward from each target task, collecting every
-    task that would be affected by a change to a target task.
-
-    :param task_list: Root task instances used to build the full reverse dependency graph.
-    :type task_list: list
-    :param target_tasks: Task instances whose outputs and dependents should be shown.
-    :type target_tasks: list
-    """
-    all_tasks: set = set()
-    child_to_parents: collections.defaultdict = collections.defaultdict(set)
-
-    def visit(task):
-        if task in all_tasks:
-            return
-        all_tasks.add(task)
-        try:
-            children = luigi.task.flatten(task.requires())
-        except Exception:
-            children = []
-        for child in children:
-            child_to_parents[child].add(task)
-            visit(child)
-
-    for root in task_list:
-        visit(root)
-
-    seen_ids: set = set()
-    pairs: list = []
-    for task in target_tasks:
-        for dep in collect_all_dependents(task, child_to_parents):
-            if dep.task_id not in seen_ids:
-                seen_ids.add(dep.task_id)
-                pairs.append((dep, get_task_outputs(dep)))
-
-    _render_task_outputs(pairs)
-
-
-def collect_all_dependents(task, child_to_parents):
-    """
-    Given a task, walk up the DAG to collect all tasks that depend on it.
-
-    :param task: The task to start the traversal from.
-    :param child_to_parents: Mapping from each task to the set of tasks that depend on it.
-    :returns: Set of all tasks that transitively depend on ``task``, including ``task`` itself.
-    :rtype: set
-    """
-    visited = set()
-    stack = [task]
-    while stack:
-        current = stack.pop()
-        if current in visited:
-            continue
-        visited.add(current)
-        stack.extend(child_to_parents.get(current, []))
-    return visited
