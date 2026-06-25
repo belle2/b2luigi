@@ -9,7 +9,6 @@ installed b2luigi[tui].
 import unittest
 from unittest.mock import MagicMock, patch
 
-import luigi
 import pytest
 
 pytest.importorskip("textual")
@@ -17,7 +16,6 @@ pytest.importorskip("textual")
 from b2luigi.cli.tui import (  # noqa: E402  (after importorskip)
     TaskGroup,
     TaskInstance,
-    _TUIProcessWrapper,
     ProgressApp,
 )
 
@@ -83,75 +81,186 @@ class TestTaskGroup(unittest.TestCase):
         self.assertEqual(params, sorted(params))
 
 
-# ── _TUIProcessWrapper ────────────────────────────────────────────────────────
+# ── _poll_scheduler ───────────────────────────────────────────────────────────
 
 
-class TestTUIProcessWrapper(unittest.TestCase):
-    def _make_wrapper(self, is_batch=False, **kwargs):
-        wrapped = MagicMock()
-        task = MagicMock()
-        wrapper = _TUIProcessWrapper(wrapped, task)
-        wrapper._is_batch = is_batch
-        return wrapper, wrapped, task
+class TestPollScheduler(unittest.TestCase):
+    def _make_app(self, factory=None):
+        app = ProgressApp.__new__(ProgressApp)
+        app._scheduler_factory = factory
+        app.groups = {}
+        app.group_order = []
+        app._task_id_map = {}
+        app._split_classes = set()
+        return app
 
-    def test_use_multiprocessing_always_false(self):
-        wrapper, _, _ = self._make_wrapper()
-        self.assertFalse(wrapper.use_multiprocessing)
+    def _add_task_to_app(self, app, task):
+        app._task_id_map[task.task_id] = task
+        group_key = task.__class__.__name__
+        if group_key not in app.groups:
+            app.groups[group_key] = TaskGroup(group_key)
+            app.group_order.append(group_key)
+        app.groups[group_key].get_or_add(task)
 
-    # ── local (non-batch) task ────────────────────────────────────────────────
+    def _make_scheduler(self, task_list_result):
+        factory = MagicMock()
+        scheduler = MagicMock()
+        factory.scheduler = scheduler
+        scheduler.task_list.return_value = task_list_result
+        return factory, scheduler
 
-    def test_local_run_delegates_and_does_not_fire_events(self):
-        wrapper, wrapped, task = self._make_wrapper(is_batch=False)
-        wrapper.run()
-        wrapped.run.assert_called_once()
-        task.trigger_event.assert_not_called()
+    def test_no_op_when_scheduler_factory_is_none(self):
+        app = self._make_app(None)
+        app._poll_scheduler()  # should not raise
 
-    # ── batch task ────────────────────────────────────────────────────────────
+    def test_no_op_when_factory_has_no_scheduler_attr(self):
+        factory = MagicMock(spec=[])  # no 'scheduler' attribute
+        app = self._make_app(factory)
+        app._poll_scheduler()  # should not raise
 
-    def test_batch_run_fires_start_event(self):
-        wrapper, wrapped, task = self._make_wrapper(is_batch=True)
-        wrapper.run()
-        first_call_event = task.trigger_event.call_args_list[0][0][0]
-        self.assertEqual(first_call_event, luigi.Event.START)
+    def test_no_op_when_scheduler_is_none(self):
+        factory = MagicMock()
+        factory.scheduler = None
+        app = self._make_app(factory)
+        app._poll_scheduler()  # should not raise
 
-    def test_batch_run_fires_failure_when_start_job_raises(self):
-        wrapper, wrapped, task = self._make_wrapper(is_batch=True)
-        wrapped.run.side_effect = RuntimeError("condor_submit not found")
-        wrapper.run()
-        self.assertTrue(wrapper._start_failed)
-        fired_events = [c[0][0] for c in task.trigger_event.call_args_list]
-        self.assertIn(luigi.Event.FAILURE, fired_events)
+    def test_calls_task_list_with_empty_args(self):
+        factory, scheduler = self._make_scheduler({})
+        app = self._make_app(factory)
+        app._poll_scheduler()
+        scheduler.task_list.assert_called_once_with("", "")
 
-    def test_start_failed_makes_is_alive_return_false(self):
-        wrapper, wrapped, task = self._make_wrapper(is_batch=True)
-        wrapped.run.side_effect = RuntimeError("submit error")
-        wrapper.run()
-        self.assertFalse(wrapper.is_alive())
+    def test_task_list_called_exactly_once(self):
+        """A single call covers all statuses — not one call per status."""
+        factory, scheduler = self._make_scheduler({})
+        app = self._make_app(factory)
+        app._poll_scheduler()
+        self.assertEqual(scheduler.task_list.call_count, 1)
 
-    def test_batch_is_alive_fires_success_when_complete(self):
-        wrapper, wrapped, task = self._make_wrapper(is_batch=True)
-        wrapped.is_alive.return_value = False
-        wrapper.task.complete.return_value = True
-        wrapper.is_alive()
-        fired_events = [c[0][0] for c in task.trigger_event.call_args_list]
-        self.assertIn(luigi.Event.SUCCESS, fired_events)
+    def test_status_read_from_task_info_field(self):
+        task = _mock_task("task_1", x=1)
+        factory, scheduler = self._make_scheduler({"task_1": {"status": "RUNNING"}})
+        app = self._make_app(factory)
+        self._add_task_to_app(app, task)
 
-    def test_batch_is_alive_fires_failure_when_not_complete(self):
-        wrapper, wrapped, task = self._make_wrapper(is_batch=True)
-        wrapped.is_alive.return_value = False
-        wrapper.task.complete.return_value = False
-        wrapper.is_alive()
-        fired_events = [c[0][0] for c in task.trigger_event.call_args_list]
-        self.assertIn(luigi.Event.FAILURE, fired_events)
+        app._poll_scheduler()
 
-    def test_batch_done_event_fires_only_once(self):
-        wrapper, wrapped, task = self._make_wrapper(is_batch=True)
-        wrapped.is_alive.return_value = False
-        wrapper.task.complete.return_value = True
-        wrapper.is_alive()
-        wrapper.is_alive()
-        success_calls = [c for c in task.trigger_event.call_args_list if c[0][0] == luigi.Event.SUCCESS]
-        self.assertEqual(len(success_calls), 1)
+        self.assertEqual(app.groups["MyTask"].instances["task_1"].status, "RUNNING")
+
+    def test_done_status_propagates(self):
+        task = _mock_task("task_1", x=1)
+        factory, scheduler = self._make_scheduler({"task_1": {"status": "DONE"}})
+        app = self._make_app(factory)
+        self._add_task_to_app(app, task)
+
+        app._poll_scheduler()
+
+        self.assertEqual(app.groups["MyTask"].instances["task_1"].status, "DONE")
+
+    def test_failed_status_propagates(self):
+        task = _mock_task("task_1", x=1)
+        factory, scheduler = self._make_scheduler({"task_1": {"status": "FAILED"}})
+        app = self._make_app(factory)
+        self._add_task_to_app(app, task)
+
+        app._poll_scheduler()
+
+        self.assertEqual(app.groups["MyTask"].instances["task_1"].status, "FAILED")
+
+    def test_disabled_maps_to_failed(self):
+        task = _mock_task("task_1", x=1)
+        factory, scheduler = self._make_scheduler({"task_1": {"status": "DISABLED"}})
+        app = self._make_app(factory)
+        self._add_task_to_app(app, task)
+
+        app._poll_scheduler()
+
+        self.assertEqual(app.groups["MyTask"].instances["task_1"].status, "FAILED")
+
+    def test_upstream_failed_maps_to_failed(self):
+        task = _mock_task("task_1", x=1)
+        factory, scheduler = self._make_scheduler({"task_1": {"status": "UPSTREAM_FAILED"}})
+        app = self._make_app(factory)
+        self._add_task_to_app(app, task)
+
+        app._poll_scheduler()
+
+        self.assertEqual(app.groups["MyTask"].instances["task_1"].status, "FAILED")
+
+    def test_upstream_disabled_maps_to_pending(self):
+        task = _mock_task("task_1", x=1)
+        factory, scheduler = self._make_scheduler({"task_1": {"status": "UPSTREAM_DISABLED"}})
+        app = self._make_app(factory)
+        self._add_task_to_app(app, task)
+
+        app._poll_scheduler()
+
+        self.assertEqual(app.groups["MyTask"].instances["task_1"].status, "PENDING")
+
+    def test_unknown_status_defaults_to_pending(self):
+        task = _mock_task("task_1", x=1)
+        factory, scheduler = self._make_scheduler({"task_1": {"status": "SOME_NEW_STATUS"}})
+        app = self._make_app(factory)
+        self._add_task_to_app(app, task)
+
+        app._poll_scheduler()
+
+        self.assertEqual(app.groups["MyTask"].instances["task_1"].status, "PENDING")
+
+    def test_missing_status_key_defaults_to_pending(self):
+        task = _mock_task("task_1", x=1)
+        factory, scheduler = self._make_scheduler({"task_1": {}})
+        app = self._make_app(factory)
+        self._add_task_to_app(app, task)
+
+        app._poll_scheduler()
+
+        self.assertEqual(app.groups["MyTask"].instances["task_1"].status, "PENDING")
+
+    def test_task_not_in_map_is_skipped(self):
+        factory, scheduler = self._make_scheduler({"unknown_task": {"status": "RUNNING"}})
+        app = self._make_app(factory)
+        app._poll_scheduler()  # should not raise
+
+    def test_exception_in_task_list_is_swallowed(self):
+        factory = MagicMock()
+        scheduler = MagicMock()
+        factory.scheduler = scheduler
+        scheduler.task_list.side_effect = RuntimeError("scheduler died")
+        app = self._make_app(factory)
+        app._poll_scheduler()  # should not raise
+
+    def test_multiple_tasks_updated_in_one_call(self):
+        task_a = _mock_task("id_a", x=1)
+        task_b = _mock_task("id_b", x=2)
+        factory, scheduler = self._make_scheduler(
+            {
+                "id_a": {"status": "DONE"},
+                "id_b": {"status": "RUNNING"},
+            }
+        )
+        app = self._make_app(factory)
+        self._add_task_to_app(app, task_a)
+        self._add_task_to_app(app, task_b)
+
+        app._poll_scheduler()
+
+        self.assertEqual(app.groups["MyTask"].instances["id_a"].status, "DONE")
+        self.assertEqual(app.groups["MyTask"].instances["id_b"].status, "RUNNING")
+        self.assertEqual(scheduler.task_list.call_count, 1)
+
+    def test_luigi_to_tui_status_map_is_complete(self):
+        expected = {
+            "PENDING": "PENDING",
+            "RUNNING": "RUNNING",
+            "DONE": "DONE",
+            "FAILED": "FAILED",
+            "DISABLED": "FAILED",
+            "UPSTREAM_FAILED": "FAILED",
+            "UPSTREAM_DISABLED": "PENDING",
+            "UNKNOWN": "PENDING",
+        }
+        self.assertEqual(ProgressApp._LUIGI_TO_TUI_STATUS, expected)
 
 
 # ── ProgressApp.check_action ──────────────────────────────────────────────────
@@ -197,6 +306,8 @@ class TestPrePopulate(unittest.TestCase):
         app._task_list = tasks
         app.groups = {}
         app.group_order = []
+        app._task_id_map = {}
+        app._split_classes = set()
         return app
 
     def test_already_complete_task_shown_as_done(self):
@@ -232,6 +343,17 @@ class TestPrePopulate(unittest.TestCase):
 
         inst = list(app.groups["MyTask"].instances.values())[0]
         self.assertEqual(inst.status, "PENDING")
+
+    def test_task_id_map_populated(self):
+        task = _mock_task("id1", x=1)
+        task.complete.return_value = False
+
+        with patch("b2luigi.core.utils.task_iterator", return_value=[task]):
+            app = self._make_app([task])
+            app._pre_populate()
+
+        self.assertIn("id1", app._task_id_map)
+        self.assertIs(app._task_id_map["id1"], task)
 
 
 # ── import guard ──────────────────────────────────────────────────────────────
