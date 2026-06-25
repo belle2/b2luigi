@@ -19,3 +19,4 @@ Also checkout our :ref:`examples-label` and :ref:`starterkit_label` for some wor
     features/input_output
     features/settings
     features/remote_targets
+    features/progress_tui
