@@ -235,8 +235,19 @@ class ProgressApp(App):
         self._user_quit = False
         self._warning: str = ""
         self._log_view: dict | None = None  # {"title": str, "content": str} when viewing a log
+        self._split_classes: set[str] = set()  # classes whose groups are split by first param value
 
     # ── data (all mutations called on the main thread via call_from_thread) ──
+
+    _SPLIT_THRESHOLD = 30  # split a class's group when any first-param subgroup exceeds this
+
+    def _group_key(self, task) -> str:
+        """Return the group name for a task, splitting by first param when warranted."""
+        class_name = task.__class__.__name__
+        if class_name in self._split_classes and task.param_kwargs:
+            first_val = next(iter(task.param_kwargs.values()))
+            return f"{class_name} [{first_val}]"
+        return class_name
 
     def _get_or_create_group(self, class_name: str) -> TaskGroup:
         if class_name not in self.groups:
@@ -245,7 +256,7 @@ class ProgressApp(App):
         return self.groups[class_name]
 
     def _update_status(self, task, status: str):
-        group = self._get_or_create_group(task.__class__.__name__)
+        group = self._get_or_create_group(self._group_key(task))
         group.get_or_add(task).status = status
 
     def _mark_finished(self):
@@ -522,9 +533,28 @@ class ProgressApp(App):
     def _pre_populate(self):
         from b2luigi.core.utils import task_iterator
 
+        # Collect unique tasks per class (deduplicated by task_id)
+        by_class: dict[str, dict[str, object]] = {}
         for root_task in self._task_list:
             for task in task_iterator(root_task):
-                inst = self._get_or_create_group(task.__class__.__name__).get_or_add(task)
+                class_name = task.__class__.__name__
+                by_class.setdefault(class_name, {})[task.task_id] = task
+
+        # Decide which classes need first-param subgrouping: split when any
+        # subgroup (keyed by first param value) would exceed the threshold.
+        for class_name, task_map in by_class.items():
+            subgroup_counts: dict[str, int] = {}
+            for task in task_map.values():
+                if task.param_kwargs:
+                    first_val = str(next(iter(task.param_kwargs.values())))
+                    subgroup_counts[first_val] = subgroup_counts.get(first_val, 0) + 1
+            if subgroup_counts and max(subgroup_counts.values()) > self._SPLIT_THRESHOLD:
+                self._split_classes.add(class_name)
+
+        # Populate groups using the (now decided) grouping keys
+        for task_map in by_class.values():
+            for task in task_map.values():
+                inst = self._get_or_create_group(self._group_key(task)).get_or_add(task)
                 try:
                     if task.complete():
                         inst.status = "DONE"
