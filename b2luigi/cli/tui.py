@@ -168,7 +168,9 @@ class ProgressApp(App):
         Binding("d", "toggle_debug", "Debug"),
         Binding("q", "quit_tui", "Quit"),
         Binding("k", "cursor_up", "Up", show=False),
+        Binding("up", "cursor_up", "Up", show=False),
         Binding("j", "cursor_down", "Down", show=False),
+        Binding("down", "cursor_down", "Down", show=False),
     ]
 
     def __init__(self, task_list: list, run_fn):
@@ -179,6 +181,7 @@ class ProgressApp(App):
         self.groups: dict[str, TaskGroup] = {}
         self.group_order: list[str] = []
         self.selected_idx = 0
+        self.selected_instance_idx: int | None = None
         self.finished = False
         self._debug_mode = False
         self._log_lines: list[str] = []
@@ -204,17 +207,46 @@ class ProgressApp(App):
     # ── actions ──────────────────────────────────────────────────────────────
 
     def action_toggle_fold(self):
-        if self.group_order and self.selected_idx < len(self.group_order):
-            name = self.group_order[self.selected_idx]
+        if not self.group_order or self.selected_idx >= len(self.group_order):
+            return
+        name = self.group_order[self.selected_idx]
+        if self.selected_instance_idx is not None:
+            # On an instance: fold the group and return focus to its header
+            self.groups[name].expanded = False
+            self.selected_instance_idx = None
+        else:
             self.groups[name].expanded = not self.groups[name].expanded
 
     def action_cursor_up(self):
-        if self.selected_idx > 0:
+        if self.selected_instance_idx is not None:
+            if self.selected_instance_idx > 0:
+                self.selected_instance_idx -= 1
+            else:
+                self.selected_instance_idx = None
+        elif self.selected_idx > 0:
             self.selected_idx -= 1
+            prev_group = self.groups[self.group_order[self.selected_idx]]
+            if prev_group.expanded and prev_group.total > 0:
+                self.selected_instance_idx = prev_group.total - 1
+            else:
+                self.selected_instance_idx = None
 
     def action_cursor_down(self):
-        if self.group_order:
-            self.selected_idx = (self.selected_idx + 1) % len(self.group_order)
+        if not self.group_order:
+            return
+        current_group = self.groups[self.group_order[self.selected_idx]]
+        if self.selected_instance_idx is not None:
+            if self.selected_instance_idx < current_group.total - 1:
+                self.selected_instance_idx += 1
+            elif self.selected_idx < len(self.group_order) - 1:
+                self.selected_idx += 1
+                self.selected_instance_idx = None
+        else:
+            if current_group.expanded and current_group.total > 0:
+                self.selected_instance_idx = 0
+            elif self.selected_idx < len(self.group_order) - 1:
+                self.selected_idx += 1
+                self.selected_instance_idx = None
 
     def action_toggle_debug(self):
         self._debug_mode = not self._debug_mode
@@ -279,15 +311,18 @@ class ProgressApp(App):
             table.add_row(header)
 
             if group.expanded:
-                for inst in group.sorted_instances:
+                for inst_idx, inst in enumerate(group.sorted_instances):
+                    inst_selected = selected and inst_idx == self.selected_instance_idx
                     icon, color = {
                         "PENDING": ("⏳", "dim"),
                         "RUNNING": ("▶", "yellow"),
                         "DONE": ("✓", "green"),
                         "FAILED": ("✗", "red"),
                     }.get(inst.status, ("?", "dim"))
+                    prefix = "  ▸ " if inst_selected else "    "
+                    style = "reverse bold" if inst_selected else "dim"
                     table.add_row(Text.from_markup(
-                        f"   [dim]{inst.params_str:<28}[/] [{color}]{icon}[/] [bold]{inst.status}[/]"
+                        f"{prefix}[{style}]{inst.params_str:<28}[/] [{color}]{icon}[/] [bold]{inst.status}[/]"
                     ))
 
         if self.finished:

@@ -461,6 +461,7 @@ def run_with_tui(task_list:list, kwargs:dict, batch=False):
     app.run()
     if app._user_quit:
         import os
+
         os._exit(0)
 
 
