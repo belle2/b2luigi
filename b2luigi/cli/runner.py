@@ -445,19 +445,19 @@ def run_with_tui(task_list:list, kwargs:dict, batch=False):
     Requires the 'tui' optional dependency: pip install b2luigi[tui]
     """
     try:
-        from b2luigi.cli.tui import ProgressApp, _TUISendJobWorkerSchedulerFactory
+        from b2luigi.cli.tui import ProgressApp, _TUISchedulerFactory
     except ImportError:
         raise ImportError("The 'textual' package is required for TUI mode. Install it with: pip install b2luigi[tui]")
 
     if not batch:
         set_setting("batch_system", "local")
 
-    factory = _TUISendJobWorkerSchedulerFactory()
+    factory = _TUISchedulerFactory()
 
     def _run():
         run_luigi(task_list, kwargs, worker_scheduler_factory=factory)
 
-    app = ProgressApp(task_list, _run)
+    app = ProgressApp(task_list, _run, scheduler_factory=factory)
     app.run()
     if app._user_quit:
         import os

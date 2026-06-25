@@ -7,8 +7,6 @@ Requires the 'tui' optional dependency: pip install b2luigi[tui]
 import logging
 import threading
 
-import luigi
-import luigi.scheduler
 from rich.table import Table
 from rich.text import Text
 from textual import work
@@ -17,81 +15,22 @@ from textual.binding import Binding
 from textual.screen import ModalScreen
 from textual.widgets import Footer, Header, Static
 
-from b2luigi.batch.processes import BatchProcess as _BatchProcess
-from b2luigi.batch.workers import SendJobWorker, SendJobWorkerSchedulerFactory
+from b2luigi.batch.workers import SendJobWorkerSchedulerFactory
 
 
-# ── Worker wrapper: forces in-process execution, fires events ─────────────────
+# ── Scheduler factory: captures the local scheduler for RPC polling ───────────
 
 
-class _TUIProcessWrapper:
-    """
-    Wraps any Luigi task process so that:
-    - use_multiprocessing is always False (tasks run in the worker thread, not a
-      subprocess), ensuring Luigi events fire where our handlers can see them.
-    - BatchProcess instances (which never call trigger_event themselves) get
-      START/SUCCESS/FAILURE fired around their lifecycle.
-    """
+class _TUISchedulerFactory(SendJobWorkerSchedulerFactory):
+    """Captures the scheduler passed to create_worker so the TUI can poll it."""
 
-    def __init__(self, wrapped, task):
-        self._wrapped = wrapped
-        self.task = task
-        self.use_multiprocessing = False
-        self.timeout_time = getattr(wrapped, "timeout_time", None)
-        self._is_batch = isinstance(wrapped, _BatchProcess)
-        self._done_fired = False
-        self._start_failed = False
+    def __init__(self):
+        super().__init__()
+        self.scheduler = None
 
-    def run(self):
-        if self._is_batch:
-            self.task.trigger_event(luigi.Event.START, self.task)
-            try:
-                self._wrapped.run()
-            except Exception as ex:
-                # start_job() failed (e.g. batch system not available)
-                self._start_failed = True
-                self.task.trigger_event(luigi.Event.FAILURE, self.task, ex)
-                self._wrapped._put_to_result_queue(
-                    status=luigi.scheduler.FAILED,
-                    explanation=str(ex),
-                )
-        else:
-            # TaskProcess.run() fires START/SUCCESS/FAILURE internally
-            self._wrapped.run()
-
-    def is_alive(self) -> bool:
-        if self._start_failed:
-            return False
-        alive = self._wrapped.is_alive()
-        # Fire SUCCESS/FAILURE when a batch job transitions to done
-        if self._is_batch and not alive and not self._done_fired:
-            self._done_fired = True
-            try:
-                complete = self.task.complete()
-            except Exception:
-                complete = False
-            if complete:
-                self.task.trigger_event(luigi.Event.SUCCESS, self.task)
-            else:
-                self.task.trigger_event(luigi.Event.FAILURE, self.task, RuntimeError("Batch task failed"))
-        return alive
-
-    def terminate(self):
-        self._wrapped.terminate()
-
-    @property
-    def exitcode(self):
-        return getattr(self._wrapped, "exitcode", 0)
-
-
-class _TUISendJobWorker(SendJobWorker):
-    def _create_task_process(self, task):
-        return _TUIProcessWrapper(super()._create_task_process(task), task)
-
-
-class _TUISendJobWorkerSchedulerFactory(SendJobWorkerSchedulerFactory):
     def create_worker(self, scheduler, worker_processes, assistant=False):
-        return _TUISendJobWorker(scheduler=scheduler, worker_processes=worker_processes, assistant=assistant)
+        self.scheduler = scheduler
+        return super().create_worker(scheduler, worker_processes, assistant=assistant)
 
 
 # ── Logging ───────────────────────────────────────────────────────────────────
@@ -218,11 +157,12 @@ class ProgressApp(App):
         Binding("down", "cursor_down", "Down", show=False),
     ]
 
-    def __init__(self, task_list: list, run_fn):
+    def __init__(self, task_list: list, run_fn, scheduler_factory=None):
         super().__init__()
         self.theme = "ansi-light"
         self._task_list = task_list
         self._run_fn = run_fn
+        self._scheduler_factory = scheduler_factory
         self.groups: dict[str, TaskGroup] = {}
         self.group_order: list[str] = []
         self.selected_idx = 0
@@ -236,8 +176,9 @@ class ProgressApp(App):
         self._warning: str = ""
         self._log_view: dict | None = None  # {"title": str, "content": str} when viewing a log
         self._split_classes: set[str] = set()  # classes whose groups are split by first param value
+        self._task_id_map: dict[str, object] = {}  # task_id → task object, for log file lookup
 
-    # ── data (all mutations called on the main thread via call_from_thread) ──
+    # ── data ──
 
     _SPLIT_THRESHOLD = 30  # split a class's group when any first-param subgroup exceeds this
 
@@ -255,9 +196,40 @@ class ProgressApp(App):
             self.group_order.append(class_name)
         return self.groups[class_name]
 
-    def _update_status(self, task, status: str):
-        group = self._get_or_create_group(self._group_key(task))
-        group.get_or_add(task).status = status
+    # Maps Luigi scheduler status strings to TUI display statuses.
+    _LUIGI_TO_TUI_STATUS = {
+        "PENDING": "PENDING",
+        "RUNNING": "RUNNING",
+        "DONE": "DONE",
+        "FAILED": "FAILED",
+        "DISABLED": "FAILED",
+        "UPSTREAM_FAILED": "FAILED",
+        "UPSTREAM_DISABLED": "PENDING",
+        "UNKNOWN": "PENDING",
+    }
+
+    def _poll_scheduler(self):
+        """Query the Luigi scheduler's RPC API and update task statuses."""
+        scheduler = getattr(self._scheduler_factory, "scheduler", None)
+        if scheduler is None:
+            return
+        try:
+            all_tasks = scheduler.task_list("", "")
+        except Exception:
+            return
+        for task_id, task_info in all_tasks.items():
+            luigi_status = task_info.get("status", "UNKNOWN")
+            tui_status = self._LUIGI_TO_TUI_STATUS.get(luigi_status, "PENDING")
+            task_obj = self._task_id_map.get(task_id)
+            if task_obj is None:
+                continue
+            group_key = self._group_key(task_obj)
+            group = self.groups.get(group_key)
+            if group is None:
+                continue
+            inst = group.instances.get(task_id)
+            if inst is not None:
+                inst.status = tui_status
 
     def _mark_finished(self):
         self.finished = True
@@ -364,7 +336,7 @@ class ProgressApp(App):
 
     def _open_log(self, which: str):
         import os
-        from b2luigi.core.utils import get_log_file_dir, task_iterator
+        from b2luigi.core.utils import get_log_file_dir
 
         inst = self._selected_task()
         if inst is None:
@@ -376,15 +348,7 @@ class ProgressApp(App):
         task_id = next(
             tid for tid, ti in group.instances.items() if group.sorted_instances[self.selected_instance_idx] is ti
         )
-        task_obj = None
-        for root in self._task_list:
-            for t in task_iterator(root):
-                if t.task_id == task_id:
-                    task_obj = t
-                    break
-            if task_obj:
-                break
-
+        task_obj = self._task_id_map.get(task_id)
         if task_obj is None:
             self._warning = f"Could not locate task object for {inst.params_str}"
             return
@@ -396,7 +360,8 @@ class ProgressApp(App):
 
         self._warning = ""
         try:
-            content = open(log_path).read()
+            with open(log_path) as f:
+                content = f.read()
         except OSError as ex:
             self._warning = f"Cannot read {log_path}: {ex}"
             return
@@ -526,8 +491,9 @@ class ProgressApp(App):
 
     def on_mount(self):
         self._pre_populate()
-        self._register_event_handlers()
+        self._attach_log_handler()
         self._run_luigi()
+        self.set_interval(0.5, self._poll_scheduler)
         self.set_interval(0.1, self._refresh_display)
 
     def _pre_populate(self):
@@ -551,9 +517,10 @@ class ProgressApp(App):
             if subgroup_counts and max(subgroup_counts.values()) > self._SPLIT_THRESHOLD:
                 self._split_classes.add(class_name)
 
-        # Populate groups using the (now decided) grouping keys
+        # Populate groups and build the task_id → task map for log file lookup
         for task_map in by_class.values():
             for task in task_map.values():
+                self._task_id_map[task.task_id] = task
                 inst = self._get_or_create_group(self._group_key(task)).get_or_add(task)
                 try:
                     if task.complete():
@@ -561,21 +528,7 @@ class ProgressApp(App):
                 except Exception:
                     pass
 
-    def _register_event_handlers(self):
-        app = self
-
-        @luigi.Task.event_handler(luigi.Event.START)
-        def _on_start(task):
-            app.call_from_thread(app._update_status, task, "RUNNING")
-
-        @luigi.Task.event_handler(luigi.Event.SUCCESS)
-        def _on_success(task):
-            app.call_from_thread(app._update_status, task, "DONE")
-
-        @luigi.Task.event_handler(luigi.Event.FAILURE)
-        def _on_failure(task, exception):
-            app.call_from_thread(app._update_status, task, "FAILED")
-
+    def _attach_log_handler(self):
         log_handler = _TUILogHandler(self)
         log_handler.setFormatter(logging.Formatter("%(levelname)s %(name)s: %(message)s"))
         for logger_name in ("luigi", "luigi-interface", "b2luigi"):
