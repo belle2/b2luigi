@@ -166,6 +166,10 @@ class ProgressApp(App):
     BINDINGS = [
         Binding("f", "toggle_fold", "Fold/Unfold"),
         Binding("d", "toggle_debug", "Debug"),
+        Binding("o", "open_stdout", "Stdout"),
+        Binding("e", "open_stderr", "Stderr"),
+        Binding("b", "close_log_view", "Back"),
+        Binding("escape", "close_log_view", "Back", show=False),
         Binding("q", "quit_tui", "Quit"),
         Binding("k", "cursor_up", "Up", show=False),
         Binding("up", "cursor_up", "Up", show=False),
@@ -188,6 +192,8 @@ class ProgressApp(App):
         self._log_lock = threading.Lock()
         self._luigi_thread_id: int | None = None
         self._user_quit = False
+        self._warning: str = ""
+        self._log_view: dict | None = None  # {"title": str, "content": str} when viewing a log
 
     # ── data (all mutations called on the main thread via call_from_thread) ──
 
@@ -217,7 +223,11 @@ class ProgressApp(App):
         else:
             self.groups[name].expanded = not self.groups[name].expanded
 
+    def _clear_warning(self):
+        self._warning = ""
+
     def action_cursor_up(self):
+        self._clear_warning()
         if self.selected_instance_idx is not None:
             if self.selected_instance_idx > 0:
                 self.selected_instance_idx -= 1
@@ -232,6 +242,7 @@ class ProgressApp(App):
                 self.selected_instance_idx = None
 
     def action_cursor_down(self):
+        self._clear_warning()
         if not self.group_order:
             return
         current_group = self.groups[self.group_order[self.selected_idx]]
@@ -264,6 +275,78 @@ class ProgressApp(App):
             ctypes.c_ulong(self._luigi_thread_id),
             ctypes.py_object(KeyboardInterrupt),
         )
+
+    def _selected_task(self):
+        """Return the TaskInstance currently under the cursor, or None if on a group header."""
+        if not self.group_order or self.selected_instance_idx is None:
+            return None
+        group = self.groups[self.group_order[self.selected_idx]]
+        instances = group.sorted_instances
+        if self.selected_instance_idx >= len(instances):
+            return None
+        return instances[self.selected_instance_idx]
+
+    def _open_log(self, which: str):
+        import os
+        from b2luigi.core.utils import get_log_file_dir, task_iterator
+
+        inst = self._selected_task()
+        if inst is None:
+            self._warning = "Select a task instance first (unfold a group and navigate to a row)"
+            return
+
+        group_name = self.group_order[self.selected_idx]
+        group = self.groups[group_name]
+        task_id = next(
+            tid for tid, ti in group.instances.items()
+            if group.sorted_instances[self.selected_instance_idx] is ti
+        )
+        task_obj = None
+        for root in self._task_list:
+            for t in task_iterator(root):
+                if t.task_id == task_id:
+                    task_obj = t
+                    break
+            if task_obj:
+                break
+
+        if task_obj is None:
+            self._warning = f"Could not locate task object for {inst.params_str}"
+            return
+
+        log_path = os.path.join(get_log_file_dir(task_obj), which)
+        if not os.path.exists(log_path):
+            self._warning = f"Log not found: {log_path}"
+            return
+
+        self._warning = ""
+        try:
+            content = open(log_path).read()
+        except OSError as ex:
+            self._warning = f"Cannot read {log_path}: {ex}"
+            return
+
+        self._log_view = {"title": log_path, "content": content}
+        self.refresh_bindings()
+
+    def action_open_stdout(self):
+        self._open_log("stdout")
+
+    def action_open_stderr(self):
+        self._open_log("stderr")
+
+    def action_close_log_view(self):
+        self._log_view = None
+        self.refresh_bindings()
+
+    def check_action(self, action: str, parameters: tuple) -> bool | None:
+        in_log = self._log_view is not None
+        if action == "close_log_view":
+            return in_log or None
+        if action in ("toggle_fold", "toggle_debug", "open_stdout", "open_stderr",
+                      "cursor_up", "cursor_down"):
+            return None if in_log else True
+        return True
 
     # ── rendering ─────────────────────────────────────────────────────────────
 
@@ -328,7 +411,21 @@ class ProgressApp(App):
         if self.finished:
             table.add_row(Text.from_markup("[bold green]━━━ b2luigi terminated ━━━[/]"))
 
+        if self._warning:
+            table.add_row(Text.from_markup(f"[bold yellow]⚠ {self._warning}[/]"))
+
         return table
+
+    def _build_log_view(self) -> Text:
+        title = self._log_view["title"]
+        content = self._log_view["content"]
+        text = Text()
+        text.append(f" {title} \n\n", style="bold reverse")
+        text.append(content)
+        if not content.endswith("\n"):
+            text.append("\n")
+        text.append("\n[b / Escape] back", style="dim")
+        return text
 
     def _build_debug_view(self) -> Text:
         with self._log_lock:
@@ -336,7 +433,12 @@ class ProgressApp(App):
         return Text("\n".join(lines))
 
     def _refresh_display(self):
-        renderable = self._build_debug_view() if self._debug_mode else self._build_progress_view()
+        if self._log_view is not None:
+            renderable = self._build_log_view()
+        elif self._debug_mode:
+            renderable = self._build_debug_view()
+        else:
+            renderable = self._build_progress_view()
         self.query_one("#display", Static).update(renderable)
 
     # ── lifecycle ──────────────────────────────────────────────────────────────
