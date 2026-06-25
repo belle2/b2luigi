@@ -3,6 +3,7 @@ Progress TUI for b2luigi workflows.
 
 Requires the 'tui' optional dependency: pip install b2luigi[tui]
 """
+
 import logging
 import threading
 
@@ -13,6 +14,7 @@ from rich.text import Text
 from textual import work
 from textual.app import App, ComposeResult
 from textual.binding import Binding
+from textual.screen import ModalScreen
 from textual.widgets import Footer, Header, Static
 
 from b2luigi.batch.processes import BatchProcess as _BatchProcess
@@ -150,6 +152,43 @@ class TaskGroup:
         )
 
 
+# ── Quit confirmation modal ───────────────────────────────────────────────────
+
+
+class _ConfirmQuitScreen(ModalScreen[bool]):
+    """Modal that asks for confirmation before killing an in-progress workflow."""
+
+    CSS = """
+    #confirm-box {
+        width: 58;
+        height: auto;
+        border: thick $error;
+        background: $surface;
+        padding: 1 2;
+        margin: 1 2;
+    }
+    """
+    BINDINGS = [
+        Binding("y", "confirm_yes", "Yes — terminate"),
+        Binding("n", "confirm_no", "No — keep running"),
+        Binding("enter", "confirm_no", "No", show=False),
+        Binding("escape", "confirm_no", "No", show=False),
+    ]
+
+    def __init__(self, message: str):
+        super().__init__()
+        self._message = message
+
+    def compose(self) -> ComposeResult:
+        yield Static(self._message, id="confirm-box")
+
+    def action_confirm_yes(self):
+        self.dismiss(True)
+
+    def action_confirm_no(self):
+        self.dismiss(False)
+
+
 # ── Textual app ───────────────────────────────────────────────────────────────
 
 
@@ -263,9 +302,32 @@ class ProgressApp(App):
         self._debug_mode = not self._debug_mode
 
     def action_quit_tui(self):
-        self._user_quit = True
-        self._interrupt_luigi()
-        self.exit()
+        if self.finished:
+            self.exit()
+            return
+        running, pending = 0, 0
+        for group in self.groups.values():
+            _, _, r, p = group.counts
+            running += r
+            pending += p
+        parts = []
+        if running:
+            parts.append(f"{running} running")
+        if pending:
+            parts.append(f"{pending} pending")
+        summary = ", ".join(parts) or "tasks in progress"
+        msg = (
+            f"[bold]Terminate b2luigi?[/bold] ({summary})\n\n"
+            f"  Press y to terminate\n"
+            f"  Press n / Esc / Enter to keep running"
+        )
+        self.push_screen(_ConfirmQuitScreen(msg), self._on_quit_confirmed)
+
+    def _on_quit_confirmed(self, confirmed: bool):
+        if confirmed:
+            self._user_quit = True
+            self._interrupt_luigi()
+            self.exit()
 
     def _interrupt_luigi(self):
         if self._luigi_thread_id is None:
