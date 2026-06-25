@@ -21,6 +21,7 @@ from b2luigi.batch.workers import SendJobWorker, SendJobWorkerSchedulerFactory
 
 # ── Worker wrapper: forces in-process execution, fires events ─────────────────
 
+
 class _TUIProcessWrapper:
     """
     Wraps any Luigi task process so that:
@@ -70,9 +71,7 @@ class _TUIProcessWrapper:
             if complete:
                 self.task.trigger_event(luigi.Event.SUCCESS, self.task)
             else:
-                self.task.trigger_event(
-                    luigi.Event.FAILURE, self.task, RuntimeError("Batch task failed")
-                )
+                self.task.trigger_event(luigi.Event.FAILURE, self.task, RuntimeError("Batch task failed"))
         return alive
 
     def terminate(self):
@@ -90,12 +89,11 @@ class _TUISendJobWorker(SendJobWorker):
 
 class _TUISendJobWorkerSchedulerFactory(SendJobWorkerSchedulerFactory):
     def create_worker(self, scheduler, worker_processes, assistant=False):
-        return _TUISendJobWorker(
-            scheduler=scheduler, worker_processes=worker_processes, assistant=assistant
-        )
+        return _TUISendJobWorker(scheduler=scheduler, worker_processes=worker_processes, assistant=assistant)
 
 
 # ── Logging ───────────────────────────────────────────────────────────────────
+
 
 class _TUILogHandler(logging.Handler):
     def __init__(self, app: "ProgressApp"):
@@ -108,6 +106,7 @@ class _TUILogHandler(logging.Handler):
 
 
 # ── Data model ────────────────────────────────────────────────────────────────
+
 
 class TaskInstance:
     def __init__(self, task):
@@ -152,6 +151,7 @@ class TaskGroup:
 
 
 # ── Textual app ───────────────────────────────────────────────────────────────
+
 
 class ProgressApp(App):
     TITLE = "b2luigi Progress TUI"
@@ -271,6 +271,7 @@ class ProgressApp(App):
         if self._luigi_thread_id is None:
             return
         import ctypes
+
         ctypes.pythonapi.PyThreadState_SetAsyncExc(
             ctypes.c_ulong(self._luigi_thread_id),
             ctypes.py_object(KeyboardInterrupt),
@@ -298,8 +299,7 @@ class ProgressApp(App):
         group_name = self.group_order[self.selected_idx]
         group = self.groups[group_name]
         task_id = next(
-            tid for tid, ti in group.instances.items()
-            if group.sorted_instances[self.selected_instance_idx] is ti
+            tid for tid, ti in group.instances.items() if group.sorted_instances[self.selected_instance_idx] is ti
         )
         task_obj = None
         for root in self._task_list:
@@ -343,8 +343,7 @@ class ProgressApp(App):
         in_log = self._log_view is not None
         if action == "close_log_view":
             return in_log or None
-        if action in ("toggle_fold", "toggle_debug", "open_stdout", "open_stderr",
-                      "cursor_up", "cursor_down"):
+        if action in ("toggle_fold", "toggle_debug", "open_stdout", "open_stderr", "cursor_up", "cursor_down"):
             return None if in_log else True
         return True
 
@@ -404,9 +403,11 @@ class ProgressApp(App):
                     }.get(inst.status, ("?", "dim"))
                     prefix = "  ▸ " if inst_selected else "    "
                     style = "reverse bold" if inst_selected else "dim"
-                    table.add_row(Text.from_markup(
-                        f"{prefix}[{style}]{inst.params_str:<28}[/] [{color}]{icon}[/] [bold]{inst.status}[/]"
-                    ))
+                    table.add_row(
+                        Text.from_markup(
+                            f"{prefix}[{style}]{inst.params_str:<28}[/] [{color}]{icon}[/] [bold]{inst.status}[/]"
+                        )
+                    )
 
         if self.finished:
             table.add_row(Text.from_markup("[bold green]━━━ b2luigi terminated ━━━[/]"))
@@ -493,6 +494,7 @@ class ProgressApp(App):
         # only works in the main thread. Since we run Luigi in a worker thread, tell
         # Luigi to skip that step via its own config flag.
         from luigi import configuration as _luigi_cfg
+
         _luigi_cfg.get_config().set("worker", "no_install_shutdown_handler", "true")
 
         try:
