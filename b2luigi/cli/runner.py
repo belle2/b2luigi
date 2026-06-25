@@ -438,7 +438,29 @@ def run_local(task_list, kwargs):
     run_luigi(task_list, kwargs)
 
 
-def run_luigi(task_list: list, kwargs: dict):
+def run_with_tui(task_list:list, kwargs:dict, batch=False):
+    """
+    Run tasks with a live Textual progress TUI.
+
+    Requires the 'tui' optional dependency: pip install b2luigi[tui]
+    """
+    try:
+        from b2luigi.cli.tui import ProgressApp, _TUISendJobWorkerSchedulerFactory
+    except ImportError:
+        raise ImportError("The 'textual' package is required for TUI mode. Install it with: pip install b2luigi[tui]")
+
+    if not batch:
+        set_setting("batch_system", "local")
+
+    factory = _TUISendJobWorkerSchedulerFactory()
+
+    def _run():
+        run_luigi(task_list, kwargs, worker_scheduler_factory=factory)
+
+    ProgressApp(task_list, _run).run()
+
+
+def run_luigi(task_list:list, kwargs:dict, worker_scheduler_factory=None):
     """
     Executes Luigi tasks with the specified configuration.
 
@@ -465,7 +487,7 @@ def run_luigi(task_list: list, kwargs: dict):
     else:
         kwargs["local_scheduler"] = True
 
-    kwargs["worker_scheduler_factory"] = SendJobWorkerSchedulerFactory()
+    kwargs["worker_scheduler_factory"] = worker_scheduler_factory or SendJobWorkerSchedulerFactory()
 
     kwargs.setdefault("workers", get_setting("workers", default=1))
     kwargs.setdefault("log_level", "INFO")

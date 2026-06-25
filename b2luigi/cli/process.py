@@ -12,6 +12,7 @@ def process(
     test=False,
     batch=False,
     batch_runner=False,
+    progress_tui=False,
     remove=[],
     remove_only=[],
     auto_confirm=False,
@@ -83,6 +84,10 @@ def process(
             command to execute a single reconstructed task directly on a batch worker node.
             Do not set this manually — use ``b2luigi run`` instead.
 
+        progress_tui (bool, optional): If set to `True`, show a live Textual progress TUI while
+            running tasks. Requires the 'tui' optional dependency: ``pip install b2luigi[tui]``.
+            Can also be activated with the ``--tui`` command-line flag.
+
         remove (list, optional): If a single task is given, remove the output of this task.
             If a list of tasks is given, remove the output of all tasks in the list.
 
@@ -145,6 +150,8 @@ def process(
             auto_confirm=auto_confirm or cli_args.yes,
             keep_tasks=cli_args.keep or keep_tasks,
         )
+    elif cli_args.tui or progress_tui:
+        runner.run_with_tui(task_list, kwargs, batch=cli_args.batch or batch)
     elif cli_args.batch or batch:
         runner.run_batched(task_list, kwargs)
     else:
