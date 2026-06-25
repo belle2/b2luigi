@@ -182,12 +182,25 @@ class ProgressApp(App):
 
     _SPLIT_THRESHOLD = 30  # split a class's group when any first-param subgroup exceeds this
 
+    @staticmethod
+    def _first_significant_param_val(task) -> str | None:
+        """Return the string value of the first significant parameter, or None."""
+        try:
+            sig_params = [(n, p) for n, p in task.get_params() if p.significant]
+        except Exception:
+            return None
+        if not sig_params:
+            return None
+        first_name = sig_params[0][0]
+        return str(task.param_kwargs[first_name]) if first_name in task.param_kwargs else None
+
     def _group_key(self, task) -> str:
-        """Return the group name for a task, splitting by first param when warranted."""
+        """Return the group name for a task, splitting by first significant param when warranted."""
         class_name = task.__class__.__name__
-        if class_name in self._split_classes and task.param_kwargs:
-            first_val = next(iter(task.param_kwargs.values()))
-            return f"{class_name} [{first_val}]"
+        if class_name in self._split_classes:
+            first_val = self._first_significant_param_val(task)
+            if first_val is not None:
+                return f"{class_name} [{first_val}]"
         return class_name
 
     def _get_or_create_group(self, class_name: str) -> TaskGroup:
@@ -507,12 +520,12 @@ class ProgressApp(App):
                 by_class.setdefault(class_name, {})[task.task_id] = task
 
         # Decide which classes need first-param subgrouping: split when any
-        # subgroup (keyed by first param value) would exceed the threshold.
+        # subgroup (keyed by first significant param value) would exceed the threshold.
         for class_name, task_map in by_class.items():
             subgroup_counts: dict[str, int] = {}
             for task in task_map.values():
-                if task.param_kwargs:
-                    first_val = str(next(iter(task.param_kwargs.values())))
+                first_val = self._first_significant_param_val(task)
+                if first_val is not None:
                     subgroup_counts[first_val] = subgroup_counts.get(first_val, 0) + 1
             if subgroup_counts and max(subgroup_counts.values()) > self._SPLIT_THRESHOLD:
                 self._split_classes.add(class_name)

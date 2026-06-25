@@ -31,6 +31,26 @@ def _mock_task(task_id="MyTask_x_1", class_name="MyTask", **params):
     return task
 
 
+def _mock_task_with_sig(task_id, class_name="MyTask", params=None):
+    """Create a mock task with explicit significant flags.
+
+    params: list of (name, value, significant) tuples, in parameter order.
+    """
+    if params is None:
+        params = []
+    task = MagicMock()
+    task.__class__.__name__ = class_name
+    task.param_kwargs = {name: val for name, val, _ in params}
+    task.task_id = task_id
+    param_objs = []
+    for name, _val, significant in params:
+        p = MagicMock()
+        p.significant = significant
+        param_objs.append((name, p))
+    task.get_params.return_value = param_objs
+    return task
+
+
 # ── TaskInstance ──────────────────────────────────────────────────────────────
 
 
@@ -79,6 +99,114 @@ class TestTaskGroup(unittest.TestCase):
             group.get_or_add(_mock_task(f"id{i}", x=i))
         params = [inst.params_str for inst in group.sorted_instances]
         self.assertEqual(params, sorted(params))
+
+
+# ── _first_significant_param_val / split-class detection ─────────────────────
+
+
+class TestFirstSignificantParamVal(unittest.TestCase):
+    def test_returns_first_significant_value(self):
+        task = _mock_task_with_sig("id1", params=[("x", "val_x", True)])
+        self.assertEqual(ProgressApp._first_significant_param_val(task), "val_x")
+
+    def test_skips_non_significant_first_param(self):
+        task = _mock_task_with_sig(
+            "id1",
+            params=[("git_hash", "abc123", False), ("channel", "B2Kee", True)],
+        )
+        self.assertEqual(ProgressApp._first_significant_param_val(task), "B2Kee")
+
+    def test_returns_none_when_all_params_non_significant(self):
+        task = _mock_task_with_sig(
+            "id1",
+            params=[("git_hash", "abc123", False), ("num_processes", 4, False)],
+        )
+        self.assertIsNone(ProgressApp._first_significant_param_val(task))
+
+    def test_returns_none_when_no_params(self):
+        task = _mock_task_with_sig("id1", params=[])
+        self.assertIsNone(ProgressApp._first_significant_param_val(task))
+
+    def test_returns_none_on_get_params_exception(self):
+        task = MagicMock()
+        task.get_params.side_effect = RuntimeError("broken")
+        self.assertIsNone(ProgressApp._first_significant_param_val(task))
+
+    def test_value_is_stringified(self):
+        task = _mock_task_with_sig("id1", params=[("n", 42, True)])
+        self.assertEqual(ProgressApp._first_significant_param_val(task), "42")
+
+
+class TestSplitClassDetection(unittest.TestCase):
+    """Verify that _pre_populate only uses significant params for split-group keying."""
+
+    _THRESHOLD = ProgressApp._SPLIT_THRESHOLD
+
+    def _make_app(self, tasks):
+        app = ProgressApp.__new__(ProgressApp)
+        app._task_list = tasks
+        app.groups = {}
+        app.group_order = []
+        app._task_id_map = {}
+        app._split_classes = set()
+        return app
+
+    def test_non_significant_first_param_does_not_trigger_split(self):
+        # Many tasks share the same non-significant first param (git_hash="abc")
+        # but differ in a significant second param. Should NOT split because the
+        # first *significant* param has many distinct values (not one big subgroup).
+        tasks = [
+            _mock_task_with_sig(
+                f"id{i}",
+                params=[("git_hash", "abc", False), ("channel", f"ch_{i}", True)],
+            )
+            for i in range(self._THRESHOLD + 5)
+        ]
+        for t in tasks:
+            t.complete.return_value = False
+
+        with patch("b2luigi.core.utils.task_iterator", side_effect=lambda r: [r]):
+            app = self._make_app(tasks)
+            app._pre_populate()
+
+        self.assertNotIn("MyTask", app._split_classes)
+
+    def test_significant_first_param_triggers_split_when_threshold_exceeded(self):
+        # All tasks share the same *significant* first param value "run1",
+        # which puts them all in one subgroup — exceeding the threshold.
+        tasks = [
+            _mock_task_with_sig(
+                f"id{i}",
+                params=[("run", "run1", True), ("idx", i, True)],
+            )
+            for i in range(self._THRESHOLD + 5)
+        ]
+        for t in tasks:
+            t.complete.return_value = False
+
+        with patch("b2luigi.core.utils.task_iterator", side_effect=lambda r: [r]):
+            app = self._make_app(tasks)
+            app._pre_populate()
+
+        self.assertIn("MyTask", app._split_classes)
+
+    def test_group_key_skips_non_significant_first_param(self):
+        task = _mock_task_with_sig(
+            "id1",
+            params=[("git_hash", "abc", False), ("channel", "B2Kee", True)],
+        )
+        app = ProgressApp.__new__(ProgressApp)
+        app._split_classes = {"MyTask"}
+        self.assertEqual(app._group_key(task), "MyTask [B2Kee]")
+
+    def test_group_key_falls_back_to_class_name_when_no_significant_params(self):
+        task = _mock_task_with_sig(
+            "id1",
+            params=[("git_hash", "abc", False)],
+        )
+        app = ProgressApp.__new__(ProgressApp)
+        app._split_classes = {"MyTask"}
+        self.assertEqual(app._group_key(task), "MyTask")
 
 
 # ── _poll_scheduler ───────────────────────────────────────────────────────────
