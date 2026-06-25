@@ -133,9 +133,11 @@ class TaskGroup:
             self.instances[key] = TaskInstance(task)
         return self.instances[key]
 
+    _STATUS_ORDER = {"FAILED": 0, "RUNNING": 1, "DONE": 2, "PENDING": 3}
+
     @property
     def sorted_instances(self) -> list[TaskInstance]:
-        return sorted(self.instances.values(), key=lambda x: x.params_str)
+        return sorted(self.instances.values(), key=lambda x: (self._STATUS_ORDER.get(x.status, 4), x.params_str))
 
     @property
     def total(self) -> int:
