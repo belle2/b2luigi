@@ -3,6 +3,10 @@
 Progress TUI
 ============
 
+.. warning::
+   This is an experimental feature and may change in the future. Please report any issues you encounter when using it.
+
+
 ``b2luigi`` ships with an optional terminal-based progress interface (TUI) built on
 `Textual <https://textual.textualize.io/>`_.
 It shows a live task tree grouped by task class, with colour-coded progress bars and
