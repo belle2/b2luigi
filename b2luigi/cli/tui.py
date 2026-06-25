@@ -184,6 +184,7 @@ class ProgressApp(App):
         self._log_lines: list[str] = []
         self._log_lock = threading.Lock()
         self._luigi_thread_id: int | None = None
+        self._user_quit = False
 
     # ── data (all mutations called on the main thread via call_from_thread) ──
 
@@ -219,6 +220,7 @@ class ProgressApp(App):
         self._debug_mode = not self._debug_mode
 
     def action_quit_tui(self):
+        self._user_quit = True
         self._interrupt_luigi()
         self.exit()
 

@@ -457,7 +457,11 @@ def run_with_tui(task_list:list, kwargs:dict, batch=False):
     def _run():
         run_luigi(task_list, kwargs, worker_scheduler_factory=factory)
 
-    ProgressApp(task_list, _run).run()
+    app = ProgressApp(task_list, _run)
+    app.run()
+    if app._user_quit:
+        import os
+        os._exit(0)
 
 
 def run_luigi(task_list:list, kwargs:dict, worker_scheduler_factory=None):
