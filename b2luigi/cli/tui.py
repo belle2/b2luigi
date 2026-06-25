@@ -166,7 +166,7 @@ class ProgressApp(App):
     BINDINGS = [
         Binding("f", "toggle_fold", "Fold/Unfold"),
         Binding("d", "toggle_debug", "Debug"),
-        Binding("q", "quit", "Quit"),
+        Binding("q", "quit_tui", "Quit"),
         Binding("k", "cursor_up", "Up", show=False),
         Binding("j", "cursor_down", "Down", show=False),
     ]
@@ -183,6 +183,7 @@ class ProgressApp(App):
         self._debug_mode = False
         self._log_lines: list[str] = []
         self._log_lock = threading.Lock()
+        self._luigi_thread_id: int | None = None
 
     # ── data (all mutations called on the main thread via call_from_thread) ──
 
@@ -216,6 +217,19 @@ class ProgressApp(App):
 
     def action_toggle_debug(self):
         self._debug_mode = not self._debug_mode
+
+    def action_quit_tui(self):
+        self._interrupt_luigi()
+        self.exit()
+
+    def _interrupt_luigi(self):
+        if self._luigi_thread_id is None:
+            return
+        import ctypes
+        ctypes.pythonapi.PyThreadState_SetAsyncExc(
+            ctypes.c_ulong(self._luigi_thread_id),
+            ctypes.py_object(KeyboardInterrupt),
+        )
 
     # ── rendering ─────────────────────────────────────────────────────────────
 
@@ -335,11 +349,15 @@ class ProgressApp(App):
 
     @work(thread=True)
     def _run_luigi(self):
+        self._luigi_thread_id = threading.current_thread().ident
         # Luigi's Worker installs a SIGUSR1 handler in __init__, but signal.signal()
         # only works in the main thread. Since we run Luigi in a worker thread, tell
         # Luigi to skip that step via its own config flag.
         from luigi import configuration as _luigi_cfg
         _luigi_cfg.get_config().set("worker", "no_install_shutdown_handler", "true")
 
-        self._run_fn()
+        try:
+            self._run_fn()
+        except (KeyboardInterrupt, SystemExit):
+            pass
         self.call_from_thread(self._mark_finished)
