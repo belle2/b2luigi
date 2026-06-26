@@ -88,13 +88,28 @@ def _build_rst(prog: str, click_group: Any) -> str:
 
 
 class TyperCliDirective(SphinxDirective):
+    """Auto-generate CLI reference RST from a Typer app.
+
+    Usage in RST::
+
+        .. typer:: b2luigi.cli:app
+           :prog: b2luigi
+    """
+
     required_arguments = 1
     optional_arguments = 0
     option_spec = {"prog": directives.unchanged}
     has_content = False
 
     def run(self) -> list[nodes.Node]:
-        module_path, attr_name = self.arguments[0].rsplit(":", 1)
+        arg = self.arguments[0]
+        if ":" not in arg:
+            msg = self.state_machine.reporter.error(
+                f"'.. typer::' argument must be 'module:attr' (e.g. 'b2luigi.cli:app'), got: {arg!r}",
+                line=self.lineno,
+            )
+            return [msg]
+        module_path, attr_name = arg.rsplit(":", 1)
         mod = importlib.import_module(module_path)
         typer_app = getattr(mod, attr_name)
 
