@@ -134,3 +134,25 @@ class TestShowMultiParam(CLITestCase):
         combined = stdout + stderr
         self.assertIn("ChildTask", combined)
         self.assertIn("child_param", combined)
+
+
+class TestShowNonRootTaskCorrectness(CLITestCase):
+    """Verify that show only displays the named non-root task, not its parent."""
+
+    def setUp(self) -> None:
+        super().setUp()
+        self._setup_multi_project_files()
+
+    def test_show_non_root_task_does_not_show_parent(self) -> None:
+        """show ChildTask should render ChildTask panel but not ParentTask panel."""
+        returncode, stdout, stderr = self._run_cli("show", ["ChildTask"])
+        self.assertEqual(returncode, 0, f"stderr: {stderr}")
+        self.assertIn("ChildTask", stdout)
+        self.assertNotIn("ParentTask", stdout)
+
+    def test_show_non_root_task_with_requirements_does_not_show_parent(self) -> None:
+        """show ChildTask --with-requirements should not show ParentTask (it is not a requirement)."""
+        returncode, stdout, stderr = self._run_cli("show", ["ChildTask", "--with-requirements"])
+        self.assertEqual(returncode, 0, f"stderr: {stderr}")
+        self.assertIn("ChildTask", stdout)
+        self.assertNotIn("ParentTask", stdout)

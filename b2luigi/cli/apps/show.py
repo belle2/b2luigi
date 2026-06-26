@@ -9,6 +9,7 @@ from b2luigi.cli.errors import CliUserError
 from b2luigi.cli.utils import (
     complete_task_names,
     expand_parameters,
+    find_tasks_in_tree,
     get_root_tasks,
     get_task_classes,
     load_parameters,
@@ -126,7 +127,14 @@ def show_task(
             _raise_unresolvable_error(name, available[name], param_dicts[0])
         raise AssertionError(f"Expected CliUserError from _raise_unresolvable_error, got none for: {unresolvable!r}")
 
-    runner.show_all_outputs(get_root_tasks(_all_instantiatable(available.values())))
+    found = find_tasks_in_tree(
+        set(names),
+        get_root_tasks(_all_instantiatable(available.values())),
+    )
+    if with_requirements:
+        runner.show_all_outputs(found)
+    else:
+        runner.show_task_outputs(found)
 
 
 @show_app.callback(invoke_without_command=True)
