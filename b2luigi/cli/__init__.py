@@ -152,6 +152,11 @@ def status(
     show_task(task_filename=task_filename, parameter_filename=parameter_filename)
 
 
+# Module-level Click command instance for the Sphinx docs directive.
+# Placed after all @app.command() decorators so it captures all 10 commands.
+_click_app = typer.main.get_command(app)
+
+
 def main() -> None:
     """Entry point for the ``b2luigi`` CLI binary.
 

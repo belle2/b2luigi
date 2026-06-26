@@ -12,11 +12,16 @@ from b2luigi.cli import _click_app  # noqa: E402
 
 
 EXPECTED_VISIBLE_COMMANDS = [
+    "b2luigi about",
+    "b2luigi init",
     "b2luigi remove",
     "b2luigi run",
+    "b2luigi self-update",
     "b2luigi show",
+    "b2luigi status",
     "b2luigi tasks",
     "b2luigi test",
+    "b2luigi version",
 ]
 
 
