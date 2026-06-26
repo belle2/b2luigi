@@ -117,9 +117,10 @@ Use ``--with-requirements`` to traverse the full requirement chain:
     b2luigi show -t ParentTask --with-requirements
     b2luigi remove -t MyTask --with-requirements -y
 
-``--with-requirements`` walks downward through ``requires()`` — it shows
-or removes ``MyTask`` and everything it transitively depends on, but does
-not touch ``ParentTask`` itself.
+``--with-requirements`` walks downward through ``requires()`` — for the
+named task, it shows or removes that task and everything it transitively
+requires.  When removing ``MyTask``, ``ParentTask`` (which requires it)
+is left untouched.
 
 Step 7 — Shell auto-completion
 --------------------------------
