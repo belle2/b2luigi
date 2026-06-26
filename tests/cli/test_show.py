@@ -90,11 +90,11 @@ class TestShow(CLITestCase):
         self.assertTrue("tasks.py" in (stdout + stderr) or "not found" in (stdout + stderr))
 
     def test_show_missing_parameters_file(self) -> None:
-        """Verify that missing parameters.py produces a helpful error."""
+        """Verify that show succeeds without parameters.py (it is optional)."""
         os.remove(os.path.join(self.tmp_dir, "parameters.py"))
-        returncode, stdout, stderr = self._run_cli("show")
-        self.assertNotEqual(returncode, 0)
-        self.assertTrue("parameters.py" in (stdout + stderr) or "not found" in (stdout + stderr))
+        # Must provide --param for required task parameters since parameters.py is missing
+        returncode, stdout, stderr = self._run_cli("show", ["--param", "split=5"])
+        self.assertEqual(returncode, 0, f"Command failed with stderr: {stderr}")
 
 
 class TestShowMultiParam(CLITestCase):

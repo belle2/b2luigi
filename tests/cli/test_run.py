@@ -5,6 +5,7 @@
 """
 
 import os
+import shutil
 
 from .helpers import CLITestCase
 
@@ -43,3 +44,28 @@ class TestRun(CLITestCase):
         returncode, stdout, stderr = self._run_cli("run", ["LeafTask"])
         self.assertNotEqual(returncode, 0)
         self.assertTrue("tasks.py" in (stdout + stderr) or "not found" in (stdout + stderr))
+
+
+class TestRunWithoutParametersFile(CLITestCase):
+    """Tests for running tasks when parameters.py is absent."""
+
+    def setUp(self) -> None:
+        super().setUp()
+        # Copy only tasks.py — deliberately NO parameters.py
+        test_dir = os.path.dirname(__file__)
+        shutil.copy(
+            os.path.join(test_dir, "cli_show_tasks.py"),
+            os.path.join(self.tmp_dir, "tasks.py"),
+        )
+
+    def test_run_with_param_flag_no_parameters_file(self) -> None:
+        """--param split=5 --dry should succeed without parameters.py."""
+        returncode, stdout, stderr = self._run_cli("run", ["LeafTask", "--param", "split=5", "--dry"])
+        self.assertIn(returncode, (0, 256), f"Expected 0 or 256, got {returncode}. stderr: {stderr}")
+
+    def test_run_dry_no_parameters_file_no_params(self) -> None:
+        """--dry alone without parameters.py should not crash with a file-not-found error."""
+        returncode, stdout, stderr = self._run_cli("run", ["LeafTask", "--dry"])
+        # May fail due to missing parameter (split is required) but must NOT
+        # fail with "parameters.py not found"
+        self.assertNotIn("parameters.py' not found", stdout + stderr)

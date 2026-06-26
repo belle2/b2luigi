@@ -4,6 +4,9 @@
     parameter parsing, classname validation, and task discovery.
 """
 
+import os
+import shutil
+import tempfile
 from unittest import TestCase
 
 import b2luigi
@@ -15,6 +18,7 @@ from b2luigi.cli.utils import (
     try_instantiate,
     build_task_list,
     find_tasks_in_tree,
+    load_parameters,
 )
 
 
@@ -223,3 +227,27 @@ class TestFindTasksInTree(TestCase):
         roots = [_ParentTask(parent_param=3)]
         result = find_tasks_in_tree({"NonExistent"}, roots)
         self.assertEqual(result, [])
+
+
+class TestLoadParametersMissingFile(TestCase):
+    """Tests for load_parameters with missing file."""
+
+    def setUp(self) -> None:
+        self.tmp_dir = tempfile.mkdtemp()
+        self.original_dir = os.getcwd()
+        os.chdir(self.tmp_dir)
+
+    def tearDown(self) -> None:
+        os.chdir(self.original_dir)
+        shutil.rmtree(self.tmp_dir)
+
+    def test_returns_empty_dict_when_file_absent(self) -> None:
+        result = load_parameters("parameters.py")
+        self.assertEqual(result, {})
+
+    def test_still_raises_when_file_exists_but_has_no_config(self) -> None:
+        path = os.path.join(self.tmp_dir, "parameters.py")
+        with open(path, "w") as f:
+            f.write("# no config variable here\n")
+        with self.assertRaises(AttributeError):
+            load_parameters("parameters.py")

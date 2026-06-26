@@ -55,6 +55,10 @@ configurations from two files in the working directory:
     ├── tasks.py          # task definitions (required)
     └── parameters.py     # parameter config (optional)
 
+``parameters.py`` is optional.  For a single run pass parameters directly
+via ``--param key=value``; ``parameters.py`` is only needed when using
+:class:`~b2luigi.cli.parameter_generator.ParameterGenerator` for multi-value sweeps.
+
 You can override these paths with flags or environment variables:
 
 .. list-table::

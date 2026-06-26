@@ -81,6 +81,9 @@ def get_task_classes(task_file: str = "tasks.py") -> list[Type[b2luigi.Task]]:
 
 
 def load_parameters(filename="parameters.py") -> Dict[str, Any]:
+    path = os.path.join(os.getcwd(), filename)
+    if not os.path.exists(path):
+        return {}
     params_module = import_from_file(filename, "user_parameters")
     if not hasattr(params_module, "config"):
         raise AttributeError(f"{filename} must define a 'config' variable")
