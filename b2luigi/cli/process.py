@@ -141,7 +141,6 @@ def process(
         runner.remove_outputs(
             task_list,
             target_tasks=cli_args.remove_only or remove_only,
-            only=True,
             auto_confirm=auto_confirm or cli_args.yes,
             keep_tasks=cli_args.keep or keep_tasks,
         )
