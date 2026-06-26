@@ -236,7 +236,7 @@ def build_task_list(
     if direct_mode:
         return [], unresolved
 
-    return _all_roots(), set()
+    return find_tasks_in_tree(set(target_names), _all_roots()), set()
 
 
 def find_tasks_in_tree(

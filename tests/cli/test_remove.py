@@ -98,3 +98,27 @@ class TestRemoveMultiParam(CLITestCase):
         combined = stdout + stderr
         self.assertIn("ChildTask", combined)
         self.assertIn("child_param", combined)
+
+
+class TestRemoveNonRootTaskCorrectness(CLITestCase):
+    """Verify that remove only targets the named non-root task, not its parent."""
+
+    def setUp(self) -> None:
+        super().setUp()
+        self._setup_multi_project_files()
+
+    def test_remove_non_root_task_does_not_mention_parent(self) -> None:
+        """remove ChildTask -y should reference ChildTask but not ParentTask."""
+        returncode, stdout, stderr = self._run_cli("remove", ["ChildTask", "-y"])
+        self.assertEqual(returncode, 0, f"stderr: {stderr}")
+        combined = stdout + stderr
+        self.assertIn("ChildTask", combined)
+        self.assertNotIn("ParentTask", combined)
+
+    def test_remove_non_root_task_with_requirements_does_not_mention_parent(self) -> None:
+        """remove ChildTask --with-requirements -y should not reference ParentTask."""
+        returncode, stdout, stderr = self._run_cli("remove", ["ChildTask", "--with-requirements", "-y"])
+        self.assertEqual(returncode, 0, f"stderr: {stderr}")
+        combined = stdout + stderr
+        self.assertIn("ChildTask", combined)
+        self.assertNotIn("ParentTask", combined)

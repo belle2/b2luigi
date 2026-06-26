@@ -194,11 +194,10 @@ class TestBuildTaskList(TestCase):
         self.assertEqual(unresolved, set())
 
     def test_discovery_path_when_params_missing(self) -> None:
-        """Falls back to all instantiatable roots when target params are absent."""
+        """Falls back to tree traversal and returns only the named target, not all roots."""
         task_list, unresolved = build_task_list(["_ChildTask"], _AVAILABLE, _PARAMS, direct_mode=False)
-        # Falls back to all roots — only _ParentTask can be instantiated from _PARAMS
         self.assertEqual(len(task_list), 1)
-        self.assertIsInstance(task_list[0], _ParentTask)
+        self.assertIsInstance(task_list[0], _ChildTask)
         self.assertEqual(unresolved, set())
 
     def test_direct_mode_returns_unresolved_when_params_missing(self) -> None:
