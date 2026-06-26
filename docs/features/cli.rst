@@ -42,8 +42,6 @@ Subcommands overview
      - Print the installed version string
    * - ``b2luigi self-update``
      - Upgrade b2luigi via pip in the current environment
-   * - ``b2luigi status``
-     - Alias for ``b2luigi show`` with no task filter (full dependency tree)
 
 Project layout
 --------------
@@ -195,10 +193,6 @@ Utility commands
 
 ``b2luigi self-update``
     Upgrade b2luigi to the latest available version via pip.
-
-``b2luigi status``
-    Equivalent to ``b2luigi show`` with no task filter — shows the full
-    dependency tree output status.
 
 Shell auto-completion
 ---------------------

@@ -128,30 +128,6 @@ def self_update() -> None:
         console.print(f"[green]b2luigi updated: {old} → {new}[/green]")
 
 
-@app.command("status")
-def status(
-    task_filename: Annotated[
-        Optional[str],
-        typer.Option("--task-file", "-f", help="Task definitions file (or $B2LUIGI_TASK_FILE)"),
-    ] = None,
-    parameter_filename: Annotated[
-        Optional[str],
-        typer.Option("--params-file", "-p", help="Parameters file (or $B2LUIGI_PARAMS_FILE)"),
-    ] = None,
-) -> None:
-    """Show the output status of the full dependency tree.
-
-    Equivalent to ``b2luigi show`` with no task name argument — displays every task
-    in the dependency tree together with whether its outputs exist.
-
-    :param task_filename: Path to the task definitions file (or ``$B2LUIGI_TASK_FILE``).
-    :param parameter_filename: Path to the parameters file (or ``$B2LUIGI_PARAMS_FILE``).
-    """
-    from b2luigi.cli.apps.show import show_task
-
-    show_task(task_filename=task_filename, parameter_filename=parameter_filename)
-
-
 # Module-level Click command instance for the Sphinx docs directive.
 # Placed after all @app.command() decorators so it captures all 10 commands.
 _click_app = typer.main.get_command(app)

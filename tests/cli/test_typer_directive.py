@@ -18,7 +18,6 @@ EXPECTED_VISIBLE_COMMANDS = [
     "b2luigi run",
     "b2luigi self-update",
     "b2luigi show",
-    "b2luigi status",
     "b2luigi tasks",
     "b2luigi test",
     "b2luigi version",
