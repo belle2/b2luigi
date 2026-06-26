@@ -11,7 +11,7 @@ from luigi.util import copies
 __version__ = "1.2.9"
 
 # Warn users if they're using an untested Python version
-if sys.version_info[:2] > (3, 12):
+if sys.version_info[:2] > (3, 11):
     warnings.warn(
         f"You are using Python {sys.version_info.major}.{sys.version_info.minor}. "
         f"b2luigi is only tested with Python 3.8-3.12. "
