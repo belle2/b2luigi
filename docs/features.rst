@@ -11,6 +11,7 @@ Also checkout our :ref:`examples-label` and :ref:`starterkit_label` for some wor
 
     features/luigi_features
     features/run_modes
+    features/cli
     features/batch
     features/parameters
     features/parameter_grouping
