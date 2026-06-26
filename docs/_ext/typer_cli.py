@@ -9,6 +9,7 @@ from docutils.parsers.rst import directives
 from docutils.statemachine import ViewList
 from sphinx.util.docutils import SphinxDirective
 from sphinx.util.nodes import nested_parse_with_titles
+from typer.main import get_command
 
 
 def _synopsis(prog: str, cmd_name: str, cmd: Any) -> str:
@@ -59,13 +60,12 @@ def _command_rst(prog: str, cmd_name: str, cmd: Any, level: int) -> str:
             names = ", ".join(f"``{o}``" for o in p.opts)
             if not getattr(p, "is_flag", False):
                 try:
-                    mv = p.make_metavar(None)
+                    mv = p.make_metavar()
                 except TypeError:
-                    # Fallback: construct metavar from type name
-                    if hasattr(p, "type") and hasattr(p.type, "name"):
-                        mv = p.type.name.upper()
-                    else:
-                        mv = None
+                    try:
+                        mv = p.make_metavar(None)
+                    except TypeError:
+                        mv = p.type.name.upper() if hasattr(p, "type") and hasattr(p.type, "name") else None
                 if mv:
                     names += f" {mv}"
             lines += [names, f"   {(p.help or '').strip()}", ""]
@@ -98,8 +98,6 @@ class TyperCliDirective(SphinxDirective):
         mod = importlib.import_module(module_path)
         typer_app = getattr(mod, attr_name)
 
-        from typer.main import get_command
-
         click_app = get_command(typer_app)
 
         prog = self.options.get("prog", click_app.name or "b2luigi")
@@ -118,4 +116,4 @@ class TyperCliDirective(SphinxDirective):
 
 def setup(app: Any) -> dict[str, Any]:
     app.add_directive("typer", TyperCliDirective)
-    return {"version": "1.0", "parallel_read_safe": True}
+    return {"version": "1.0", "parallel_read_safe": True, "parallel_write_safe": True}
