@@ -89,7 +89,6 @@ extensions = [
     "sphinx.ext.viewcode",
     "sphinx_sitemap",
     "notfound.extension",
-    "sphinx_click",
 ]
 
 sphinx_gallery_conf = {

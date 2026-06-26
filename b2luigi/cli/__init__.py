@@ -7,7 +7,6 @@ from importlib.metadata import version as get_version
 from pathlib import Path
 from typing import Annotated, Optional
 
-import click
 import typer
 from rich.console import Console
 from rich.panel import Panel
@@ -142,8 +141,8 @@ def status(
 ) -> None:
     """Show the output status of the full dependency tree.
 
-    Equivalent to ``b2luigi show`` with no ``-t`` flag — displays every task in
-    the dependency tree together with whether its outputs exist.
+    Equivalent to ``b2luigi show`` with no task name argument — displays every task
+    in the dependency tree together with whether its outputs exist.
 
     :param task_filename: Path to the task definitions file (or ``$B2LUIGI_TASK_FILE``).
     :param parameter_filename: Path to the parameters file (or ``$B2LUIGI_PARAMS_FILE``).
@@ -151,21 +150,6 @@ def status(
     from b2luigi.cli.apps.show import show_task
 
     show_task(task_filename=task_filename, parameter_filename=parameter_filename)
-
-
-def get_click_app() -> click.BaseCommand:
-    """Return the b2luigi CLI as a Click command, for use by sphinx-click.
-
-    Converts the :data:`app` Typer application to its underlying Click
-    representation so that ``sphinx-click`` can auto-generate the CLI
-    reference page.
-
-    :returns: The Click command wrapping the Typer app.
-    :rtype: click.BaseCommand
-    """
-    from typer.main import get_command
-
-    return get_command(app)
 
 
 def main() -> None:

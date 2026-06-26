@@ -54,7 +54,6 @@ doc = [
     "sphinx-autobuild",
     "sphinx-sitemap",
     "sphinx-notfound-page",
-    "sphinx-click",
 ]
 dev = [
     "pre_commit",

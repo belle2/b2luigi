@@ -51,7 +51,7 @@ Step 3 — Inspect outputs
 .. code-block:: bash
 
     b2luigi show                      # full dependency tree
-    b2luigi show -t MyTask            # just MyTask's outputs
+    b2luigi show MyTask               # just MyTask's outputs
 
 The output panel uses colour coding: **green** means the file exists,
 **red** means it is missing.
@@ -61,7 +61,7 @@ Step 4 — Remove and re-run
 
 .. code-block:: bash
 
-    b2luigi remove -t MyTask -y       # -y skips the confirmation prompt
+    b2luigi remove MyTask -y          # -y skips the confirmation prompt
     b2luigi run MyTask --my-parameter 3
 
 Step 5 — Multiple parameter values with ``parameters.py``
@@ -114,8 +114,8 @@ Use ``--with-requirements`` to traverse the full requirement chain:
 
 .. code-block:: bash
 
-    b2luigi show -t ParentTask --with-requirements
-    b2luigi remove -t MyTask --with-requirements -y
+    b2luigi show ParentTask --with-requirements
+    b2luigi remove MyTask --with-requirements -y
 
 ``--with-requirements`` walks downward through ``requires()`` — for the
 named task, it shows or removes that task and everything it transitively

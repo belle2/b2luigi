@@ -12,7 +12,7 @@ replaces the legacy ``python file.py --flag`` invocation style.
 
     If you are currently using ``python file.py --batch`` or
     ``python file.py --dry-run``, the equivalent new commands are
-    ``b2luigi run`` and ``b2luigi run --dry-run``.
+    ``b2luigi run`` and ``b2luigi run --dry``.
     The legacy flags are still supported; see :ref:`run-modes-label`.
 
 Subcommands overview
@@ -127,18 +127,18 @@ colour-coded output status for every task:
 
     b2luigi show
 
-To inspect the outputs of a specific task, pass its class name with ``-t``:
+To inspect the outputs of a specific task, pass its class name as a positional argument:
 
 .. code-block:: bash
 
-    b2luigi show -t MyTask
+    b2luigi show MyTask
 
 Use ``--with-requirements`` to traverse the full requirement tree downward
 from the named task (showing all tasks it transitively depends on):
 
 .. code-block:: bash
 
-    b2luigi show -t MyTask --with-requirements
+    b2luigi show MyTask --with-requirements
 
 Output is colour-coded: **green** means the file exists, **red** means it
 is missing.
@@ -150,20 +150,20 @@ Remove the output files of one or more named tasks:
 
 .. code-block:: bash
 
-    b2luigi remove -t MyTask
+    b2luigi remove MyTask
 
 Add ``-y`` to skip the confirmation prompt:
 
 .. code-block:: bash
 
-    b2luigi remove -t MyTask -y
+    b2luigi remove MyTask -y
 
 Use ``--with-requirements`` to also remove all tasks that ``MyTask``
 transitively depends on:
 
 .. code-block:: bash
 
-    b2luigi remove -t MyTask --with-requirements -y
+    b2luigi remove MyTask --with-requirements -y
 
 b2luigi test
 ------------
@@ -237,13 +237,13 @@ flags, the equivalent ``b2luigi`` commands are:
    * - ``python tasks.py --batch``
      - ``b2luigi run --batch``
    * - ``python tasks.py --dry-run``
-     - ``b2luigi run --dry-run``
+     - ``b2luigi run --dry``
    * - ``python tasks.py --show-output``
      - ``b2luigi show``
    * - ``python tasks.py --remove``
      - ``b2luigi remove``
    * - ``python tasks.py --test``
-     - ``b2luigi run --test``
+     - ``b2luigi test``
 
 The legacy flags are still supported when calling ``b2luigi.process()``
 directly in a script.  See :ref:`run-modes-label` for the full reference.
