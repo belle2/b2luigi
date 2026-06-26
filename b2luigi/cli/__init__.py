@@ -152,6 +152,21 @@ def status(
     show_task(task_filename=task_filename, parameter_filename=parameter_filename)
 
 
+def get_click_app():
+    """Return the b2luigi CLI as a Click command, for use by sphinx-click.
+
+    Converts the :data:`app` Typer application to its underlying Click
+    representation so that ``sphinx-click`` can auto-generate the CLI
+    reference page.
+
+    :returns: The Click command wrapping the Typer app.
+    :rtype: click.BaseCommand
+    """
+    from typer.main import get_command
+
+    return get_command(app)
+
+
 def main() -> None:
     """Entry point for the ``b2luigi`` CLI binary.
 
