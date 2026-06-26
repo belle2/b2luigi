@@ -26,6 +26,8 @@ Subcommands overview
      - Description
    * - ``b2luigi run``
      - Run one or more tasks (local, batch, or test mode)
+   * - ``b2luigi tasks``
+     - List all task classes available in tasks.py and show their parameters
    * - ``b2luigi show``
      - Display output file status for the dependency tree
    * - ``b2luigi remove``
@@ -233,11 +235,11 @@ flags, the equivalent ``b2luigi`` commands are:
    * - Legacy command
      - New CLI equivalent
    * - ``python tasks.py``
-     - ``b2luigi run``
+     - ``b2luigi run <CLASSNAME>``
    * - ``python tasks.py --batch``
-     - ``b2luigi run --batch``
+     - ``b2luigi run <CLASSNAME> --batch``
    * - ``python tasks.py --dry-run``
-     - ``b2luigi run --dry``
+     - ``b2luigi run <CLASSNAME> --dry``
    * - ``python tasks.py --show-output``
      - ``b2luigi show``
    * - ``python tasks.py --remove``
