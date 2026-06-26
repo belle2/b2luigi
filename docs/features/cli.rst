@@ -81,11 +81,11 @@ Run one or more tasks.  With explicit parameter values:
     b2luigi run MyTask --my-parameter 3
 
 When a ``parameters.py`` file is present, you can omit all parameter
-flags — ``b2luigi run`` will read the configuration automatically:
+flags — ``b2luigi run MyTask`` will read the configuration automatically:
 
 .. code-block:: bash
 
-    b2luigi run
+    b2luigi run MyTask
 
 Using ``ParameterGenerator``
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

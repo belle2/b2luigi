@@ -77,11 +77,12 @@ Create a ``parameters.py`` alongside ``tasks.py``:
         "my_parameter": ParameterGenerator([1, 2, 3]),
     }
 
-Now run without any parameter flags:
+Now run without any explicit parameter flags — b2luigi reads the values
+from ``parameters.py``:
 
 .. code-block:: bash
 
-    b2luigi run
+    b2luigi run MyTask
 
 b2luigi reads ``parameters.py`` automatically and schedules three task
 instances — one per value in the generator.
