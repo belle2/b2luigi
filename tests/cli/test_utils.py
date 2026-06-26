@@ -8,7 +8,14 @@ from unittest import TestCase
 
 import b2luigi
 from b2luigi.cli.errors import CliUserError
-from b2luigi.cli.utils import parse_classnames, parse_kv_params, validate_classnames, try_instantiate, build_task_list
+from b2luigi.cli.utils import (
+    parse_classnames,
+    parse_kv_params,
+    validate_classnames,
+    try_instantiate,
+    build_task_list,
+    find_tasks_in_tree,
+)
 
 
 class TestParseClassnames(TestCase):
@@ -199,3 +206,21 @@ class TestBuildTaskList(TestCase):
         task_list, unresolved = build_task_list(["_ChildTask"], _AVAILABLE, _PARAMS, direct_mode=True)
         self.assertEqual(task_list, [])
         self.assertIn("_ChildTask", unresolved)
+
+
+class TestFindTasksInTree(TestCase):
+    """Tests for the find_tasks_in_tree helper."""
+
+    def test_returns_only_target_class_instances(self) -> None:
+        """Returns only instances matching target_names, not the roots themselves."""
+        # _ParentTask(parent_param=3) requires _ChildTask(child_param=6)
+        roots = [_ParentTask(parent_param=3)]
+        result = find_tasks_in_tree({"_ChildTask"}, roots)
+        self.assertEqual(len(result), 1)
+        self.assertIsInstance(result[0], _ChildTask)
+
+    def test_returns_empty_list_when_no_match(self) -> None:
+        """Returns [] when no task in the tree matches target_names."""
+        roots = [_ParentTask(parent_param=3)]
+        result = find_tasks_in_tree({"NonExistent"}, roots)
+        self.assertEqual(result, [])

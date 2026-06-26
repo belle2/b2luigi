@@ -10,6 +10,7 @@ from typing import Any, Dict, Generator, List, Optional, Tuple, Type
 import luigi
 import b2luigi
 from b2luigi.cli.errors import CliUserError
+from b2luigi.core.utils import task_iterator
 from click import Context as ClickContext, Parameter as ClickParameter
 from click.shell_completion import CompletionItem
 
@@ -236,6 +237,35 @@ def build_task_list(
         return [], unresolved
 
     return _all_roots(), set()
+
+
+def find_tasks_in_tree(
+    target_names: set[str],
+    root_tasks: list[b2luigi.Task],
+) -> list[b2luigi.Task]:
+    """Walk the dependency tree rooted at ``root_tasks`` and return instances matching ``target_names``.
+
+    Traverses downward through :func:`task_iterator` for each root task, collecting
+    instances whose class name is in ``target_names``. Deduplicates by ``task_id``.
+
+    When the result is empty the caller proceeds with an empty task list — ``show``
+    renders nothing and ``remove`` removes nothing (silent no-op).
+
+    :param target_names: Set of task class names to search for.
+    :type target_names: set[str]
+    :param root_tasks: Root task instances to start traversal from.
+    :type root_tasks: list[b2luigi.Task]
+    :returns: Deduplicated list of matching task instances, or ``[]`` if none found.
+    :rtype: list[b2luigi.Task]
+    """
+    seen: set[str] = set()
+    result: list[b2luigi.Task] = []
+    for root in root_tasks:
+        for task in task_iterator(root):
+            if task.__class__.__name__ in target_names and task.task_id not in seen:
+                seen.add(task.task_id)
+                result.append(task)
+    return result
 
 
 def get_task_instance(
