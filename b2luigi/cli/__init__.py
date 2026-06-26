@@ -7,6 +7,7 @@ from importlib.metadata import version as get_version
 from pathlib import Path
 from typing import Annotated, Optional
 
+import click
 import typer
 from rich.console import Console
 from rich.panel import Panel
@@ -152,7 +153,7 @@ def status(
     show_task(task_filename=task_filename, parameter_filename=parameter_filename)
 
 
-def get_click_app():
+def get_click_app() -> click.BaseCommand:
     """Return the b2luigi CLI as a Click command, for use by sphinx-click.
 
     Converts the :data:`app` Typer application to its underlying Click
