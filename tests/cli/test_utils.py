@@ -242,10 +242,12 @@ class TestLoadParametersMissingFile(TestCase):
         shutil.rmtree(self.tmp_dir)
 
     def test_returns_empty_dict_when_file_absent(self) -> None:
+        """Verify load_parameters returns {} when the file does not exist."""
         result = load_parameters("parameters.py")
         self.assertEqual(result, {})
 
     def test_still_raises_when_file_exists_but_has_no_config(self) -> None:
+        """Verify load_parameters raises AttributeError when config variable is missing."""
         path = os.path.join(self.tmp_dir, "parameters.py")
         with open(path, "w") as f:
             f.write("# no config variable here\n")

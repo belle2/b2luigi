@@ -80,7 +80,21 @@ def get_task_classes(task_file: str = "tasks.py") -> list[Type[b2luigi.Task]]:
     return sorted(task_classes, key=lambda cls: cls.__name__)
 
 
-def load_parameters(filename="parameters.py") -> Dict[str, Any]:
+def load_parameters(filename: str = "parameters.py") -> Dict[str, Any]:
+    """Load the parameter configuration from a Python file.
+
+    If *filename* does not exist in the current working directory the
+    function returns an empty dict, making ``parameters.py`` optional.
+
+    :param filename: Path (relative to ``os.getcwd()``) of the parameters
+        file to load.  Defaults to ``"parameters.py"``.
+    :type filename: str
+    :returns: The ``config`` dict defined in the file, or ``{}`` when the
+        file is absent.
+    :rtype: Dict[str, Any]
+    :raises AttributeError: If the file exists but does not define a
+        ``config`` variable.
+    """
     path = os.path.join(os.getcwd(), filename)
     if not os.path.exists(path):
         return {}
