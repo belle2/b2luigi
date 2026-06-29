@@ -11,7 +11,6 @@ import typer
 
 import b2luigi
 from b2luigi.cli import runner
-from b2luigi.cli.errors import CliUserError
 from b2luigi.cli.utils import (
     complete_task_names,
     expand_parameters,
@@ -115,8 +114,9 @@ def graph_task(
             root_tasks = direct_instances
 
     if output_format == "dot":
-        raise CliUserError("DOT format is not yet implemented. Use --format tree (or omit --format).")
-    runner.render_graph_tree(root_tasks, show_params=with_params, show_status=show_status)
+        runner.render_graph_dot(root_tasks, show_params=with_params, show_status=show_status)
+    else:
+        runner.render_graph_tree(root_tasks, show_params=with_params, show_status=show_status)
 
 
 @graph_app.callback(invoke_without_command=True)

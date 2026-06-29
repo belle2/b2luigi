@@ -306,6 +306,70 @@ def render_graph_tree(task_list: list, show_params: bool = False, show_status: b
     console.print(root)
 
 
+def render_graph_dot(task_list: list, show_params: bool = False, show_status: bool = False) -> None:
+    """Render the task dependency graph as Graphviz DOT output to stdout.
+
+    Emits valid DOT syntax via :func:`print` (not the Rich console) so the
+    output can be piped directly to ``dot -Tpng -o graph.png``.  Each task
+    instance is a node keyed by its ``task_id``; edges follow
+    ``task.requires()``.  Shared nodes (required by multiple parents) are
+    represented as a single DOT node with multiple incoming edges.
+
+    :param task_list: Root task instances to render.
+    :type task_list: list
+    :param show_params: If ``True``, include parameter values in each node's
+        label.
+    :type show_params: bool
+    :param show_status: If ``True``, check output existence and colour each
+        node green (complete) or red (incomplete).
+    :type show_status: bool
+    """
+    import luigi.task
+
+    nodes: dict[str, str] = {}  # task_id -> DOT attribute string
+    edges: list[tuple[str, str]] = []
+    visited: set[str] = set()
+
+    def _collect(task: Any) -> None:
+        if task.task_id in visited:
+            return
+        visited.add(task.task_id)
+
+        label = task.__class__.__name__
+        if show_params:
+            serialized = get_serialized_parameters(task)
+            if serialized:
+                pairs = "\\n".join(f"{k}={v}" for k, v in serialized.items())
+                label += f"\\n{pairs}"
+
+        attrs = [f'label="{label}"']
+        if show_status:
+            outputs = luigi.task.flatten(task.output())
+            if outputs:
+                complete = all(t.exists() for t in outputs)
+                attrs.append(f'style=filled, fillcolor={"green" if complete else "red"}')
+
+        nodes[task.task_id] = ", ".join(attrs)
+
+        for req in luigi.task.flatten(task.requires()):
+            edges.append((task.task_id, req.task_id))
+            _collect(req)
+
+    for root_task in task_list:
+        _collect(root_task)
+
+    print("digraph {")
+    print('    rankdir="TB";')
+    for task_id, attrs in nodes.items():
+        safe_id = task_id.replace('"', '\\"')
+        print(f'    "{safe_id}" [{attrs}];')
+    for parent_id, child_id in edges:
+        safe_parent = parent_id.replace('"', '\\"')
+        safe_child = child_id.replace('"', '\\"')
+        print(f'    "{safe_parent}" -> "{safe_child}";')
+    print("}")
+
+
 def show_task_outputs(task_list: list) -> None:
     """Show output files for the given tasks only — no dependency-tree traversal.
 
