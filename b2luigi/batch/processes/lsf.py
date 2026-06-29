@@ -132,7 +132,7 @@ class LSFProcess(BatchProcess):
         if queue is not False:
             command += ["-q", queue]
 
-        job_slots = get_setting("job_slots", task=self.task, default=False)
+        job_slots = str(get_setting("job_slots", task=self.task, default=False))
         if job_slots is not False:
             command += ["-n", job_slots]
 
