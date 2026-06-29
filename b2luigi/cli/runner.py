@@ -184,10 +184,46 @@ def get_task_outputs(task):
     return result
 
 
-def _render_task_outputs(task_output_pairs):
+def _build_parent_map(root_tasks: list) -> dict[str, list[str]]:
+    """Build a mapping from task_id to the list of immediate parent class names.
+
+    Performs a BFS from ``root_tasks``. For each visited task, each of its
+    direct requirements is mapped to the requirer's class name. Duplicate
+    class names (e.g. the same parent class with different parameter values)
+    are recorded only once per child.
+
+    :param root_tasks: Task instances to start the BFS from.
+    :type root_tasks: list
+    :returns: Mapping of ``task_id`` → list of parent class names (order is
+        BFS discovery order).
+    :rtype: dict[str, list[str]]
+    """
+    parent_map: dict[str, list[str]] = {}
+    visited: set[str] = set()
+    queue = list(root_tasks)
+    while queue:
+        task = queue.pop(0)
+        if task.task_id in visited:
+            continue
+        visited.add(task.task_id)
+        for req in luigi.task.flatten(task.requires()):
+            parents = parent_map.setdefault(req.task_id, [])
+            name = task.__class__.__name__
+            if name not in parents:
+                parents.append(name)
+            if req.task_id not in visited:
+                queue.append(req)
+    return parent_map
+
+
+def _render_task_outputs(task_output_pairs, required_by_map: dict[str, list[str]] | None = None) -> None:
     """Render a list of (task, output_dict) pairs using Rich.
 
     :param task_output_pairs: Iterable of ``(task_instance, {key: [{"file_name": ..., "exists": ...}]})``.
+    :param required_by_map: Optional mapping of task_id to parent class names,
+        produced by :func:`_build_parent_map`. When provided, a ``required by:``
+        subtitle is added to each panel whose task_id appears in the map.
+    :type required_by_map: dict[str, list[str]] | None
     """
     from rich.table import Table
     from rich.panel import Panel
@@ -203,7 +239,15 @@ def _render_task_outputs(task_output_pairs):
                 status = "[green]✓[/green]" if entry["exists"] else "[red]✗[/red]"
                 table.add_row(key, entry["file_name"], status)
 
-        console.print(Panel(table, title=f"[bold]{task.__class__.__name__}[/bold]", border_style="cyan"))
+        subtitle = None
+        if required_by_map:
+            parents = required_by_map.get(task.task_id, [])
+            if parents:
+                subtitle = f"[dim]required by: {', '.join(parents)}[/dim]"
+
+        console.print(
+            Panel(table, title=f"[bold]{task.__class__.__name__}[/bold]", subtitle=subtitle, border_style="cyan")
+        )
 
 
 def show_task_outputs(task_list: list) -> None:
@@ -215,12 +259,16 @@ def show_task_outputs(task_list: list) -> None:
     _render_task_outputs((task, get_task_outputs(task)) for task in task_list)
 
 
-def show_all_outputs(task_list: list) -> None:
+def show_all_outputs(task_list: list, show_required_by: bool = False) -> None:
     """Show output files for all tasks in the dependency trees rooted at ``task_list``.
 
     :param task_list: Root task instances; the full dependency tree is traversed.
     :type task_list: list
+    :param show_required_by: If ``True``, annotate each requirement panel with
+        a ``required by:`` subtitle listing immediate parent class names.
+    :type show_required_by: bool
     """
+    parent_map = _build_parent_map(task_list) if show_required_by else None
     seen = set()
     pairs = []
     for root_task in task_list:
@@ -229,7 +277,7 @@ def show_all_outputs(task_list: list) -> None:
                 continue
             seen.add(task.task_id)
             pairs.append((task, get_task_outputs(task)))
-    _render_task_outputs(pairs)
+    _render_task_outputs(pairs, required_by_map=parent_map)
 
 
 def dry_run(task_list):

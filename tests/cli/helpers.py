@@ -56,6 +56,22 @@ class CLITestCase(TestCase):
             os.path.join(self.tmp_dir, "parameters.py"),
         )
 
+    def _setup_shared_child_files(self) -> None:
+        """Copy shared-child task/parameter fixtures into the temp directory.
+
+        Use in tests where two parent tasks (ParentA, ParentB) both require
+        the same SharedChild task.
+        """
+        test_dir = os.path.dirname(__file__)
+        shutil.copy(
+            os.path.join(test_dir, "cli_shared_child_tasks.py"),
+            os.path.join(self.tmp_dir, "tasks.py"),
+        )
+        shutil.copy(
+            os.path.join(test_dir, "cli_shared_child_parameters.py"),
+            os.path.join(self.tmp_dir, "parameters.py"),
+        )
+
     def _run_cli(
         self,
         subcmd: str,

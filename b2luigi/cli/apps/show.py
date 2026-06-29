@@ -117,7 +117,7 @@ def show_task(
 
     if not unresolvable:
         if with_requirements:
-            runner.show_all_outputs(direct_instances)
+            runner.show_all_outputs(direct_instances, show_required_by=True)
         else:
             runner.show_task_outputs(direct_instances)
         return
@@ -132,7 +132,7 @@ def show_task(
         get_root_tasks(_all_instantiatable(available.values())),
     )
     if with_requirements:
-        runner.show_all_outputs(found)
+        runner.show_all_outputs(found, show_required_by=True)
     else:
         runner.show_task_outputs(found)
 

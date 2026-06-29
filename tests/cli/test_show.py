@@ -156,3 +156,55 @@ class TestShowNonRootTaskCorrectness(CLITestCase):
         self.assertEqual(returncode, 0, f"stderr: {stderr}")
         self.assertIn("ChildTask", stdout)
         self.assertNotIn("ParentTask", stdout)
+
+
+class TestShowRequiredByAnnotation(CLITestCase):
+    """Verify 'required by' subtitle appears on requirement panels."""
+
+    def setUp(self) -> None:
+        super().setUp()
+        self._setup_project_files()  # RootTask requires LeafTask
+
+    def test_requirement_shows_required_by_subtitle(self) -> None:
+        """LeafTask panel shows 'required by: RootTask' when shown via RootTask --with-requirements."""
+        returncode, stdout, stderr = self._run_cli("show", ["RootTask", "--with-requirements"])
+        self.assertEqual(returncode, 0, f"Command failed with stderr: {stderr}")
+        self.assertIn("required by: RootTask", stdout)
+
+    def test_root_task_has_no_required_by_subtitle(self) -> None:
+        """RootTask panel (the named task) must not show a 'required by' subtitle."""
+        returncode, stdout, stderr = self._run_cli("show", ["RootTask", "--with-requirements"])
+        self.assertEqual(returncode, 0, f"Command failed with stderr: {stderr}")
+        # 'required by' must appear exactly once (for LeafTask), not for RootTask
+        self.assertEqual(stdout.count("required by:"), 1)
+
+    def test_no_annotation_without_flag(self) -> None:
+        """show RootTask without --with-requirements must not include 'required by'."""
+        returncode, stdout, stderr = self._run_cli("show", ["RootTask"])
+        self.assertEqual(returncode, 0, f"Command failed with stderr: {stderr}")
+        self.assertNotIn("required by", stdout)
+
+    def test_show_all_no_annotation(self) -> None:
+        """show (no task name, full tree) must not include 'required by'."""
+        returncode, stdout, stderr = self._run_cli("show")
+        self.assertEqual(returncode, 0, f"Command failed with stderr: {stderr}")
+        self.assertNotIn("required by", stdout)
+
+
+class TestShowRequiredByMultiParent(CLITestCase):
+    """Verify 'required by' lists multiple parents when a child has more than one."""
+
+    def setUp(self) -> None:
+        super().setUp()
+        self._setup_shared_child_files()  # ParentA + ParentB both require SharedChild
+
+    def test_shared_child_shows_both_parents(self) -> None:
+        """SharedChild panel lists both ParentA and ParentB in its subtitle."""
+        returncode, stdout, stderr = self._run_cli("show", ["ParentA", "ParentB", "--with-requirements"])
+        self.assertEqual(returncode, 0, f"Command failed with stderr: {stderr}")
+        self.assertIn("ParentA", stdout)
+        self.assertIn("ParentB", stdout)
+        # Both parent names must appear in the 'required by' annotation
+        required_by_line = next((line for line in stdout.splitlines() if "required by:" in line), "")
+        self.assertIn("ParentA", required_by_line)
+        self.assertIn("ParentB", required_by_line)
