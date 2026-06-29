@@ -251,6 +251,58 @@ def _render_task_outputs(task_output_pairs, required_by_map: dict[str, list[str]
         )
 
 
+def render_graph_tree(task_list: list, show_params: bool = False, show_status: bool = False) -> None:
+    """Render the task dependency graph as a Rich terminal tree.
+
+    Each task is a node in the tree; edges follow ``task.requires()``.  Shared
+    nodes (a task required by multiple parents) are shown in full under their
+    first occurrence and as a reference marker (``↳ ClassName (already shown
+    above)``) under subsequent parents.
+
+    :param task_list: Root task instances to render.
+    :type task_list: list
+    :param show_params: If ``True``, include parameter values on each node label.
+    :type show_params: bool
+    :param show_status: If ``True``, check output existence and append a
+        completion indicator (✓ / ✗) to each node label.
+    :type show_status: bool
+    """
+    import luigi.task
+    from rich.tree import Tree
+    from b2luigi.core.utils import get_serialized_parameters
+
+    def _label(task) -> str:
+        label = task.__class__.__name__
+        if show_params:
+            serialized = get_serialized_parameters(task)
+            if serialized:
+                pairs = ", ".join(f"{k}={v}" for k, v in serialized.items())
+                label += f"({pairs})"
+        if show_status:
+            outputs = luigi.task.flatten(task.output())
+            if outputs and all(t.exists() for t in outputs):
+                label += " [green]✓[/green]"
+            elif outputs:
+                label += " [red]✗[/red]"
+        return label
+
+    seen: set[str] = set()
+
+    def _add_node(parent: Tree, task) -> None:
+        if task.task_id in seen:
+            parent.add(f"[dim]↳ {task.__class__.__name__} (already shown above)[/dim]")
+            return
+        seen.add(task.task_id)
+        branch = parent.add(_label(task))
+        for req in luigi.task.flatten(task.requires()):
+            _add_node(branch, req)
+
+    root = Tree("[bold]Task Graph[/bold]")
+    for task in task_list:
+        _add_node(root, task)
+    console.print(root)
+
+
 def show_task_outputs(task_list: list) -> None:
     """Show output files for the given tasks only — no dependency-tree traversal.
 
