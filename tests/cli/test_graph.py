@@ -86,8 +86,12 @@ class TestGraphOptions(CLITestCase):
         self._setup_shared_child_files()
         returncode, stdout, stderr = self._run_cli("graph", ["--format", "dot"])
         self.assertEqual(returncode, 0, f"Command failed with stderr: {stderr}")
-        self.assertIn("SharedChild", stdout)
         self.assertIn("ParentA", stdout)
         self.assertIn("ParentB", stdout)
-        # DOT has two edges (ParentA->SharedChild and ParentB->SharedChild)
-        self.assertGreaterEqual(stdout.count("->"), 2)
+        # Exactly one DOT node definition for SharedChild (not an edge line)
+        node_lines = [line for line in stdout.splitlines() if "SharedChild" in line and "->" not in line]
+        self.assertEqual(len(node_lines), 1, f"Expected exactly one SharedChild node, got: {node_lines}")
+
+        # Exactly 2 edges whose target is SharedChild
+        edge_to_child = [line for line in stdout.splitlines() if "SharedChild" in line and "->" in line]
+        self.assertEqual(len(edge_to_child), 2, f"Expected exactly 2 edges to SharedChild, got: {edge_to_child}")

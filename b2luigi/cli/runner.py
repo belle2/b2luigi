@@ -342,7 +342,8 @@ def render_graph_dot(task_list: list, show_params: bool = False, show_status: bo
                 pairs = "\\n".join(f"{k}={v}" for k, v in serialized.items())
                 label += f"\\n{pairs}"
 
-        attrs = [f'label="{label}"']
+        safe_label = label.replace('"', '\\"')
+        attrs = [f'label="{safe_label}"']
         if show_status:
             outputs = luigi.task.flatten(task.output())
             if outputs:
