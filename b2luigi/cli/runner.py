@@ -220,6 +220,7 @@ def _render_task_outputs(task_output_pairs, required_by_map: dict[str, list[str]
     """Render a list of (task, output_dict) pairs using Rich.
 
     :param task_output_pairs: Iterable of ``(task_instance, {key: [{"file_name": ..., "exists": ...}]})``.
+    :type task_output_pairs: Iterable[tuple]
     :param required_by_map: Optional mapping of task_id to parent class names,
         produced by :func:`_build_parent_map`. When provided, a ``required by:``
         subtitle is added to each panel whose task_id appears in the map.
@@ -240,7 +241,7 @@ def _render_task_outputs(task_output_pairs, required_by_map: dict[str, list[str]
                 table.add_row(key, entry["file_name"], status)
 
         subtitle = None
-        if required_by_map:
+        if required_by_map is not None:
             parents = required_by_map.get(task.task_id, [])
             if parents:
                 subtitle = f"[dim]required by: {', '.join(parents)}[/dim]"
