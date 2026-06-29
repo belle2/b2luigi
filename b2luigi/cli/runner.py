@@ -1,5 +1,6 @@
 import collections
 import os
+from typing import Any
 
 import luigi
 import luigi.server
@@ -9,8 +10,13 @@ from rich.prompt import Confirm
 
 from b2luigi.batch.workers import SendJobWorkerSchedulerFactory
 from b2luigi.core.settings import set_setting
-from b2luigi.core.utils import task_iterator
-from b2luigi.core.utils import create_output_dirs, flatten_to_dict, flatten_to_file_paths
+from b2luigi.core.utils import (
+    create_output_dirs,
+    flatten_to_dict,
+    flatten_to_file_paths,
+    get_serialized_parameters,
+    task_iterator,
+)
 
 console = Console()
 
@@ -167,8 +173,6 @@ def get_task_outputs(task):
     :returns: Mapping of output key to list of output-entry dicts.
     :rtype: collections.defaultdict
     """
-    from b2luigi.core.utils import get_serialized_parameters
-
     result = collections.defaultdict(list)
     output_dict = flatten_to_dict(task.output())
     for target_key, target in output_dict.items():
@@ -269,9 +273,8 @@ def render_graph_tree(task_list: list, show_params: bool = False, show_status: b
     """
     import luigi.task
     from rich.tree import Tree
-    from b2luigi.core.utils import get_serialized_parameters
 
-    def _label(task) -> str:
+    def _label(task: Any) -> str:
         label = task.__class__.__name__
         if show_params:
             serialized = get_serialized_parameters(task)
@@ -288,7 +291,7 @@ def render_graph_tree(task_list: list, show_params: bool = False, show_status: b
 
     seen: set[str] = set()
 
-    def _add_node(parent: Tree, task) -> None:
+    def _add_node(parent: Tree, task: Any) -> None:
         if task.task_id in seen:
             parent.add(f"[dim]↳ {task.__class__.__name__} (already shown above)[/dim]")
             return

@@ -131,7 +131,7 @@ def self_update() -> None:
 
 
 # Module-level Click command instance for the Sphinx docs directive.
-# Placed after all @app.command() decorators so it captures all 10 commands.
+# Placed after all @app.command() decorators so it captures all registered commands.
 _click_app = typer.main.get_command(app)
 
 

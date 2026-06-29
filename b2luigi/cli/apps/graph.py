@@ -4,12 +4,14 @@
     Graphviz DOT output to stdout.
 """
 
+from collections.abc import Iterable
 from typing import Annotated
 
 import typer
 
 import b2luigi
 from b2luigi.cli import runner
+from b2luigi.cli.errors import CliUserError
 from b2luigi.cli.utils import (
     complete_task_names,
     expand_parameters,
@@ -73,7 +75,7 @@ def graph_task(
     merged_params = {**base_params, **overrides}
     param_dicts = expand_parameters(merged_params)
 
-    def _all_instantiatable(classes) -> list[b2luigi.Task]:
+    def _all_instantiatable(classes: Iterable[type[b2luigi.Task]]) -> list[b2luigi.Task]:
         seen: set[str] = set()
         result: list[b2luigi.Task] = []
         for cls in classes:
@@ -113,9 +115,8 @@ def graph_task(
             root_tasks = direct_instances
 
     if output_format == "dot":
-        runner.render_graph_dot(root_tasks, show_params=with_params, show_status=show_status)
-    else:
-        runner.render_graph_tree(root_tasks, show_params=with_params, show_status=show_status)
+        raise CliUserError("DOT format is not yet implemented. Use --format tree (or omit --format).")
+    runner.render_graph_tree(root_tasks, show_params=with_params, show_status=show_status)
 
 
 @graph_app.callback(invoke_without_command=True)
