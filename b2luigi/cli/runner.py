@@ -1,7 +1,10 @@
 import collections
 import os
-from typing import Any
+import subprocess
+import sys
+from typing import Any, Optional
 
+import b2luigi
 import luigi
 import luigi.server
 import luigi.configuration
@@ -19,6 +22,134 @@ from b2luigi.core.utils import (
 )
 
 console = Console()
+
+
+def _build_fast_req_task(input_file: str) -> type:
+    """Build a prerequisite task class whose sole output is *input_file*.
+
+    The returned ``FastReqTask`` class has a no-op ``run()`` and declares
+    *input_file* as its b2luigi output target.  Luigi uses it to check that
+    the input file is present before executing the dependent ``FastTask``.
+
+    :param input_file: Output filename registered on the prerequisite task.
+    :type input_file: str
+    :returns: A dynamically created ``b2luigi.Task`` subclass.
+    :rtype: type
+    """
+
+    def _output(self):
+        yield self.add_to_output(input_file)
+
+    def _run(self):
+        pass
+
+    return type("FastReqTask", (b2luigi.Task,), {"output": _output, "run": _run})
+
+
+def _build_fast_task(
+    exec_script: str,
+    output: str,
+    input_file: Optional[str],
+    force: bool,
+    batch: bool,
+    extra_args: list[str],
+) -> type:
+    """Build the main task class that runs *exec_script* as a subprocess.
+
+    The script is invoked as ``python <exec_script> [extra_args] -o <output_path>``
+    where *output_path* is the full b2luigi-resolved path (under ``result_dir``).
+    When *input_file* is set, ``-i <input_path>`` is appended.
+
+    When *force* is ``False`` the class declares ``output()``, so Luigi skips
+    the task when the output already exists.  When *force* is ``True`` no
+    ``output()`` is declared and Luigi always runs the task.
+
+    :param exec_script: Path to the Python script to run.
+    :type exec_script: str
+    :param output: Output filename key (passed to :meth:`add_to_output`).
+    :type output: str
+    :param input_file: Optional input filename key; if set, the full resolved
+        path is forwarded to the script as ``-i``.
+    :type input_file: Optional[str]
+    :param force: When ``True``, omit ``output()`` so the task always runs.
+    :type force: bool
+    :param batch: When ``True``, set ``batch_system = "auto"``; otherwise ``"local"``.
+    :type batch: bool
+    :param extra_args: Extra CLI arguments forwarded verbatim to the subprocess.
+    :type extra_args: list[str]
+    :returns: A dynamically created ``b2luigi.Task`` subclass.
+    :rtype: type
+    """
+
+    def _run(self):
+        output_path = self._get_output_file_target(output).path
+        cmd = [sys.executable, exec_script] + extra_args + ["-o", output_path]
+        if input_file is not None:
+            cmd += ["-i", self.get_input_file_name(input_file)]
+        result = subprocess.run(cmd)
+        if result.returncode != 0:
+            raise RuntimeError(f"Script '{exec_script}' exited with code {result.returncode}")
+        if not os.path.exists(output_path):
+            raise RuntimeError(f"Script '{exec_script}' ran successfully but did not produce output '{output}'")
+
+    attrs: dict = {
+        "batch_system": "auto" if batch else "local",
+        "run": _run,
+    }
+
+    if not force:
+
+        def _output(self):
+            yield self.add_to_output(output)
+
+        attrs["output"] = _output
+
+    return type("FastTask", (b2luigi.Task,), attrs)
+
+
+def test_task(
+    exec_script: str,
+    output: str,
+    input_file: Optional[str],
+    force: bool,
+    batch: bool,
+    extra_args: list[str],
+) -> None:
+    """Run a one-off b2luigi task that executes *exec_script* as a subprocess.
+
+    Builds ``FastTask`` (and optionally a prerequisite ``FastReqTask``) via
+    :func:`_build_fast_task` and :func:`_build_fast_req_task`, then runs them
+    via :func:`luigi.build`.  Exits non-zero when any task fails so that
+    the CLI binary propagates the failure to the shell.
+
+    :param exec_script: Path to the Python script to run.
+    :type exec_script: str
+    :param output: Output filename for the task target.
+    :type output: str
+    :param input_file: Optional input filename; if set, a prerequisite task is
+        created so Luigi waits for the input before running the main task.
+    :type input_file: Optional[str]
+    :param force: When ``True``, the task always runs regardless of whether the
+        output already exists.
+    :type force: bool
+    :param batch: When ``True``, submit via batch system (``batch_system="auto"``).
+    :type batch: bool
+    :param extra_args: Extra CLI arguments forwarded verbatim to the subprocess.
+    :type extra_args: list[str]
+    :raises SystemExit: With exit code 1 when any task in the build fails.
+    """
+    FastTask = _build_fast_task(exec_script, output, input_file, force, batch, extra_args)
+    if input_file is not None:
+        FastReqTask = _build_fast_req_task(input_file)
+        FastTask = b2luigi.requires(FastReqTask)(FastTask)
+    success = luigi.build(
+        [FastTask()],
+        local_scheduler=True,
+        log_level="INFO",
+        worker_scheduler_factory=SendJobWorkerSchedulerFactory(),
+    )
+    if not success:
+        raise SystemExit(1)
 
 
 def run_batch_worker(task):
