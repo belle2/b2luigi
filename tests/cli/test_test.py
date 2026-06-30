@@ -1,6 +1,7 @@
 """Integration tests for the b2luigi test subcommand."""
 
 import os
+import pathlib
 import shutil
 
 from tests.cli.helpers import CLITestCase
@@ -51,11 +52,12 @@ class TestTestForceFlag(CLITestCase):
         :rtype: int
         """
         path = os.path.join(self.tmp_dir, "counter.txt")
-        return int(open(path).read()) if os.path.exists(path) else 0
+        return int(pathlib.Path(path).read_text()) if os.path.exists(path) else 0
 
     def test_normal_mode_skips_when_output_exists(self) -> None:
         """Second run without --force should be skipped by Luigi (counter stays at 1)."""
-        self._run_cli("test", ["-s", "cli_test_script_counter.py", "-o", "result.txt"])
+        rc, _, stderr = self._run_cli("test", ["-s", "cli_test_script_counter.py", "-o", "result.txt"])
+        self.assertEqual(rc, 0, stderr)
         self.assertEqual(self._counter(), 1)
         rc, _, stderr = self._run_cli("test", ["-s", "cli_test_script_counter.py", "-o", "result.txt"])
         self.assertEqual(rc, 0, stderr)
@@ -63,7 +65,8 @@ class TestTestForceFlag(CLITestCase):
 
     def test_force_reruns_when_output_exists(self) -> None:
         """Second run with --force should re-run the script (counter reaches 2)."""
-        self._run_cli("test", ["-s", "cli_test_script_counter.py", "-o", "result.txt"])
+        rc, _, stderr = self._run_cli("test", ["-s", "cli_test_script_counter.py", "-o", "result.txt"])
+        self.assertEqual(rc, 0, stderr)
         self.assertEqual(self._counter(), 1)
         rc, _, stderr = self._run_cli("test", ["-s", "cli_test_script_counter.py", "-o", "result.txt", "--force"])
         self.assertEqual(rc, 0, stderr)

@@ -8,7 +8,6 @@ import pathlib
 
 parser = argparse.ArgumentParser()
 parser.add_argument("-o")
-parser.add_argument("-i", default=None)
 args = parser.parse_args()
 
 counter_file = pathlib.Path("counter.txt")
