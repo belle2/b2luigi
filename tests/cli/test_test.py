@@ -71,3 +71,60 @@ class TestTestForceFlag(CLITestCase):
         rc, _, stderr = self._run_cli("test", ["-s", "cli_test_script_counter.py", "-o", "result.txt", "--force"])
         self.assertEqual(rc, 0, stderr)
         self.assertEqual(self._counter(), 2)
+
+
+class TestTestBatchFlag(CLITestCase):
+    """Tests for --batch flag behaviour."""
+
+    def setUp(self) -> None:
+        super().setUp()
+        shutil.copy(
+            os.path.join(FIXTURE_DIR, "cli_test_script.py"),
+            os.path.join(self.tmp_dir, "cli_test_script.py"),
+        )
+
+    def test_batch_flag_runs_successfully(self) -> None:
+        """--batch should still run the task locally via the local scheduler."""
+        rc, stdout, stderr = self._run_cli("test", ["-s", "cli_test_script.py", "-o", "result.txt", "--batch"])
+        self.assertEqual(rc, 0, stderr)
+
+
+class TestTestExtraArgs(CLITestCase):
+    """Tests for extra-args forwarding."""
+
+    def setUp(self) -> None:
+        super().setUp()
+        shutil.copy(
+            os.path.join(FIXTURE_DIR, "cli_test_script_echo_args.py"),
+            os.path.join(self.tmp_dir, "cli_test_script_echo_args.py"),
+        )
+
+    def _read_output(self) -> str:
+        """Read the first non-Python file written into the temp directory.
+
+        b2luigi's ``result_dir`` defaults to ``"."`` which ``map_folder``
+        resolves to ``cwd`` when invoked via the CLI binary (see
+        ``get_filename()`` fallback 3).  For a parameter-less task the output
+        file therefore lands directly in ``self.tmp_dir``, not in a
+        ``results/`` subdirectory.
+
+        :returns: The text content of the output file, or an empty string if
+            no file is found.
+        :rtype: str
+        """
+        for dirpath, _, filenames in os.walk(self.tmp_dir):
+            for fname in filenames:
+                if not fname.endswith(".py"):
+                    return open(os.path.join(dirpath, fname)).read()
+        return ""
+
+    def test_extra_args_forwarded_to_script(self) -> None:
+        """Args after -- should appear in the script's sys.argv."""
+        rc, _, stderr = self._run_cli(
+            "test",
+            ["-s", "cli_test_script_echo_args.py", "-o", "result.txt", "--", "--lr", "0.01"],
+        )
+        self.assertEqual(rc, 0, stderr)
+        argv_written = self._read_output()
+        self.assertIn("--lr", argv_written)
+        self.assertIn("0.01", argv_written)
