@@ -85,7 +85,7 @@ class TestTestBatchFlag(CLITestCase):
 
     def test_batch_flag_runs_successfully(self) -> None:
         """--batch should still run the task locally via the local scheduler."""
-        rc, stdout, stderr = self._run_cli("test", ["-s", "cli_test_script.py", "-o", "result.txt", "--batch"])
+        rc, _, stderr = self._run_cli("test", ["-s", "cli_test_script.py", "-o", "result.txt", "--batch"])
         self.assertEqual(rc, 0, stderr)
 
 
@@ -100,23 +100,22 @@ class TestTestExtraArgs(CLITestCase):
         )
 
     def _read_output(self) -> str:
-        """Read the first non-Python file written into the temp directory.
+        """Read the output file written by the echo-args fixture.
 
-        b2luigi's ``result_dir`` defaults to ``"."`` which ``map_folder``
-        resolves to ``cwd`` when invoked via the CLI binary (see
-        ``get_filename()`` fallback 3).  For a parameter-less task the output
-        file therefore lands directly in ``self.tmp_dir``, not in a
-        ``results/`` subdirectory.
+        The ``-o`` argument is always ``result.txt``; b2luigi's ``result_dir``
+        defaults to ``"."`` which ``map_folder`` resolves to ``cwd`` when
+        invoked via the CLI binary (fallback 3 in ``get_filename()``), so
+        the file lands directly in ``self.tmp_dir``.
 
         :returns: The text content of the output file, or an empty string if
-            no file is found.
+            the file does not exist.
         :rtype: str
         """
-        for dirpath, _, filenames in os.walk(self.tmp_dir):
-            for fname in filenames:
-                if not fname.endswith(".py"):
-                    return open(os.path.join(dirpath, fname)).read()
-        return ""
+        path = os.path.join(self.tmp_dir, "result.txt")
+        if not os.path.exists(path):
+            return ""
+        with open(path) as fh:
+            return fh.read()
 
     def test_extra_args_forwarded_to_script(self) -> None:
         """Args after -- should appear in the script's sys.argv."""
