@@ -92,7 +92,7 @@ def _build_fast_task(
         if not os.path.exists(output_path):
             raise RuntimeError(f"Script '{exec_script}' ran successfully but did not produce output '{output}'")
 
-    attrs: dict = {
+    attrs: dict[str, Any] = {
         "batch_system": "auto" if batch else "local",
         "run": _run,
     }

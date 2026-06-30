@@ -6,7 +6,7 @@ import shutil
 from tests.cli.helpers import CLITestCase
 
 
-FIXTURE_DIR = os.path.join(os.path.dirname(__file__))
+FIXTURE_DIR = os.path.dirname(__file__)
 
 
 class TestTestNormalMode(CLITestCase):

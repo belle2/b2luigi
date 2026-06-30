@@ -1,4 +1,4 @@
-from typing import Annotated, Optional
+from typing import Annotated
 
 import typer
 
@@ -18,7 +18,7 @@ def test(
         typer.Option("-o", help="Output filename for the task target."),
     ],
     input: Annotated[
-        Optional[str],
+        str | None,
         typer.Option("-i", help="Optional input filename; creates a prerequisite task."),
     ] = None,
     force: Annotated[
@@ -30,7 +30,7 @@ def test(
         typer.Option("--batch", help="Submit task via batch system (batch_system='auto')."),
     ] = False,
     extra_args: Annotated[
-        Optional[list[str]],
+        list[str] | None,
         typer.Argument(help="Extra arguments forwarded verbatim to the script subprocess."),
     ] = None,
 ) -> None:
