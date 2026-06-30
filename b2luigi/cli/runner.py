@@ -2,7 +2,7 @@ import collections
 import os
 import subprocess
 import sys
-from typing import Any, Optional
+from typing import Any
 
 import b2luigi
 import luigi
@@ -49,7 +49,7 @@ def _build_fast_req_task(input_file: str) -> type:
 def _build_fast_task(
     exec_script: str,
     output: str,
-    input_file: Optional[str],
+    input_file: str | None,
     force: bool,
     batch: bool,
     extra_args: list[str],
@@ -70,7 +70,7 @@ def _build_fast_task(
     :type output: str
     :param input_file: Optional input filename key; if set, the full resolved
         path is forwarded to the script as ``-i``.
-    :type input_file: Optional[str]
+    :type input_file: str | None
     :param force: When ``True``, omit ``output()`` so the task always runs.
     :type force: bool
     :param batch: When ``True``, set ``batch_system = "auto"``; otherwise ``"local"``.
@@ -110,7 +110,7 @@ def _build_fast_task(
 def test_task(
     exec_script: str,
     output: str,
-    input_file: Optional[str],
+    input_file: str | None,
     force: bool,
     batch: bool,
     extra_args: list[str],
@@ -128,7 +128,7 @@ def test_task(
     :type output: str
     :param input_file: Optional input filename; if set, a prerequisite task is
         created so Luigi waits for the input before running the main task.
-    :type input_file: Optional[str]
+    :type input_file: str | None
     :param force: When ``True``, the task always runs regardless of whether the
         output already exists.
     :type force: bool

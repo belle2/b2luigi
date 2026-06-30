@@ -1,12 +1,10 @@
 from typing import Annotated, Optional
 
 import typer
-from rich.console import Console
 
 from b2luigi.cli.runner import test_task
 
 test_app = typer.Typer(name="test", help="Build a task from the given python script and execute it as b2luigi task.")
-console = Console()
 
 
 @test_app.callback(invoke_without_command=True)
