@@ -30,6 +30,8 @@ Subcommands overview
      - List all task classes available in tasks.py and show their parameters
    * - ``b2luigi show``
      - Display output file status for the dependency tree
+   * - ``b2luigi graph``
+     - Render the task dependency graph as a Rich terminal tree or Graphviz DOT
    * - ``b2luigi remove``
      - Delete output files for one or more tasks
    * - ``b2luigi test``
@@ -146,6 +148,41 @@ from the named task (showing all tasks it transitively depends on):
 
 Output is colour-coded: **green** means the file exists, **red** means it
 is missing.
+
+b2luigi graph
+-------------
+
+Render the full task dependency graph in the terminal:
+
+.. code-block:: bash
+
+    b2luigi graph
+
+Scope the graph to a specific task and its requirements:
+
+.. code-block:: bash
+
+    b2luigi graph MyTask
+
+Add ``--params`` to show parameter values on each node, and ``--status``
+to show a completion indicator (✓ / ✗) for every task:
+
+.. code-block:: bash
+
+    b2luigi graph --params --status
+
+Export to `Graphviz <https://graphviz.org/>`_ DOT format and pipe it to
+``dot`` to produce an image:
+
+.. code-block:: bash
+
+    b2luigi graph --format dot | dot -Tpng -o graph.png
+    b2luigi graph --format dot > graph.dot   # save first, render later
+
+.. note::
+
+    DOT export requires Graphviz to be installed (``brew install graphviz``
+    on macOS, ``apt install graphviz`` on Debian/Ubuntu).
 
 b2luigi remove
 --------------
