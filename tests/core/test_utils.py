@@ -546,7 +546,8 @@ class TestCreateCmdFromTask(TestCase):
         self.assertIn("MyTask", cmd)
         self.assertIn("--param", cmd)
         self.assertIn("alpha=1", cmd)
-        self.assertNotIn("--batch-runner", cmd)
+        m_idx = cmd.index("-m")
+        self.assertEqual(cmd[m_idx : m_idx + 3], ["-m", "b2luigi", "batch-runner"])
 
     @patch("b2luigi.core.utils.get_setting")
     def test_new_cli_mode_appends_task_file(self, mock_gs):
@@ -578,3 +579,15 @@ class TestCreateCmdFromTask(TestCase):
         self.assertNotIn("myscript.py", cmd)
         self.assertIn("--batch-runner", cmd)
         self.assertIn("--task-id", cmd)
+
+    @patch("b2luigi.core.utils.get_setting")
+    def test_new_cli_mode_task_cmd_additional_args_appended_last(self, mock_gs):
+        """task_cmd_additional_args entries appear after all --param and --task-file entries."""
+        mock_gs.side_effect = _make_get_setting(
+            {
+                "__batch_runner_use_cli": True,
+                "task_cmd_additional_args": ["--extra", "val"],
+            }
+        )
+        cmd = create_cmd_from_task(_mock_task(str_params={"k": "v"}))
+        self.assertEqual(cmd[-2:], ["--extra", "val"])
