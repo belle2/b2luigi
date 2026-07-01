@@ -1,3 +1,4 @@
+import os
 from typing import Annotated, Any, List, Optional
 
 import typer
@@ -93,7 +94,7 @@ def run_task(
     else:
         task_instance = _make_wrapper_task(task_class, param_dicts)
 
-    process_task_instance(task_instance, **kwargs)
+    process_task_instance(task_instance, task_file=os.path.abspath(task_filename), **kwargs)
 
 
 @run_app.callback(invoke_without_command=True)

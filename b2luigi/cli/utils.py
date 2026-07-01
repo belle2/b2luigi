@@ -10,6 +10,7 @@ from typing import Any, Dict, Generator, List, Optional, Tuple, Type
 import luigi
 import b2luigi
 from b2luigi.cli.errors import CliUserError
+from b2luigi.core.settings import set_setting
 from b2luigi.core.utils import task_iterator
 from click import Context as ClickContext, Parameter as ClickParameter
 from click.shell_completion import CompletionItem
@@ -311,7 +312,24 @@ def get_root_tasks(task_list: List) -> List:
     return [t for t in task_list if t.task_id not in required_ids]
 
 
-def process_task_instance(task_instance: Any, **kwargs) -> None:
+def process_task_instance(task_instance: Any, task_file: str | None = None, **kwargs) -> None:
+    """Arm internal batch-runner settings and dispatch the task via :func:`b2luigi.process`.
+
+    Sets ``__batch_runner_use_cli`` so that :func:`~b2luigi.core.utils.create_cmd_from_task`
+    emits the new ``batch-runner --classname`` format when submitting to a batch system.
+    When *task_file* is given, also sets ``__batch_runner_task_file`` so the worker command
+    includes ``--task-file <path>`` and the batch-runner app can locate the task class.
+
+    :param task_instance: The task instance to execute.
+    :param task_file: Absolute path to the task-definitions file.  Pass the result of
+        ``os.path.abspath(task_filename)`` from the calling CLI app.  ``None`` suppresses
+        ``--task-file`` in the worker command (batch-runner falls back to ``tasks.py``).
+    :type task_file: str | None
+    :param kwargs: Additional keyword arguments forwarded to :func:`b2luigi.process`.
+    """
+    set_setting("__batch_runner_use_cli", True)
+    if task_file is not None:
+        set_setting("__batch_runner_task_file", task_file)
     b2luigi.process(task_instance, ignore_additional_command_line_args=True, **kwargs)
 
 
