@@ -3,7 +3,9 @@
 import os
 import pathlib
 import shutil
+from unittest import TestCase
 
+from b2luigi.cli.runner import _build_fast_task
 from tests.cli.helpers import CLITestCase
 
 
@@ -127,3 +129,41 @@ class TestTestExtraArgs(CLITestCase):
         argv_written = self._read_output()
         self.assertIn("--lr", argv_written)
         self.assertIn("0.01", argv_written)
+
+
+class TestFastTaskCmdGeneration(TestCase):
+    """Unit tests for task_cmd_additional_args injected by _build_fast_task."""
+
+    def test_basic_flags_present(self) -> None:
+        """Script and output file are encoded as --script / --output-file."""
+        FastTask = _build_fast_task("script.py", "out.txt", None, False, False, [])
+        self.assertEqual(
+            FastTask.task_cmd_additional_args,
+            ["--script", "script.py", "--output-file", "out.txt"],
+        )
+
+    def test_input_file_included(self) -> None:
+        """--input-file is appended when input_file is not None."""
+        FastTask = _build_fast_task("script.py", "out.txt", "in.txt", False, False, [])
+        args = FastTask.task_cmd_additional_args
+        self.assertIn("--input-file", args)
+        idx = args.index("--input-file")
+        self.assertEqual(args[idx + 1], "in.txt")
+
+    def test_force_flag_included_when_true(self) -> None:
+        """--force is appended when force=True."""
+        FastTask = _build_fast_task("script.py", "out.txt", None, True, False, [])
+        self.assertIn("--force", FastTask.task_cmd_additional_args)
+
+    def test_force_flag_absent_when_false(self) -> None:
+        """--force is not appended when force=False."""
+        FastTask = _build_fast_task("script.py", "out.txt", None, False, False, [])
+        self.assertNotIn("--force", FastTask.task_cmd_additional_args)
+
+    def test_extra_args_encoded_as_repeated_option(self) -> None:
+        """Each extra_arg becomes --extra-arg <value> in task_cmd_additional_args."""
+        FastTask = _build_fast_task("script.py", "out.txt", None, False, False, ["--lr", "0.01"])
+        args = FastTask.task_cmd_additional_args
+        values = [args[i + 1] for i, a in enumerate(args) if a == "--extra-arg"]
+        self.assertIn("--lr", values)
+        self.assertIn("0.01", values)

@@ -79,6 +79,12 @@ def _build_fast_task(
     :type extra_args: list[str]
     :returns: A dynamically created ``b2luigi.Task`` subclass.
     :rtype: type
+
+    The generated class also carries a ``task_cmd_additional_args`` class attribute
+    encoding all constructor arguments as ``--script``/``--output-file``/``--input-file``/
+    ``--force``/``--extra-arg`` flags.  :func:`b2luigi.core.utils.create_cmd_from_task`
+    appends these to the batch worker command so that ``batch-runner`` can reconstruct
+    the task without importing it.
     """
 
     def _run(self):
@@ -95,6 +101,12 @@ def _build_fast_task(
     attrs: dict[str, Any] = {
         "batch_system": "auto" if batch else "local",
         "run": _run,
+        "task_cmd_additional_args": (
+            ["--script", exec_script, "--output-file", output]
+            + (["--input-file", input_file] if input_file is not None else [])
+            + (["--force"] if force else [])
+            + [arg for e in extra_args for arg in ("--extra-arg", e)]
+        ),
     }
 
     if not force:
