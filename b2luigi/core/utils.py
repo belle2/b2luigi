@@ -558,22 +558,30 @@ def create_cmd_from_task(task):
     """
     Constructs a command-line argument list to execute a task on a batch worker node.
 
-    The generated command invokes the ``batch-runner`` sub-command of the configured
-    CLI module so that the batch worker can reconstruct and execute the exact task::
+    Branches on the internal ``__batch_runner_use_cli`` setting:
+
+    * **New CLI mode** (``True``): emits the Typer-based ``batch-runner`` invocation::
 
         <executable_prefix> <executable> -m <batch_runner_cli> batch-runner
             --classname TaskFamily
             --param key=value …
+            [--task-file /abs/path/to/tasks.py]
             <task_cmd_additional_args>
 
-    The CLI module is set via the ``batch_runner_cli`` b2luigi setting (default: ``"b2luigi"``).
-    Projects that ship their own CLI built on top of b2luigi (e.g. ``flare``) can override this::
+      Set automatically by :func:`b2luigi.cli.utils.process_task_instance` — do not
+      set this setting manually.
+
+    * **Old mode** (``False``, default): emits the legacy argparse invocation::
+
+        <executable_prefix> <executable> [filename] --batch-runner --task-id TaskFamily_id
+            <task_cmd_additional_args>
+
+      ``filename`` is omitted when the ``add_filename_to_cmd`` setting is ``False``.
+
+    The ``batch_runner_cli`` setting (default: ``"b2luigi"``) lets projects that ship
+    their own CLI built on top of b2luigi override the module name::
 
         set_setting("batch_runner_cli", "flare")
-
-    The task-definitions file is resolved on the worker side via ``B2LUIGI_TASK_FILE``
-    (environment variable) or the default ``tasks.py``, matching the behaviour of
-    :func:`b2luigi.cli.utils.resolve_defaults`.
 
     Args:
         task: An object representing the task for which the command is being created.
@@ -582,10 +590,8 @@ def create_cmd_from_task(task):
         list: A list of strings representing the command-line arguments.
 
     Raises:
-        ValueError: If any of the following conditions are met:
-            - The ``task_cmd_additional_args`` setting is not a list of strings.
-            - The ``executable_prefix`` setting is not a list of strings.
-            - The ``executable`` setting is not a list of strings.
+        ValueError: If ``task_cmd_additional_args``, ``executable_prefix``, or
+            ``executable`` is a plain string rather than a list.
     """
     task_cmd_additional_args = get_setting("task_cmd_additional_args", task=task, default=[])
     if isinstance(task_cmd_additional_args, str):
@@ -599,14 +605,23 @@ def create_cmd_from_task(task):
     if isinstance(executable, str):
         raise ValueError("Your specified executable needs to be a list of strings, e.g. [python3]")
 
-    cli_module = get_setting("batch_runner_cli", task=task, default="b2luigi")
-
     cmd = prefix + executable
-    cmd += ["-m", cli_module, "batch-runner", "--classname", task.get_task_family()]
-    for param_name, param_value in task.to_str_params().items():
-        cmd += ["--param", f"{param_name}={param_value}"]
-    cmd += task_cmd_additional_args
 
+    if get_setting("__batch_runner_use_cli", default=False):
+        cli_module = get_setting("batch_runner_cli", task=task, default="b2luigi")
+        cmd += ["-m", cli_module, "batch-runner", "--classname", task.get_task_family()]
+        for param_name, param_value in task.to_str_params().items():
+            cmd += ["--param", f"{param_name}={param_value}"]
+        task_file = get_setting("__batch_runner_task_file", default=None)
+        if task_file is not None:
+            cmd += ["--task-file", task_file]
+    else:
+        filename = (
+            os.path.basename(get_filename()) if get_setting("add_filename_to_cmd", task=task, default=True) else ""
+        )
+        cmd += [filename, "--batch-runner", "--task-id", task.task_id]
+
+    cmd += task_cmd_additional_args
     return cmd
 
 

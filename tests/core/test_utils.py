@@ -1,9 +1,12 @@
 import os
+import sys
 from unittest import TestCase, mock
+from unittest.mock import MagicMock, patch
 
 import b2luigi
 import shlex
 from b2luigi.core import utils
+from b2luigi.core.utils import create_cmd_from_task
 from ..helpers import B2LuigiTestCase
 
 
@@ -486,3 +489,92 @@ class CreateApptainerCommandTestCase(TestCase):
                         result = utils.create_apptainer_command(self.command, task=self.task)
                         self.assertEqual(result, shlex.split(" ".join(expected_command)))
                         del self.settings["apptainer_cmd"]
+
+
+def _mock_task(family="MyTask", task_id="MyTask_0_abc123", str_params=None):
+    task = MagicMock()
+    task.get_task_family.return_value = family
+    task.task_id = task_id
+    task.to_str_params.return_value = str_params or {}
+    return task
+
+
+def _make_get_setting(overrides=None):
+    """Build a side_effect for get_setting that returns sensible defaults with optional overrides."""
+    values = {
+        "task_cmd_additional_args": [],
+        "executable_prefix": [],
+        "executable": [sys.executable],
+        "batch_runner_cli": "b2luigi",
+        "__batch_runner_use_cli": False,
+        "__batch_runner_task_file": None,
+        "add_filename_to_cmd": True,
+    }
+    if overrides:
+        values.update(overrides)
+
+    def _side_effect(key, task=None, default=None, deprecated_keys=None):
+        return values.get(key, default)
+
+    return _side_effect
+
+
+class TestCreateCmdFromTask(TestCase):
+    """Unit tests for create_cmd_from_task branching on __batch_runner_use_cli."""
+
+    @patch("b2luigi.core.utils.get_filename", return_value="/abs/path/myscript.py")
+    @patch("b2luigi.core.utils.get_setting")
+    def test_old_mode_format(self, mock_gs, _mock_gf):
+        """Old mode emits filename + --batch-runner + --task-id (no -m b2luigi)."""
+        mock_gs.side_effect = _make_get_setting({"__batch_runner_use_cli": False})
+        cmd = create_cmd_from_task(_mock_task(task_id="MyTask_0_abc123"))
+        self.assertIn("myscript.py", cmd)
+        self.assertIn("--batch-runner", cmd)
+        self.assertIn("--task-id", cmd)
+        self.assertIn("MyTask_0_abc123", cmd)
+        self.assertNotIn("-m", cmd)
+
+    @patch("b2luigi.core.utils.get_setting")
+    def test_new_cli_mode_format(self, mock_gs):
+        """New CLI mode emits -m b2luigi batch-runner --classname --param (no --batch-runner)."""
+        mock_gs.side_effect = _make_get_setting({"__batch_runner_use_cli": True, "executable": [sys.executable]})
+        cmd = create_cmd_from_task(_mock_task(str_params={"alpha": "1"}))
+        self.assertIn("-m", cmd)
+        self.assertIn("b2luigi", cmd)
+        self.assertIn("batch-runner", cmd)
+        self.assertIn("--classname", cmd)
+        self.assertIn("MyTask", cmd)
+        self.assertIn("--param", cmd)
+        self.assertIn("alpha=1", cmd)
+        self.assertNotIn("--batch-runner", cmd)
+
+    @patch("b2luigi.core.utils.get_setting")
+    def test_new_cli_mode_appends_task_file(self, mock_gs):
+        """--task-file is appended when __batch_runner_task_file is set."""
+        mock_gs.side_effect = _make_get_setting(
+            {
+                "__batch_runner_use_cli": True,
+                "__batch_runner_task_file": "/abs/path/myscript.py",
+            }
+        )
+        cmd = create_cmd_from_task(_mock_task())
+        self.assertIn("--task-file", cmd)
+        idx = cmd.index("--task-file")
+        self.assertEqual(cmd[idx + 1], "/abs/path/myscript.py")
+
+    @patch("b2luigi.core.utils.get_setting")
+    def test_new_cli_mode_no_task_file_when_unset(self, mock_gs):
+        """--task-file is absent when __batch_runner_task_file is None."""
+        mock_gs.side_effect = _make_get_setting({"__batch_runner_use_cli": True, "__batch_runner_task_file": None})
+        cmd = create_cmd_from_task(_mock_task())
+        self.assertNotIn("--task-file", cmd)
+
+    @patch("b2luigi.core.utils.get_filename", return_value="/abs/path/myscript.py")
+    @patch("b2luigi.core.utils.get_setting")
+    def test_add_filename_to_cmd_false_old_mode(self, mock_gs, _mock_gf):
+        """add_filename_to_cmd=False omits the filename from the old-mode command."""
+        mock_gs.side_effect = _make_get_setting({"__batch_runner_use_cli": False, "add_filename_to_cmd": False})
+        cmd = create_cmd_from_task(_mock_task(task_id="MyTask_0_abc123"))
+        self.assertNotIn("myscript.py", cmd)
+        self.assertIn("--batch-runner", cmd)
+        self.assertIn("--task-id", cmd)
