@@ -2,6 +2,7 @@ from typing import Annotated, List, Optional
 
 import typer
 
+from b2luigi.cli.runner import _build_fast_task
 from b2luigi.cli.utils import load_task_class, parse_kv_params, process_task_instance, resolve_defaults
 
 batch_runner_app = typer.Typer(
@@ -13,9 +14,9 @@ batch_runner_app = typer.Typer(
 @batch_runner_app.callback(invoke_without_command=True)
 def batch_runner(
     classname: Annotated[
-        str,
+        Optional[str],
         typer.Option("--classname", "-c", help="The task class name (task family)."),
-    ],
+    ] = None,
     task_filename: Annotated[
         Optional[str],
         typer.Option("--task-file", "-f", help="Task definitions file (or $B2LUIGI_TASK_FILE)."),
@@ -31,24 +32,70 @@ def batch_runner(
             ),
         ),
     ] = None,
+    script: Annotated[
+        Optional[str],
+        typer.Option("--script", "-s", help="Path to the Python script to execute (test mode)."),
+    ] = None,
+    output_file: Annotated[
+        Optional[str],
+        typer.Option("--output-file", "-o", help="Output filename key (test mode)."),
+    ] = None,
+    input_file: Annotated[
+        Optional[str],
+        typer.Option("--input-file", "-i", help="Optional input filename key (test mode)."),
+    ] = None,
+    force: Annotated[
+        bool,
+        typer.Option("--force", help="Always re-run even if output exists (test mode)."),
+    ] = False,
+    extra_arg: Annotated[
+        Optional[List[str]],
+        typer.Option(
+            "--extra-arg",
+            help="Extra argument forwarded to the script subprocess (test mode, repeatable).",
+        ),
+    ] = None,
 ) -> None:
-    """Execute a specific task by class name and parameters.
+    """Execute a specific task as a batch worker.
 
-    This command is called automatically by the b2luigi batch system when a task is
-    submitted to a remote batch scheduler (HTCondor, SLURM, LSF, ...).  The batch worker
-    node runs this command to execute the task locally.
+    In normal mode, supply ``--classname`` (and optionally ``--param`` / ``--task-file``)
+    to load a task class from the task definitions file and run it locally.
 
-    **Do not invoke this command manually.**  Use ``b2luigi run`` instead.
+    In test mode, supply ``--script`` and ``--output-file`` (mirroring ``b2luigi test``)
+    to reconstruct and execute a ``FastTask`` without importing it from a module.  This is
+    how ``b2luigi test --batch`` runs the task on the worker node.
 
-    :param classname: The fully-qualified task class name to instantiate.
+    **Do not invoke this command manually.**  Use ``b2luigi run`` or ``b2luigi test`` instead.
+
+    :param classname: The fully-qualified task class name to instantiate (normal mode).
     :param task_filename: Path to the task definitions file.
-    :param params: Serialised ``key=value`` parameter strings.
+    :param params: Serialised ``key=value`` parameter strings (normal mode).
+    :param script: Path to the Python script to execute (test mode).
+    :param output_file: Output filename key passed to :meth:`add_to_output` (test mode).
+    :param input_file: Optional input filename key (test mode).
+    :param force: When ``True``, omit ``output()`` so the task always runs (test mode).
+    :param extra_arg: Extra CLI arguments forwarded verbatim to the script subprocess (test mode).
     """
-    d = resolve_defaults(task_filename, None)
-
-    TaskClass = load_task_class(classname, d.task_file)
-
-    str_params = {k: str(v) for k, v in parse_kv_params(params or []).items()}
-    task_instance = TaskClass.from_str_params(str_params)
-
-    process_task_instance(task_instance, batch_runner=True)
+    if script is not None:
+        if output_file is None:
+            raise typer.BadParameter("--output-file is required in test mode", param_hint="'--output-file'")
+        FastTask = _build_fast_task(
+            exec_script=script,
+            output=output_file,
+            input_file=input_file,
+            force=force,
+            batch=False,
+            extra_args=extra_arg or [],
+        )
+        process_task_instance(FastTask(), batch_runner=True)
+    elif classname is not None:
+        d = resolve_defaults(task_filename, None)
+        TaskClass = load_task_class(classname, d.task_file)
+        str_params = {k: str(v) for k, v in parse_kv_params(params or []).items()}
+        task_instance = TaskClass.from_str_params(str_params)
+        process_task_instance(task_instance, batch_runner=True)
+    else:
+        raise typer.BadParameter(
+            "Provide either --classname (normal task) or --script (test mode).",
+            param_hint="'--classname' / '--script'",
+        )
