@@ -76,3 +76,18 @@ class TestBatchRunnerTestMode(CLITestCase):
         """Invoking batch-runner with no flags should exit non-zero."""
         rc, _, _ = self._run_cli("batch-runner", [])
         self.assertNotEqual(rc, 0)
+
+    def test_classname_and_script_together_takes_script_path(self) -> None:
+        """When --classname and --script are both present (the real batch-system path), script-mode wins."""
+        rc, _, stderr = self._run_cli(
+            "batch-runner",
+            [
+                "--classname",
+                "FastTask",
+                "--script",
+                "cli_test_script.py",
+                "--output-file",
+                "result.txt",
+            ],
+        )
+        self.assertEqual(rc, 0, stderr)

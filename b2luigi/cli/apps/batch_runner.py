@@ -84,7 +84,7 @@ def batch_runner(
             output=output_file,
             input_file=input_file,
             force=force,
-            batch=False,
+            batch=False,  # worker node always runs locally; must never re-batch
             extra_args=extra_arg or [],
         )
         process_task_instance(FastTask(), batch_runner=True)
