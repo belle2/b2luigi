@@ -64,7 +64,9 @@ def _build_fast_task(
     the task when the output already exists.  When *force* is ``True`` no
     ``output()`` is declared and Luigi always runs the task.
 
-    :param exec_script: Path to the Python script to run.
+    :param exec_script: Path to the Python script to run. Resolved to an
+        absolute path at build time so batch workers whose working directory
+        differs from the submission host's can still find it.
     :type exec_script: str
     :param output: Output filename key (passed to :meth:`add_to_output`).
     :type output: str
@@ -86,6 +88,7 @@ def _build_fast_task(
     appends these to the batch worker command so that ``batch-runner`` can reconstruct
     the task without importing it.
     """
+    exec_script = os.path.abspath(exec_script)
 
     def _run(self):
         output_path = self._get_output_file_target(output).path

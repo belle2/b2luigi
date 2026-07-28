@@ -139,7 +139,7 @@ class TestFastTaskCmdGeneration(TestCase):
         FastTask = _build_fast_task("script.py", "out.txt", None, False, False, [])
         self.assertEqual(
             FastTask.task_cmd_additional_args,
-            ["--script", "script.py", "--output-file", "out.txt"],
+            ["--script", os.path.abspath("script.py"), "--output-file", "out.txt"],
         )
 
     def test_input_file_included(self) -> None:
@@ -167,3 +167,11 @@ class TestFastTaskCmdGeneration(TestCase):
         values = [args[i + 1] for i, a in enumerate(args) if a == "--extra-arg"]
         self.assertIn("--lr", values)
         self.assertIn("0.01", values)
+
+    def test_script_path_resolved_to_absolute(self) -> None:
+        """A relative exec_script is resolved to an absolute path in task_cmd_additional_args."""
+        FastTask = _build_fast_task("relscript.py", "out.txt", None, False, False, [])
+        args = FastTask.task_cmd_additional_args
+        idx = args.index("--script")
+        self.assertTrue(os.path.isabs(args[idx + 1]))
+        self.assertEqual(args[idx + 1], os.path.abspath("relscript.py"))
