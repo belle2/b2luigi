@@ -179,6 +179,21 @@ class TestFastTaskCmdGeneration(TestCase):
         self.assertTrue(os.path.isabs(args[idx + 1]))
         self.assertEqual(args[idx + 1], os.path.abspath("relscript.py"))
 
+    def test_env_script_set_as_class_attribute(self) -> None:
+        """env_script is resolved to an absolute path and set as a class attribute."""
+        FastTask = _build_fast_task("script.py", "out.txt", None, False, False, [], env_script="env.sh")
+        self.assertEqual(FastTask.env_script, os.path.abspath("env.sh"))
+
+    def test_env_script_absent_when_not_given(self) -> None:
+        """No env_script attribute is set when env_script is None (default)."""
+        FastTask = _build_fast_task("script.py", "out.txt", None, False, False, [])
+        self.assertNotIn("env_script", FastTask.__dict__)
+
+    def test_env_script_not_in_task_cmd_additional_args(self) -> None:
+        """env_script is a submission-time-only concern; it must never be forwarded to the worker."""
+        FastTask = _build_fast_task("script.py", "out.txt", None, False, False, [], env_script="env.sh")
+        self.assertNotIn("--env-script", FastTask.task_cmd_additional_args)
+
 
 class TestTestBatchArmsCliModeSubmission(TestCase):
     """Unit tests verifying test_task(batch=True) routes through the new CLI batch-runner path."""

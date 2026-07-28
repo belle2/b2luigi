@@ -53,6 +53,7 @@ def _build_fast_task(
     force: bool,
     batch: bool,
     extra_args: list[str],
+    env_script: str | None = None,
 ) -> type:
     """Build the main task class that runs *exec_script* as a subprocess.
 
@@ -79,6 +80,13 @@ def _build_fast_task(
     :type batch: bool
     :param extra_args: Extra CLI arguments forwarded verbatim to the subprocess.
     :type extra_args: list[str]
+    :param env_script: Optional path to an environment setup script. Resolved to an
+        absolute path and set as the ``env_script`` class attribute, so
+        :func:`~b2luigi.core.executable.create_executable_wrapper` sources it on real
+        batch systems exactly as it would for a hand-written task. Submission-time-only:
+        never forwarded to the batch worker, since the worker inherits the already-sourced
+        environment from the submission-host wrapper.
+    :type env_script: str | None
     :returns: A dynamically created ``b2luigi.Task`` subclass.
     :rtype: type
 
@@ -111,6 +119,9 @@ def _build_fast_task(
             + [arg for e in extra_args for arg in ("--extra-arg", e)]
         ),
     }
+
+    if env_script is not None:
+        attrs["env_script"] = os.path.abspath(env_script)
 
     if not force:
 
