@@ -230,3 +230,47 @@ class TestTestBatchArmsCliModeSubmission(TestCase):
             self.assertIn("--output-file", cmd)
             output_idx = cmd.index("--output-file")
             self.assertEqual(cmd[output_idx + 1], "result.txt")
+
+
+class TestTestTaskSettingsAndEnvScript(TestCase):
+    """Unit tests for test_task's --setting and --env-script plumbing."""
+
+    def setUp(self) -> None:
+        self.tmp_dir = tempfile.mkdtemp()
+        shutil.copy(
+            os.path.join(FIXTURE_DIR, "cli_test_script.py"),
+            os.path.join(self.tmp_dir, "cli_test_script.py"),
+        )
+        self._old_cwd = os.getcwd()
+        os.chdir(self.tmp_dir)
+
+    def tearDown(self) -> None:
+        os.chdir(self._old_cwd)
+        shutil.rmtree(self.tmp_dir)
+
+    def test_settings_applied_before_run(self) -> None:
+        """Each --setting key=value is applied via set_setting() before the task runs."""
+        with with_new_settings():
+            test_task(
+                "cli_test_script.py",
+                "result.txt",
+                None,
+                False,
+                False,
+                [],
+                settings=["result_dir=.", 'env={"MY_VAR": "1"}'],
+            )
+            self.assertEqual(get_setting("result_dir", default=None), ".")
+            self.assertEqual(get_setting("env", default=None), {"MY_VAR": "1"})
+
+    def test_env_script_forwarded_to_fast_task(self) -> None:
+        """env_script is forwarded to _build_fast_task and lands on the FastTask class."""
+        with with_new_settings():
+            FastTask = _build_fast_task("cli_test_script.py", "result.txt", None, False, False, [], env_script="env.sh")
+            self.assertEqual(FastTask.env_script, os.path.abspath("env.sh"))
+
+    def test_no_settings_no_env_script_is_unaffected(self) -> None:
+        """Omitting both settings and env_script behaves exactly as before (no regression)."""
+        with with_new_settings():
+            test_task("cli_test_script.py", "result.txt", None, False, False, [])
+            self.assertTrue(os.path.exists(os.path.join(self.tmp_dir, "result.txt")))

@@ -12,6 +12,7 @@ from rich.console import Console
 from rich.prompt import Confirm
 
 from b2luigi.batch.workers import SendJobWorkerSchedulerFactory
+from b2luigi.cli.utils import parse_kv_params
 from b2luigi.core.settings import set_setting
 from b2luigi.core.utils import (
     create_output_dirs,
@@ -140,6 +141,8 @@ def test_task(
     force: bool,
     batch: bool,
     extra_args: list[str],
+    env_script: str | None = None,
+    settings: list[str] | None = None,
 ) -> None:
     """Run a one-off b2luigi task that executes *exec_script* as a subprocess.
 
@@ -166,10 +169,22 @@ def test_task(
     :type batch: bool
     :param extra_args: Extra CLI arguments forwarded verbatim to the subprocess.
     :type extra_args: list[str]
+    :param env_script: Optional path to an environment setup script, forwarded to
+        :func:`_build_fast_task`. Only takes effect combined with ``batch=True``;
+        see :func:`_build_fast_task` for details.
+    :type env_script: str | None
+    :param settings: Optional list of ``"key=value"`` strings (JSON-aware, parsed via
+        :func:`~b2luigi.cli.utils.parse_kv_params`), applied via
+        :func:`~b2luigi.core.settings.set_setting` before the task is built and run.
+        Submission-host-scoped, exactly like ``settings.json``.
+    :type settings: list[str] | None
     :raises SystemExit: With exit code 1 when any task in the build fails.
     """
+    for key, value in parse_kv_params(settings or []).items():
+        set_setting(key, value)
+
     set_setting("__batch_runner_use_cli", True)
-    FastTask = _build_fast_task(exec_script, output, input_file, force, batch, extra_args)
+    FastTask = _build_fast_task(exec_script, output, input_file, force, batch, extra_args, env_script)
     if input_file is not None:
         FastReqTask = _build_fast_req_task(input_file)
         FastTask = b2luigi.requires(FastReqTask)(FastTask)
