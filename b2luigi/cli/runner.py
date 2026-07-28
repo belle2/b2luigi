@@ -581,13 +581,17 @@ def dry_run(task_list):
     raise SystemExit(0)
 
 
-def remove_outputs(task_list, target_tasks, auto_confirm=False, keep_tasks=None):
+def remove_outputs(task_list, target_tasks, only=False, auto_confirm=False, keep_tasks=None):
     """Remove the outputs of the specified tasks.
 
     :param task_list: A list of root tasks to traverse.
     :type task_list: list
     :param target_tasks: Task class names whose outputs should be removed.
     :type target_tasks: list
+    :param only: Unused — kept for backward compatibility with the legacy ``--remove-only``
+        CLI flag. Both ``True`` and ``False`` produce identical behaviour: only the
+        explicitly named tasks are removed.
+    :type only: bool
     :param auto_confirm: If ``True``, skip confirmation prompt.
     :type auto_confirm: bool
     :param keep_tasks: List of task class names to KEEP outputs for.
