@@ -134,8 +134,12 @@ def test_task(
 
     Builds ``FastTask`` (and optionally a prerequisite ``FastReqTask``) via
     :func:`_build_fast_task` and :func:`_build_fast_req_task`, then runs them
-    via :func:`luigi.build`.  Exits non-zero when any task fails so that
-    the CLI binary propagates the failure to the shell.
+    via :func:`run_luigi`. Arms the ``__batch_runner_use_cli`` setting so that,
+    if ``batch=True`` and the task is submitted to a real cluster,
+    :func:`~b2luigi.core.utils.create_cmd_from_task` emits the new
+    ``batch-runner --script`` reconstruction command instead of the legacy
+    argparse invocation. Exits non-zero when any task fails so that the CLI
+    binary propagates the failure to the shell.
 
     :param exec_script: Path to the Python script to run.
     :type exec_script: str
@@ -153,16 +157,12 @@ def test_task(
     :type extra_args: list[str]
     :raises SystemExit: With exit code 1 when any task in the build fails.
     """
+    set_setting("__batch_runner_use_cli", True)
     FastTask = _build_fast_task(exec_script, output, input_file, force, batch, extra_args)
     if input_file is not None:
         FastReqTask = _build_fast_req_task(input_file)
         FastTask = b2luigi.requires(FastReqTask)(FastTask)
-    success = luigi.build(
-        [FastTask()],
-        local_scheduler=True,
-        log_level="INFO",
-        worker_scheduler_factory=SendJobWorkerSchedulerFactory(),
-    )
+    success = run_luigi([FastTask()], {"log_level": "INFO"})
     if not success:
         raise SystemExit(1)
 
@@ -276,6 +276,8 @@ def run_luigi(task_list: list, kwargs: dict):
         Supported keys: ``scheduler_host``, ``scheduler_port``, and any argument
         accepted by :func:`luigi.build`.
     :type kwargs: dict
+    :returns: ``True`` if all tasks completed successfully, ``False`` otherwise.
+    :rtype: bool
     """
     scheduler_host = kwargs.pop("scheduler_host", None)
     scheduler_port = kwargs.pop("scheduler_port", None)
@@ -291,7 +293,7 @@ def run_luigi(task_list: list, kwargs: dict):
     kwargs["worker_scheduler_factory"] = SendJobWorkerSchedulerFactory()
 
     kwargs.setdefault("log_level", "INFO")
-    luigi.build(task_list, **kwargs)
+    return luigi.build(task_list, **kwargs)
 
 
 def run_test_mode(task_list, cli_args, kwargs):

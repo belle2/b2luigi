@@ -3,9 +3,12 @@
 import os
 import pathlib
 import shutil
+import tempfile
 from unittest import TestCase
 
-from b2luigi.cli.runner import _build_fast_task
+from b2luigi.cli.runner import _build_fast_task, test_task
+from b2luigi.core.settings import get_setting, set_setting, with_new_settings
+from b2luigi.core.utils import create_cmd_from_task
 from tests.cli.helpers import CLITestCase
 
 
@@ -175,3 +178,40 @@ class TestFastTaskCmdGeneration(TestCase):
         idx = args.index("--script")
         self.assertTrue(os.path.isabs(args[idx + 1]))
         self.assertEqual(args[idx + 1], os.path.abspath("relscript.py"))
+
+
+class TestTestBatchArmsCliModeSubmission(TestCase):
+    """Unit tests verifying test_task(batch=True) routes through the new CLI batch-runner path."""
+
+    def setUp(self) -> None:
+        self.tmp_dir = tempfile.mkdtemp()
+        shutil.copy(
+            os.path.join(FIXTURE_DIR, "cli_test_script.py"),
+            os.path.join(self.tmp_dir, "cli_test_script.py"),
+        )
+        self._old_cwd = os.getcwd()
+        os.chdir(self.tmp_dir)
+
+    def tearDown(self) -> None:
+        os.chdir(self._old_cwd)
+        shutil.rmtree(self.tmp_dir)
+
+    def test_batch_true_arms_use_cli_setting(self) -> None:
+        """test_task(batch=True) sets __batch_runner_use_cli so create_cmd_from_task uses the new CLI branch."""
+        with with_new_settings():
+            test_task("cli_test_script.py", "result.txt", None, False, True, [])
+            self.assertTrue(get_setting("__batch_runner_use_cli", default=False))
+
+    def test_batch_submission_command_uses_script_reconstruction(self) -> None:
+        """create_cmd_from_task on the FastTask built by --batch matches the batch-runner --script contract."""
+        with with_new_settings():
+            FastTask = _build_fast_task("cli_test_script.py", "result.txt", None, False, True, [])
+            set_setting("__batch_runner_use_cli", True)
+            cmd = create_cmd_from_task(FastTask())
+            self.assertIn("batch-runner", cmd)
+            self.assertIn("--script", cmd)
+            script_idx = cmd.index("--script")
+            self.assertEqual(cmd[script_idx + 1], os.path.abspath("cli_test_script.py"))
+            self.assertIn("--output-file", cmd)
+            output_idx = cmd.index("--output-file")
+            self.assertEqual(cmd[output_idx + 1], "result.txt")
