@@ -75,7 +75,7 @@ class ReconstructionTask(Basf2PathTask):
 class AnalysisTask(Basf2PathTask):
     def create_path(self):
         path = basf2.Path()
-        modularAnalysis.inputMdstList("default", self.get_input_file_names("reconstructed_output.root"), path=path)
+        modularAnalysis.inputMdstList(filelist=self.get_input_file_names("reconstructed_output.root"), path=path)
         modularAnalysis.fillParticleLists([("K+", "kaonID > 0.1"), ("pi+", "pionID > 0.1")], path=path)
         modularAnalysis.reconstructDecay("D0 -> K- pi+", "1.7 < M < 1.9", path=path)
         modularAnalysis.matchMCTruth("D0", path=path)

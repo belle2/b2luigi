@@ -12,11 +12,12 @@ Running at the NAF
 The environment on the workers is different than on the scheduling machine, so we can not
 just copy the environment variables as on KEKCC.
 
-You can use setup script (e.g. called `setup_basf2.sh`) with the following content
+Once you have a ``b2venv`` environment with b2luigi installed,
+you can use setup script (e.g. called `setup_basf2.sh`) with the following content
 
 .. code-block:: bash
 
-    source /cvmfs/belle.cern.ch/tools/b2setup release-XX-XX-XX
+    source <path to b2venv>/bin/activate
 
 All you have to do is specify the setup script as the ``env_script`` setting and also set the
 executable explicitly.
