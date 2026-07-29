@@ -218,6 +218,18 @@ Wrap an arbitrary script as a b2luigi task for local debugging:
 The ``-s`` flag specifies the script to run; ``-o`` names the output file
 the task is expected to produce.
 
+When submitting to a real batch system via ``--batch``, use ``--env-script``
+to source an environment setup script before the job runs (only takes effect
+combined with ``--batch``; a no-op otherwise):
+
+.. code-block:: bash
+
+    b2luigi test -s my_script.py -o output_file.txt --batch --env-script setup.sh
+
+Use ``--setting key=value`` (repeatable, JSON-aware) to override any other
+b2luigi setting for this run without creating a ``settings.json``, e.g.
+``--setting apptainer_image=my_image.sif``.
+
 Utility commands
 ----------------
 
