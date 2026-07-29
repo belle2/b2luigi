@@ -665,7 +665,7 @@ class TestCreateCmdFromTask(TestCase):
     @patch("b2luigi.core.utils.get_filename", return_value="/abs/path/myscript.py")
     @patch("b2luigi.core.utils.get_setting")
     def test_old_mode_ignores_executable_is_entrypoint(self, mock_gs, _mock_gf):
-        """Legacy branch never consults executable_is_entrypoint; unset executable still falls back to sys.executable."""
+        """Legacy mode ignores executable_is_entrypoint; unset executable falls back to sys.executable."""
         mock_gs.side_effect = _make_get_setting(
             {"__batch_runner_use_cli": False, "executable": None, "executable_is_entrypoint": True}
         )
@@ -675,3 +675,23 @@ class TestCreateCmdFromTask(TestCase):
         self.assertIn("--batch-runner", cmd)
         self.assertIn("--task-id", cmd)
         self.assertNotIn("batch-runner", [c for c in cmd if c != "--batch-runner"])
+
+    def test_unset_sentinel_with_real_settings(self):
+        """Test _UNSET sentinel fix: create_cmd_from_task doesn't raise when executable is unset."""
+        # Set up required settings for CLI mode without setting executable
+        b2luigi.set_setting("__batch_runner_use_cli", True)
+        b2luigi.set_setting("result_dir", ".")
+        try:
+            # Should not raise ValueError due to _UNSET sentinel fix
+            task = _mock_task()
+            cmd = create_cmd_from_task(task)
+            # Verify the command was created successfully
+            self.assertIsInstance(cmd, list)
+            self.assertGreater(len(cmd), 0)
+            # In CLI mode with no executable set and executable_is_entrypoint=True (default),
+            # should default to the CLI module name (e.g., "b2luigi")
+            self.assertEqual(cmd[0], "b2luigi")
+        finally:
+            # Clean up settings
+            b2luigi.clear_setting("__batch_runner_use_cli")
+            b2luigi.clear_setting("result_dir")

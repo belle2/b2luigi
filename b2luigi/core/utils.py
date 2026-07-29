@@ -642,9 +642,9 @@ def create_cmd_from_task(task):
         raise ValueError("Your specified executable needs to be a list of strings, e.g. [python3]")
 
     use_cli = get_setting("__batch_runner_use_cli", default=False)
-    cli_module = get_setting("batch_runner_cli", task=task, default="b2luigi")
 
     if use_cli:
+        cli_module = get_setting("batch_runner_cli", task=task, default="b2luigi")
         executable_is_entrypoint = get_setting("executable_is_entrypoint", task=task, default=executable is None)
         if executable is None:
             executable = [cli_module] if executable_is_entrypoint else [sys.executable]
