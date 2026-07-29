@@ -144,7 +144,8 @@ Batch mode specific settings
 
     Defaults to ``True`` only when ``executable`` has not been explicitly set; if
     ``executable`` is explicitly set, defaults to ``False`` so existing setups keep their
-    current ``-m`` behavior unchanged. Has no effect on the legacy (pre-CLI) batch
+    current ``-m`` behavior unchanged. If ``executable`` is explicitly set, ``batch_runner_cli``
+    has no effect regardless of this setting. Has no effect on the legacy (pre-CLI) batch
     invocation path.
 
 - ``executable_prefix``: List[String]
