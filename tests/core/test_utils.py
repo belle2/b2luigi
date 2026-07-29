@@ -591,3 +591,87 @@ class TestCreateCmdFromTask(TestCase):
         )
         cmd = create_cmd_from_task(_mock_task(str_params={"k": "v"}))
         self.assertEqual(cmd[-2:], ["--extra", "val"])
+
+    @patch("b2luigi.core.utils.get_setting")
+    def test_new_cli_mode_defaults_to_entrypoint_when_executable_unset(self, mock_gs):
+        """No executable override + no executable_is_entrypoint override -> entrypoint mode."""
+        mock_gs.side_effect = _make_get_setting({"__batch_runner_use_cli": True, "executable": None})
+        cmd = create_cmd_from_task(_mock_task())
+        self.assertEqual(cmd[0], "b2luigi")
+        self.assertNotIn("-m", cmd)
+        self.assertIn("batch-runner", cmd)
+        self.assertEqual(cmd[1], "batch-runner")
+
+    @patch("b2luigi.core.utils.get_setting")
+    def test_new_cli_mode_explicit_entrypoint_false_keeps_m_mode(self, mock_gs):
+        """executable unset but executable_is_entrypoint explicitly False -> old -m mode with sys.executable."""
+        mock_gs.side_effect = _make_get_setting(
+            {"__batch_runner_use_cli": True, "executable": None, "executable_is_entrypoint": False}
+        )
+        cmd = create_cmd_from_task(_mock_task())
+        self.assertEqual(cmd[0], sys.executable)
+        self.assertIn("-m", cmd)
+        m_idx = cmd.index("-m")
+        self.assertEqual(cmd[m_idx : m_idx + 3], ["-m", "b2luigi", "batch-runner"])
+
+    @patch("b2luigi.core.utils.get_setting")
+    def test_new_cli_mode_custom_executable_defaults_to_m_mode(self, mock_gs):
+        """Custom executable set, executable_is_entrypoint unset -> old -m mode preserved (no breakage)."""
+        mock_gs.side_effect = _make_get_setting(
+            {"__batch_runner_use_cli": True, "executable": ["/custom/venv/bin/python3"]}
+        )
+        cmd = create_cmd_from_task(_mock_task())
+        self.assertEqual(cmd[0], "/custom/venv/bin/python3")
+        self.assertIn("-m", cmd)
+        m_idx = cmd.index("-m")
+        self.assertEqual(cmd[m_idx : m_idx + 3], ["-m", "b2luigi", "batch-runner"])
+
+    @patch("b2luigi.core.utils.get_setting")
+    def test_new_cli_mode_custom_executable_explicit_entrypoint_true(self, mock_gs):
+        """Custom executable + executable_is_entrypoint=True -> entrypoint mode with the custom executable."""
+        mock_gs.side_effect = _make_get_setting(
+            {"__batch_runner_use_cli": True, "executable": ["flare"], "executable_is_entrypoint": True}
+        )
+        cmd = create_cmd_from_task(_mock_task())
+        self.assertEqual(cmd[0], "flare")
+        self.assertNotIn("-m", cmd)
+        self.assertEqual(cmd[1], "batch-runner")
+
+    @patch("b2luigi.core.utils.get_setting")
+    def test_new_cli_mode_entrypoint_default_uses_batch_runner_cli(self, mock_gs):
+        """executable unset, entrypoint mode default True -> default entrypoint name comes from batch_runner_cli."""
+        mock_gs.side_effect = _make_get_setting(
+            {"__batch_runner_use_cli": True, "executable": None, "batch_runner_cli": "flare"}
+        )
+        cmd = create_cmd_from_task(_mock_task())
+        self.assertEqual(cmd[0], "flare")
+        self.assertNotIn("-m", cmd)
+
+    @patch("b2luigi.core.utils.get_setting")
+    def test_new_cli_mode_entrypoint_ignores_batch_runner_cli_when_executable_set(self, mock_gs):
+        """Custom executable + executable_is_entrypoint=True -> batch_runner_cli is ignored, not an error."""
+        mock_gs.side_effect = _make_get_setting(
+            {
+                "__batch_runner_use_cli": True,
+                "executable": ["flare"],
+                "executable_is_entrypoint": True,
+                "batch_runner_cli": "some_other_cli",
+            }
+        )
+        cmd = create_cmd_from_task(_mock_task())
+        self.assertEqual(cmd[0], "flare")
+        self.assertNotIn("some_other_cli", cmd)
+
+    @patch("b2luigi.core.utils.get_filename", return_value="/abs/path/myscript.py")
+    @patch("b2luigi.core.utils.get_setting")
+    def test_old_mode_ignores_executable_is_entrypoint(self, mock_gs, _mock_gf):
+        """Legacy branch never consults executable_is_entrypoint; unset executable still falls back to sys.executable."""
+        mock_gs.side_effect = _make_get_setting(
+            {"__batch_runner_use_cli": False, "executable": None, "executable_is_entrypoint": True}
+        )
+        cmd = create_cmd_from_task(_mock_task(task_id="MyTask_0_abc123"))
+        self.assertEqual(cmd[0], sys.executable)
+        self.assertIn("myscript.py", cmd)
+        self.assertIn("--batch-runner", cmd)
+        self.assertIn("--task-id", cmd)
+        self.assertNotIn("batch-runner", [c for c in cmd if c != "--batch-runner"])

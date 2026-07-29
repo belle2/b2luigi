@@ -15,6 +15,10 @@ import luigi
 from b2luigi.core.settings import get_setting
 
 
+# Sentinel for detecting unset values in get_setting
+_UNSET = object()
+
+
 def product_dict(**kwargs: Any) -> Iterator[Dict[str, Any]]:
     """
     Cross-product the given parameters and return a list of dictionaries.
@@ -560,7 +564,8 @@ def create_cmd_from_task(task):
 
     Branches on the internal ``__batch_runner_use_cli`` setting:
 
-    * **New CLI mode** (``True``): emits the Typer-based ``batch-runner`` invocation::
+    * **New CLI mode** (``True``): emits the Typer-based ``batch-runner`` invocation.
+      By default it runs the module directly through a Python interpreter::
 
         <executable_prefix> <executable> -m <batch_runner_cli> batch-runner
             --classname TaskFamily
@@ -568,8 +573,23 @@ def create_cmd_from_task(task):
             [--task-file /abs/path/to/tasks.py]
             <task_cmd_additional_args>
 
+      If ``executable_is_entrypoint`` is ``True``, the ``-m <batch_runner_cli>`` step is
+      skipped and ``executable`` is invoked directly as the b2luigi entrypoint instead::
+
+        <executable_prefix> <executable> batch-runner
+            --classname TaskFamily
+            --param key=value …
+            [--task-file /abs/path/to/tasks.py]
+            <task_cmd_additional_args>
+
+      This avoids baking an absolute, submission-host-specific interpreter path into
+      the executable wrapper, which breaks when the batch execution environment has a
+      different filesystem view than the submission host (e.g. a container batch
+      universe). Instead, ``executable`` (default: ``[<batch_runner_cli>]``, e.g.
+      ``["b2luigi"]``) is resolved via ``PATH`` at execution time.
+
       Set automatically by :func:`b2luigi.cli.utils.process_task_instance` — do not
-      set this setting manually.
+      set ``__batch_runner_use_cli`` manually.
 
     * **Old mode** (``False``, default): emits the legacy argparse invocation::
 
@@ -577,11 +597,25 @@ def create_cmd_from_task(task):
             <task_cmd_additional_args>
 
       ``filename`` is omitted when the ``add_filename_to_cmd`` setting is ``False``.
+      ``executable_is_entrypoint`` has no effect here: this mode executes an arbitrary
+      user script file, which always requires a Python interpreter and has no
+      entrypoint-only equivalent.
 
     The ``batch_runner_cli`` setting (default: ``"b2luigi"``) lets projects that ship
-    their own CLI built on top of b2luigi override the module name::
+    their own CLI built on top of b2luigi override the module name (``-m`` mode) or the
+    default entrypoint name (``executable_is_entrypoint=True`` mode, when ``executable``
+    is otherwise unset)::
 
         set_setting("batch_runner_cli", "flare")
+
+    ``executable`` defaults depend on mode: ``[sys.executable]`` in ``-m`` mode,
+    ``[<batch_runner_cli>]`` in entrypoint mode. ``executable_is_entrypoint`` itself
+    defaults to ``True`` only when ``executable`` has not been explicitly set anywhere
+    in the settings cascade — if you already override ``executable`` (e.g. to a specific
+    interpreter), the ``-m`` default is preserved so existing setups keep working
+    unchanged. When ``executable_is_entrypoint=True`` and ``executable`` is explicitly
+    set, ``batch_runner_cli`` is silently ignored (there's no ``-m`` step for it to
+    configure).
 
     Args:
         task: An object representing the task for which the command is being created.
@@ -601,15 +635,31 @@ def create_cmd_from_task(task):
     if isinstance(prefix, str):
         raise ValueError("Your specified executable_prefix needs to be a list of strings, e.g. [strace]")
 
-    executable = get_setting("executable", task=task, default=[sys.executable])
+    executable = get_setting("executable", task=task, default=_UNSET)
+    if executable is _UNSET:
+        executable = None
     if isinstance(executable, str):
         raise ValueError("Your specified executable needs to be a list of strings, e.g. [python3]")
 
+    use_cli = get_setting("__batch_runner_use_cli", default=False)
+    cli_module = get_setting("batch_runner_cli", task=task, default="b2luigi")
+
+    if use_cli:
+        executable_is_entrypoint = get_setting("executable_is_entrypoint", task=task, default=executable is None)
+        if executable is None:
+            executable = [cli_module] if executable_is_entrypoint else [sys.executable]
+    else:
+        executable_is_entrypoint = False
+        if executable is None:
+            executable = [sys.executable]
+
     cmd = prefix + executable
 
-    if get_setting("__batch_runner_use_cli", default=False):
-        cli_module = get_setting("batch_runner_cli", task=task, default="b2luigi")
-        cmd += ["-m", cli_module, "batch-runner", "--classname", task.get_task_family()]
+    if use_cli:
+        if executable_is_entrypoint:
+            cmd += ["batch-runner", "--classname", task.get_task_family()]
+        else:
+            cmd += ["-m", cli_module, "batch-runner", "--classname", task.get_task_family()]
         for param_name, param_value in task.to_str_params().items():
             cmd += ["--param", f"{param_name}={param_value}"]
         task_file = get_setting("__batch_runner_task_file", default=False) or None
