@@ -42,9 +42,22 @@ class SlurmJobStatusCache(BatchJobStatusCache):
         q_cmd = ["squeue", "--noheader", "--user", user, "--format", "'%i %T'"] + (
             ["--job", str(job_id)] if job_id else []
         )
-        output = subprocess.check_output(q_cmd)
+        result = subprocess.run(q_cmd, capture_output=True)
+        if result.returncode != 0:
+            # When a specific job_id has already been purged from Slurm's live job table,
+            # squeue exits non-zero with "Invalid job id specified" instead of just returning
+            # empty output. This is an expected outcome (not a transient failure), so we treat
+            # it as "no jobs seen" and let the sacct/scontrol fallback below resolve the status,
+            # rather than retrying (which would just fail identically) and crashing.
+            if job_id and b"Invalid job id specified" in result.stderr:
+                output = ""
+            else:
+                raise subprocess.CalledProcessError(
+                    result.returncode, q_cmd, output=result.stdout, stderr=result.stderr
+                )
+        else:
+            output = result.stdout.decode()
 
-        output = output.decode()
         seen_ids = self._fill_from_output(output)
         # If no job_id was passed, then exit
         if not job_id:
