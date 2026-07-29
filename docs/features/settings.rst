@@ -144,9 +144,9 @@ Batch mode specific settings
 
     Defaults to ``True`` only when ``executable`` has not been explicitly set; if
     ``executable`` is explicitly set, defaults to ``False`` so existing setups keep their
-    current ``-m`` behavior unchanged. If ``executable`` is explicitly set, ``batch_runner_cli``
-    has no effect regardless of this setting. Has no effect on the legacy (pre-CLI) batch
-    invocation path.
+    current ``-m`` behavior unchanged. When ``executable_is_entrypoint=True`` and ``executable``
+    is explicitly set, ``batch_runner_cli`` is silently ignored (there's no ``-m`` step for it to
+    configure). Has no effect on the legacy (pre-CLI) batch invocation path.
 
 - ``executable_prefix``: List[String]
     The prefix to use when executing the task on a ``htcondor`` or ``lsf`` batch system.
