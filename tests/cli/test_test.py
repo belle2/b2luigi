@@ -7,6 +7,7 @@ import tempfile
 from unittest import TestCase
 
 from b2luigi.cli.runner import _build_fast_task, test_task
+from b2luigi.core.executable import create_executable_wrapper
 from b2luigi.core.settings import get_setting, set_setting, with_new_settings
 from b2luigi.core.utils import create_cmd_from_task
 from tests.cli.helpers import CLITestCase
@@ -275,6 +276,19 @@ class TestTestTaskSettingsAndEnvScript(TestCase):
             test_task("cli_test_script.py", "result.txt", None, False, False, [])
             self.assertTrue(os.path.exists(os.path.join(self.tmp_dir, "result.txt")))
 
+    def test_env_script_sourced_in_executable_wrapper(self) -> None:
+        """create_executable_wrapper() actually sources env_script in the generated wrapper."""
+        with with_new_settings():
+            env_script_path = os.path.join(self.tmp_dir, "env.sh")
+            pathlib.Path(env_script_path).write_text("#!/bin/bash\n")
+            FastTask = _build_fast_task(
+                "cli_test_script.py", "result.txt", None, False, True, [], env_script=env_script_path
+            )
+            task_instance = FastTask()
+            wrapper_path = create_executable_wrapper(task_instance)
+            wrapper_content = pathlib.Path(wrapper_path).read_text()
+            self.assertIn(f"source {os.path.abspath(env_script_path)}", wrapper_content)
+
 
 class TestTestSettingFlag(CLITestCase):
     """Tests for --setting flag behaviour."""
@@ -310,6 +324,16 @@ class TestTestSettingFlag(CLITestCase):
             ],
         )
         self.assertEqual(rc, 0, stderr)
+
+    def test_setting_result_dir_moves_output_location(self) -> None:
+        """--setting result_dir=custom_out actually relocates the output file, not just accepted."""
+        rc, _, stderr = self._run_cli(
+            "test",
+            ["-s", "cli_test_script.py", "-o", "result.txt", "--setting", "result_dir=custom_out"],
+        )
+        self.assertEqual(rc, 0, stderr)
+        self.assertTrue(os.path.exists(os.path.join(self.tmp_dir, "custom_out", "result.txt")))
+        self.assertFalse(os.path.exists(os.path.join(self.tmp_dir, "result.txt")))
 
 
 class TestTestEnvScriptFlag(CLITestCase):

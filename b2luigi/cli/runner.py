@@ -176,7 +176,17 @@ def test_task(
     :param settings: Optional list of ``"key=value"`` strings (JSON-aware, parsed via
         :func:`~b2luigi.cli.utils.parse_kv_params`), applied via
         :func:`~b2luigi.core.settings.set_setting` before the task is built and run.
-        Submission-host-scoped, exactly like ``settings.json``.
+        Unlike ``settings.json`` (re-read fresh by the batch worker), these
+        overrides live only in the submitting process's in-memory settings and
+        are **never** forwarded to the batch worker — the worker reconstructs
+        ``FastTask`` via ``batch-runner --script`` with no knowledge of
+        ``--setting`` values. Safe for submission-side-only settings
+        (``apptainer_image``, ``env``, ``env_script``, ``working_dir``); for
+        settings both sides must agree on (``result_dir``, ``log_dir``), use
+        ``settings.json`` instead. Also cannot override ``batch_system`` or
+        ``env_script``, since :func:`_build_fast_task` already sets those as
+        class attributes on ``FastTask``, which :func:`~b2luigi.core.settings.get_setting`
+        checks before global settings.
     :type settings: list[str] | None
     :raises SystemExit: With exit code 1 when any task in the build fails.
     """

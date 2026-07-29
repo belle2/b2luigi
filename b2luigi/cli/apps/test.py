@@ -43,8 +43,14 @@ def test(
         list[str] | None,
         typer.Option(
             "--setting",
-            help="Override any b2luigi setting as key=value (JSON-aware, repeatable), e.g. "
-            "--setting apptainer_image=my_image.sif. Submission-host-scoped, like settings.json.",
+            help="Override a b2luigi setting as key=value (JSON-aware, repeatable), e.g. "
+            "--setting apptainer_image=my_image.sif (must be combined with --env-script). "
+            "Applied only on the submission host and NEVER forwarded to the batch worker "
+            "(unlike settings.json); use it for submission-side-only settings, and "
+            "settings.json for anything (e.g. result_dir, log_dir) both sides must agree "
+            "on. Cannot override batch_system or env_script — use --batch/--env-script "
+            "for those, since FastTask already sets them as class attributes which take "
+            "priority over --setting.",
         ),
     ] = None,
     extra_args: Annotated[

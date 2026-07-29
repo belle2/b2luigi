@@ -228,7 +228,27 @@ combined with ``--batch``; a no-op otherwise):
 
 Use ``--setting key=value`` (repeatable, JSON-aware) to override any other
 b2luigi setting for this run without creating a ``settings.json``, e.g.
-``--setting apptainer_image=my_image.sif``.
+``--setting apptainer_image=my_image.sif``. An apptainer/container run always
+needs an environment setup script, so ``apptainer_image`` must be combined
+with ``--env-script``; setting it alone raises
+``ValueError: Apptainer execution requires an environment setup script.``.
+
+Unlike ``settings.json``, which is re-read fresh by the batch worker,
+``--setting`` overrides live only in the submitting process's in-memory
+settings and are **never** propagated to the batch worker (the worker
+reconstructs the task via ``batch-runner --script`` with no knowledge of
+``--setting`` values). Use ``--setting`` for submission-side-only settings
+such as ``apptainer_image``, ``env``, ``env_script``, or ``working_dir``.
+For settings that both the submission host and the worker must agree on
+(``result_dir``, ``log_dir``), use ``settings.json`` instead — otherwise the
+submission side and the worker will resolve output paths differently under
+``--batch``.
+
+``--setting`` cannot override ``batch_system`` or ``env_script``: both are
+already set as class attributes on the generated task (via ``--batch`` and
+``--env-script`` respectively), and :func:`~b2luigi.core.settings.get_setting`
+checks task attributes before global settings. Use ``--batch``/``--env-script``
+for those two.
 
 Utility commands
 ----------------
