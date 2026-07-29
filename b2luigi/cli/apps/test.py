@@ -29,6 +29,24 @@ def test(
         bool,
         typer.Option("--batch", help="Submit task via batch system (batch_system='auto')."),
     ] = False,
+    env_script: Annotated[
+        str | None,
+        typer.Option(
+            "--env-script",
+            help=(
+                "Path to an environment setup script, sourced by the batch submission wrapper. "
+                "Only takes effect combined with --batch; a no-op otherwise."
+            ),
+        ),
+    ] = None,
+    setting: Annotated[
+        list[str] | None,
+        typer.Option(
+            "--setting",
+            help="Override any b2luigi setting as key=value (JSON-aware, repeatable), e.g. "
+            "--setting apptainer_image=my_image.sif. Submission-host-scoped, like settings.json.",
+        ),
+    ] = None,
     extra_args: Annotated[
         list[str] | None,
         typer.Argument(help="Extra arguments forwarded verbatim to the script subprocess."),
@@ -41,6 +59,8 @@ def test(
     :param input: Optional input filename; creates a prerequisite task.
     :param force: Always re-run even if the output already exists.
     :param batch: Submit task via batch system.
+    :param env_script: Path to an environment setup script; only takes effect with --batch.
+    :param setting: List of key=value overrides applied via set_setting() before the run.
     :param extra_args: Extra arguments forwarded verbatim to the script subprocess.
     """
     test_task(
@@ -50,4 +70,6 @@ def test(
         force=force,
         batch=batch,
         extra_args=extra_args or [],
+        env_script=env_script,
+        settings=setting or [],
     )

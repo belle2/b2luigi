@@ -274,3 +274,58 @@ class TestTestTaskSettingsAndEnvScript(TestCase):
         with with_new_settings():
             test_task("cli_test_script.py", "result.txt", None, False, False, [])
             self.assertTrue(os.path.exists(os.path.join(self.tmp_dir, "result.txt")))
+
+
+class TestTestSettingFlag(CLITestCase):
+    """Tests for --setting flag behaviour."""
+
+    def setUp(self) -> None:
+        super().setUp()
+        shutil.copy(
+            os.path.join(FIXTURE_DIR, "cli_test_script.py"),
+            os.path.join(self.tmp_dir, "cli_test_script.py"),
+        )
+
+    def test_setting_flag_accepted(self) -> None:
+        """--setting key=value is accepted and does not break a normal run."""
+        rc, _, stderr = self._run_cli(
+            "test",
+            ["-s", "cli_test_script.py", "-o", "result.txt", "--setting", "working_dir=" + self.tmp_dir],
+        )
+        self.assertEqual(rc, 0, stderr)
+
+    def test_multiple_setting_flags_accepted(self) -> None:
+        """--setting can be repeated."""
+        rc, _, stderr = self._run_cli(
+            "test",
+            [
+                "-s",
+                "cli_test_script.py",
+                "-o",
+                "result.txt",
+                "--setting",
+                "working_dir=" + self.tmp_dir,
+                "--setting",
+                "log_dir=" + self.tmp_dir,
+            ],
+        )
+        self.assertEqual(rc, 0, stderr)
+
+
+class TestTestEnvScriptFlag(CLITestCase):
+    """Tests for --env-script flag behaviour."""
+
+    def setUp(self) -> None:
+        super().setUp()
+        shutil.copy(
+            os.path.join(FIXTURE_DIR, "cli_test_script.py"),
+            os.path.join(self.tmp_dir, "cli_test_script.py"),
+        )
+
+    def test_env_script_without_batch_is_noop(self) -> None:
+        """--env-script without --batch is accepted and has no effect on a local run."""
+        rc, _, stderr = self._run_cli(
+            "test",
+            ["-s", "cli_test_script.py", "-o", "result.txt", "--env-script", "/nonexistent/env.sh"],
+        )
+        self.assertEqual(rc, 0, stderr)
