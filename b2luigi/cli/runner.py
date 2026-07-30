@@ -720,7 +720,9 @@ def remove_outputs(task_list, target_tasks, only=False, auto_confirm=False, keep
     raise SystemExit(0)
 
 
-def remove_requirement_outputs(task_list: list, auto_confirm: bool = False) -> None:
+def remove_requirement_outputs(
+    task_list: list, auto_confirm: bool = False, keep_tasks: list[str] | None = None
+) -> None:
     """Remove outputs for the given tasks and all tasks they transitively require.
 
     Traverses the full dependency tree downward from each task in ``task_list``
@@ -730,6 +732,8 @@ def remove_requirement_outputs(task_list: list, auto_confirm: bool = False) -> N
     :type task_list: list
     :param auto_confirm: If ``True``, skip confirmation prompt.
     :type auto_confirm: bool
+    :param keep_tasks: List of task class names to KEEP outputs for.
+    :type keep_tasks: list[str] | None
     :returns: None
     :rtype: None
     """
@@ -740,6 +744,15 @@ def remove_requirement_outputs(task_list: list, auto_confirm: bool = False) -> N
             if t.task_id not in seen:
                 seen.add(t.task_id)
                 flat_list.append(t)
+
+    if keep_tasks:
+        keep_tasks_set = set(keep_tasks)
+        kept_classes = {t.__class__.__name__ for t in flat_list} & keep_tasks_set
+        for keep_class in sorted(kept_classes):
+            console.print(f"[yellow]Keeping {keep_class} outputs.[/yellow]")
+        if kept_classes:
+            console.print()
+        flat_list = [t for t in flat_list if t.__class__.__name__ not in keep_tasks_set]
 
     if not flat_list:
         console.print("Nothing to remove.")

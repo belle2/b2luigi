@@ -68,6 +68,24 @@ class TestRemove(CLITestCase):
         self.assertIn("RootTask", combined)
         self.assertIn("LeafTask", combined)
 
+    def test_remove_with_requirements_and_keep(self) -> None:
+        """remove RootTask --with-requirements --keep LeafTask -y filters LeafTask out before removal.
+
+        ``cli_show_tasks.py``'s ``LeafTask``/``RootTask`` don't implement ``remove_output()``, so no
+        file actually gets removed either way (mirrors ``test_remove_with_requirements_root_task``'s
+        return-code-only assertion). This test's point is narrower: verify ``--keep`` is honored (the
+        "Keeping" message appears and LeafTask is never attempted) rather than silently ignored, which
+        was the bug (``--keep`` combined with ``--with-requirements`` was previously a silent no-op).
+        """
+        returncode, stdout, stderr = self._run_cli(
+            "remove", ["RootTask", "--with-requirements", "--keep", "LeafTask", "-y"]
+        )
+        self.assertEqual(returncode, 0, f"Command failed with stderr: {stderr}")
+        combined = stdout + stderr
+        self.assertIn("Keeping LeafTask outputs", combined)
+        self.assertIn("RootTask", combined)
+        self.assertNotIn("Removing... LeafTask", combined)
+
 
 class TestRemoveMultiParam(CLITestCase):
     """Integration tests for remove with tasks that have different parameters."""

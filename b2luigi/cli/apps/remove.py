@@ -129,7 +129,7 @@ def remove(
         )
 
     if with_requirements and names is not None:
-        runner.remove_requirement_outputs(task_list, auto_confirm=yes)
+        runner.remove_requirement_outputs(task_list, auto_confirm=yes, keep_tasks=keep_tasks)
     else:
         runner.remove_outputs(
             task_list,
