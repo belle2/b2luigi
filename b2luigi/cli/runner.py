@@ -622,17 +622,19 @@ def dry_run(task_list):
     raise SystemExit(0)
 
 
-def remove_outputs(task_list, target_tasks, only=False, auto_confirm=False, keep_tasks=None):
-    """Remove the outputs of the specified tasks.
+def remove_outputs(task_list, target_tasks, auto_confirm=False, keep_tasks=None):
+    """Remove the outputs of the specified tasks (new ``b2luigi remove`` CLI).
+
+    Removes only the explicitly named tasks — no dependents cascade. For
+    downward removal of a task's requirements, see
+    :func:`remove_requirement_outputs` (``--with-requirements``). For the
+    legacy dependents-cascade behaviour of ``python tasks.py --remove``, see
+    :func:`legacy_remove_outputs`.
 
     :param task_list: A list of root tasks to traverse.
     :type task_list: list
     :param target_tasks: Task class names whose outputs should be removed.
     :type target_tasks: list
-    :param only: Unused — kept for backward compatibility with the legacy ``--remove-only``
-        CLI flag. Both ``True`` and ``False`` produce identical behaviour: only the
-        explicitly named tasks are removed.
-    :type only: bool
     :param auto_confirm: If ``True``, skip confirmation prompt.
     :type auto_confirm: bool
     :param keep_tasks: List of task class names to KEEP outputs for.
@@ -664,6 +666,150 @@ def remove_outputs(task_list, target_tasks, only=False, auto_confirm=False, keep
         if matched:
             matched_target_tasks.add(target_class)
             to_be_removed_tasks[target_class].update(matched)
+
+    if keep_tasks:
+        keep_tasks = set(keep_tasks)
+        for keep_class in keep_tasks:
+            if keep_class in to_be_removed_tasks:
+                console.print(f"[yellow]Keeping {keep_class} outputs.[/yellow]")
+                del to_be_removed_tasks[keep_class]
+        console.print()
+
+    unseen_tasks = set(target_tasks) - matched_target_tasks
+
+    if not to_be_removed_tasks:
+        console.print("Nothing to remove.")
+        raise SystemExit(0)
+
+    if not auto_confirm:
+        if unseen_tasks:
+            console.print("[yellow]The following tasks were not found in the graph and can't be removed:[/yellow]")
+            for task in sorted(unseen_tasks):
+                console.print(f"\t- [bold]{task}[/bold]")
+            console.print()
+
+        console.print("The following task outputs will be removed:")
+        for task_class in sorted(to_be_removed_tasks):
+            console.print(f"\t- [bold]{task_class}[/bold]")
+        console.print()
+
+        confirmed = Confirm.ask("Remove these outputs?")
+    else:
+        confirmed = True
+
+    if not confirmed:
+        console.print("[yellow]No tasks were removed.[/yellow]")
+        raise SystemExit(0)
+
+    removed_tasks = 0
+    for task_class in sorted(to_be_removed_tasks):
+        console.print(f"[bold]{task_class}[/bold]")
+        for task in to_be_removed_tasks[task_class]:
+            console.print(f"\t[green]Removing...[/green] {task}")
+            if hasattr(task, "remove_output"):
+                console.print("\tcall: remove_output()")
+                task.remove_output()
+                removed_tasks += 1
+            else:
+                console.print(f"\t[yellow]No remove_output() implemented for {task_class}.[/yellow]")
+            console.print()
+
+    if removed_tasks:
+        console.print(f"[green]Removed outputs for {removed_tasks} tasks.[/green]")
+    else:
+        console.print("[yellow]No outputs were removed.[/yellow]")
+
+    raise SystemExit(0)
+
+
+def _collect_all_dependents(task, child_to_parents: dict) -> set:
+    """Walk up the DAG from *task* to collect every task that depends on it.
+
+    :param task: The task to start the upward walk from.
+    :param child_to_parents: Mapping of task instance to the set of task
+        instances that directly ``require()`` it.
+    :type child_to_parents: dict
+    :returns: *task* itself plus every task that transitively requires it.
+    :rtype: set
+    """
+    visited: set = set()
+    stack = [task]
+    while stack:
+        current = stack.pop()
+        if current in visited:
+            continue
+        visited.add(current)
+        stack.extend(child_to_parents.get(current, []))
+    return visited
+
+
+def legacy_remove_outputs(task_list, target_tasks, only=False, auto_confirm=False, keep_tasks=None):
+    """Remove the outputs of specified tasks (legacy ``python tasks.py --remove`` path).
+
+    Backs the legacy ``--remove``/``--remove-only`` CLI flags parsed by
+    :func:`~b2luigi.cli.arguments.get_cli_arguments`, and the ``remove=``/
+    ``remove_only=`` kwargs to :func:`b2luigi.process`, for users who call
+    ``process()`` directly from their own scripts instead of using the new
+    ``b2luigi remove`` CLI (see :func:`remove_outputs`). Kept only for
+    backward compatibility — a candidate for removal in a future major
+    version.
+
+    Unlike :func:`remove_outputs`, ``only`` has real effect here: when
+    ``False`` (the default, matching ``--remove``), removal cascades to
+    every task that transitively depends on (requires, directly or
+    indirectly) each named target task. When ``True`` (``--remove-only``),
+    only the named task(s) are removed.
+
+    :param task_list: A list of root tasks to traverse.
+    :type task_list: list
+    :param target_tasks: Task class names whose outputs should be removed.
+    :type target_tasks: list
+    :param only: If ``True``, remove only the named tasks. If ``False``,
+        also remove outputs of every task that depends on them.
+    :type only: bool
+    :param auto_confirm: If ``True``, skip confirmation prompt.
+    :type auto_confirm: bool
+    :param keep_tasks: List of task class names to KEEP outputs for.
+    :type keep_tasks: list | None
+    """
+    all_tasks: set = set()
+    task_by_class: collections.defaultdict = collections.defaultdict(set)
+    child_to_parents: collections.defaultdict = collections.defaultdict(set)
+
+    def visit(task):
+        if task in all_tasks:
+            return
+        all_tasks.add(task)
+        task_by_class[task.__class__.__name__].add(task)
+        try:
+            children = luigi.task.flatten(task.requires())
+        except Exception as e:
+            console.print(f"[red]Failed to get requires() for {task}: {e}[/red]")
+            children = []
+        for child in children:
+            child_to_parents[child].add(task)
+            visit(child)
+
+    for root in task_list:
+        visit(root)
+
+    to_be_removed_tasks: collections.defaultdict = collections.defaultdict(set)
+    matched_target_tasks: set = set()
+
+    if only:
+        for target_class in target_tasks:
+            matched = task_by_class.get(target_class, set())
+            if matched:
+                matched_target_tasks.add(target_class)
+                to_be_removed_tasks[target_class].update(matched)
+    else:
+        for target_class in target_tasks:
+            matched = task_by_class.get(target_class, set())
+            if matched:
+                matched_target_tasks.add(target_class)
+                for task in matched:
+                    for dependent in _collect_all_dependents(task, child_to_parents):
+                        to_be_removed_tasks[dependent.__class__.__name__].add(dependent)
 
     if keep_tasks:
         keep_tasks = set(keep_tasks)
