@@ -48,6 +48,10 @@ def batch_runner(
         bool,
         typer.Option("--force", help="Always re-run even if output exists (test mode)."),
     ] = False,
+    literal_path: Annotated[
+        bool,
+        typer.Option("--literal-path", help="Write -o to the literal path given (test mode)."),
+    ] = False,
     extra_arg: Annotated[
         Optional[List[str]],
         typer.Option(
@@ -74,6 +78,7 @@ def batch_runner(
     :param output_file: Output filename key passed to :meth:`add_to_output` (test mode).
     :param input_file: Optional input filename key (test mode).
     :param force: When ``True``, omit ``output()`` so the task always runs (test mode).
+    :param literal_path: When True, -o writes to the literal path given (test mode).
     :param extra_arg: Extra CLI arguments forwarded verbatim to the script subprocess (test mode).
     """
     if script is not None:
@@ -86,6 +91,7 @@ def batch_runner(
             force=force,
             batch=False,  # worker node always runs locally; must never re-batch
             extra_args=extra_arg or [],
+            literal_path=literal_path,
         )
         process_task_instance(FastTask(), batch_runner=True)
     elif classname is not None:

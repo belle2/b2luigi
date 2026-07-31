@@ -60,12 +60,14 @@ def _build_fast_task(
     batch: bool,
     extra_args: list[str],
     env_script: str | None = None,
+    literal_path: bool = False,
 ) -> type:
     """Build the main task class that runs *exec_script* as a subprocess.
 
     The script is invoked as ``python <exec_script> [extra_args] -o <output_path>``
-    where *output_path* is the full b2luigi-resolved path (under ``result_dir``).
-    When *input_file* is set, ``-i <input_path>`` is appended.
+    where *output_path* is the full b2luigi-resolved path (under ``result_dir``,
+    unless *literal_path* is ``True``). When *input_file* is set, ``-i <input_path>``
+    is appended (always the literal path, exactly as *input_file* was given).
 
     When *force* is ``False`` the class declares ``output()``, so Luigi skips
     the task when the output already exists.  When *force* is ``True`` no
@@ -75,7 +77,8 @@ def _build_fast_task(
         absolute path at build time so batch workers whose working directory
         differs from the submission host's can still find it.
     :type exec_script: str
-    :param output: Output filename key (passed to :meth:`add_to_output`).
+    :param output: Output filename key (passed to :meth:`add_to_output`, unless
+        *literal_path* is ``True``).
     :type output: str
     :param input_file: Optional input filename key; if set, the full resolved
         path is forwarded to the script as ``-i``.
@@ -93,19 +96,32 @@ def _build_fast_task(
         never forwarded to the batch worker, since the worker inherits the already-sourced
         environment from the submission-host wrapper.
     :type env_script: str | None
+    :param literal_path: When ``True``, ``-o``'s target is the literal *output*
+        path (resolved to absolute, exactly like *input_file* is already handled),
+        bypassing :meth:`~b2luigi.core.task.Task.add_to_output`'s ``result_dir``
+        nesting entirely. Default ``False`` preserves existing behavior. No-op
+        when *force* is ``True`` (no ``output()`` is declared either way).
+    :type literal_path: bool
     :returns: A dynamically created ``b2luigi.Task`` subclass.
     :rtype: type
 
     The generated class also carries a ``task_cmd_additional_args`` class attribute
     encoding all constructor arguments as ``--script``/``--output-file``/``--input-file``/
-    ``--force``/``--extra-arg`` flags.  :func:`b2luigi.core.utils.create_cmd_from_task`
+    ``--force``/``--extra-arg``/``--literal-path`` flags.  :func:`b2luigi.core.utils.create_cmd_from_task`
     appends these to the batch worker command so that ``batch-runner`` can reconstruct
     the task without importing it.
     """
     exec_script = os.path.abspath(exec_script)
+    abs_output = os.path.abspath(output)
 
     def _run(self):
-        output_path = self._get_output_file_target(output).path
+        # force=True declares no output(), so fall back to _get_output_file_target's
+        # independent (result_dir-based) path reconstruction in that case. literal_path
+        # is handled directly here since it never goes through that reconstruction.
+        if literal_path:
+            output_path = abs_output
+        else:
+            output_path = self._get_output_file_target(output).path
         cmd = [sys.executable, exec_script] + extra_args + ["-o", output_path]
         if input_file is not None:
             cmd += ["-i", self.get_input_file_name(input_file)]
@@ -122,6 +138,7 @@ def _build_fast_task(
             ["--script", exec_script, "--output-file", output]
             + (["--input-file", input_file] if input_file is not None else [])
             + (["--force"] if force else [])
+            + (["--literal-path"] if literal_path else [])
             + [arg for e in extra_args for arg in ("--extra-arg", e)]
         ),
     }
@@ -132,7 +149,10 @@ def _build_fast_task(
     if not force:
 
         def _output(self):
-            yield self.add_to_output(output)
+            if literal_path:
+                yield {output: b2luigi.LocalTarget(abs_output)}
+            else:
+                yield self.add_to_output(output)
 
         attrs["output"] = _output
 
@@ -148,6 +168,7 @@ def test_task(
     extra_args: list[str],
     env_script: str | None = None,
     settings: list[str] | None = None,
+    literal_path: bool = False,
 ) -> None:
     """Run a one-off b2luigi task that executes *exec_script* as a subprocess.
 
@@ -193,13 +214,15 @@ def test_task(
         class attributes on ``FastTask``, which :func:`~b2luigi.core.settings.get_setting`
         checks before global settings.
     :type settings: list[str] | None
+    :param literal_path: Forwarded to :func:`_build_fast_task`. See there for details.
+    :type literal_path: bool
     :raises SystemExit: With exit code 1 when any task in the build fails.
     """
     for key, value in parse_kv_params(settings or []).items():
         set_setting(key, value)
 
     set_setting("__batch_runner_use_cli", True)
-    FastTask = _build_fast_task(exec_script, output, input_file, force, batch, extra_args, env_script)
+    FastTask = _build_fast_task(exec_script, output, input_file, force, batch, extra_args, env_script, literal_path)
     if input_file is not None:
         FastReqTask = _build_fast_req_task(input_file)
         FastTask = b2luigi.requires(FastReqTask)(FastTask)
