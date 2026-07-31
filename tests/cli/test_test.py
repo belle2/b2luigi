@@ -6,7 +6,9 @@ import shutil
 import tempfile
 from unittest import TestCase
 
-from b2luigi.cli.runner import _build_fast_task, test_task
+import b2luigi
+
+from b2luigi.cli.runner import _build_fast_task, _build_fast_req_task, test_task
 from b2luigi.core.executable import create_executable_wrapper
 from b2luigi.core.settings import get_setting, set_setting, with_new_settings
 from b2luigi.core.utils import create_cmd_from_task
@@ -353,3 +355,55 @@ class TestTestEnvScriptFlag(CLITestCase):
             ["-s", "cli_test_script.py", "-o", "result.txt", "--env-script", "/nonexistent/env.sh"],
         )
         self.assertEqual(rc, 0, stderr)
+
+
+class TestFastReqTaskTargetResolution(TestCase):
+    """Unit tests for _build_fast_req_task's output target resolution."""
+
+    def setUp(self) -> None:
+        self.tmp_dir = tempfile.mkdtemp()
+        self._old_cwd = os.getcwd()
+        os.chdir(self.tmp_dir)
+
+    def tearDown(self) -> None:
+        os.chdir(self._old_cwd)
+        shutil.rmtree(self.tmp_dir)
+
+    def test_output_target_is_literal_path_not_result_dir_nested(self) -> None:
+        """The FastReqTask output target must point at the literal input path, not result_dir/input.txt."""
+        with with_new_settings():
+            set_setting("result_dir", "results")
+            FastReqTask = _build_fast_req_task("input.txt")
+            outputs = list(FastReqTask().output())
+            self.assertEqual(len(outputs), 1)
+            target = outputs[0]["input.txt"]
+            self.assertEqual(target.path, os.path.abspath("input.txt"))
+
+    def test_is_external_task_subclass(self) -> None:
+        """FastReqTask must be an ExternalTask (no-op run(), completeness from output().exists() alone)."""
+        FastReqTask = _build_fast_req_task("input.txt")
+        self.assertTrue(issubclass(FastReqTask, b2luigi.ExternalTask))
+
+
+class TestTestInputFlag(CLITestCase):
+    """Integration tests for the -i/--input flag."""
+
+    def setUp(self) -> None:
+        super().setUp()
+        shutil.copy(
+            os.path.join(FIXTURE_DIR, "cli_test_script_echo_args.py"),
+            os.path.join(self.tmp_dir, "cli_test_script_echo_args.py"),
+        )
+        pathlib.Path(self.tmp_dir, "input.txt").write_text("hello from input")
+
+    def test_input_flag_with_preexisting_file_succeeds(self) -> None:
+        """A real pre-existing input file at a literal (non-result_dir) path is found and used."""
+        rc, _, stderr = self._run_cli(
+            "test",
+            ["-s", "cli_test_script_echo_args.py", "-o", "result.txt", "-i", "input.txt"],
+        )
+        self.assertEqual(rc, 0, stderr)
+        result_path = os.path.join(self.tmp_dir, "result.txt")
+        self.assertTrue(os.path.exists(result_path))
+        written = pathlib.Path(result_path).read_text()
+        self.assertIn("input.txt", written)

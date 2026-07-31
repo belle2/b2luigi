@@ -26,25 +26,30 @@ console = Console()
 
 
 def _build_fast_req_task(input_file: str) -> type:
-    """Build a prerequisite task class whose sole output is *input_file*.
+    """Build a prerequisite task class asserting that *input_file* already exists.
 
-    The returned ``FastReqTask`` class has a no-op ``run()`` and declares
-    *input_file* as its b2luigi output target.  Luigi uses it to check that
-    the input file is present before executing the dependent ``FastTask``.
+    The returned ``FastReqTask`` subclasses :class:`b2luigi.ExternalTask`
+    (no-op ``run()``, completeness determined solely by ``output().exists()``)
+    and declares its target directly at the literal *input_file* path —
+    resolved to an absolute path at build time, exactly like ``exec_script``
+    in :func:`_build_fast_task` — rather than routing through
+    :meth:`~b2luigi.core.task.Task.add_to_output`, which would incorrectly
+    nest the resolved path under ``result_dir``.
 
-    :param input_file: Output filename registered on the prerequisite task.
+    :param input_file: Path to the pre-existing input file, as passed to
+        ``b2luigi test -i``. Used verbatim as the output dict key so
+        :meth:`~b2luigi.core.task.Task.get_input_file_name` on the dependent
+        ``FastTask`` can look it up unchanged.
     :type input_file: str
-    :returns: A dynamically created ``b2luigi.Task`` subclass.
+    :returns: A dynamically created :class:`b2luigi.ExternalTask` subclass.
     :rtype: type
     """
+    abs_input_file = os.path.abspath(input_file)
 
     def _output(self):
-        yield self.add_to_output(input_file)
+        yield {input_file: b2luigi.LocalTarget(abs_input_file)}
 
-    def _run(self):
-        pass
-
-    return type("FastReqTask", (b2luigi.Task,), {"output": _output, "run": _run})
+    return type("FastReqTask", (b2luigi.ExternalTask,), {"output": _output})
 
 
 def _build_fast_task(
