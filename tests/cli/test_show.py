@@ -5,6 +5,8 @@
 """
 
 import os
+import pathlib
+import shutil
 
 from .helpers import CLITestCase
 
@@ -208,3 +210,33 @@ class TestShowRequiredByMultiParent(CLITestCase):
         required_by_line = next((line for line in stdout.splitlines() if "required by:" in line), "")
         self.assertIn("ParentA", required_by_line)
         self.assertIn("ParentB", required_by_line)
+
+
+class TestShowParameterGeneratorGrouping(CLITestCase):
+    """Integration tests for consolidated multi-instance show panels."""
+
+    def setUp(self) -> None:
+        super().setUp()
+        test_dir = os.path.dirname(__file__)
+        shutil.copy(
+            os.path.join(test_dir, "cli_generator_tasks.py"),
+            os.path.join(self.tmp_dir, "tasks.py"),
+        )
+        pathlib.Path(self.tmp_dir, "parameters.py").write_text(
+            "from b2luigi import ParameterGenerator\n" "config = {'value': ParameterGenerator([1, 2, 3])}\n"
+        )
+
+    def test_multiple_instances_render_as_single_panel_with_params_column(self) -> None:
+        """show SimpleTask with 3 ParameterGenerator values renders one panel, not three."""
+        returncode, stdout, stderr = self._run_cli("show", ["SimpleTask"])
+        self.assertEqual(returncode, 0, f"Command failed with stderr: {stderr}")
+        self.assertIn("Params", stdout)
+        for v in (1, 2, 3):
+            self.assertIn(f"value={v}", stdout)
+        self.assertEqual(stdout.count("SimpleTask"), 1)
+
+    def test_single_instance_unaffected(self) -> None:
+        """A --param override pinning the generator to one value stays free of a Params column."""
+        returncode, stdout, stderr = self._run_cli("show", ["SimpleTask", "--param", "value=1"])
+        self.assertEqual(returncode, 0, f"Command failed with stderr: {stderr}")
+        self.assertNotIn("Params", stdout)

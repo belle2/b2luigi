@@ -407,36 +407,62 @@ def _build_parent_map(root_tasks: list) -> dict[str, list[str]]:
 def _render_task_outputs(task_output_pairs, required_by_map: dict[str, list[str]] | None = None) -> None:
     """Render a list of (task, output_dict) pairs using Rich.
 
+    Tasks are grouped by class name. A class resolving to a single task
+    instance renders exactly as before (no ``Params`` column). A class
+    resolving to multiple instances (e.g. via ``ParameterGenerator``) renders
+    as a single panel with an added leftmost ``Params`` column distinguishing
+    each instance's rows, instead of one visually-indistinguishable panel
+    per instance.
+
     :param task_output_pairs: Iterable of ``(task_instance, {key: [{"file_name": ..., "exists": ...}]})``.
     :type task_output_pairs: Iterable[tuple]
     :param required_by_map: Optional mapping of task_id to parent class names,
         produced by :func:`_build_parent_map`. When provided, a ``required by:``
-        subtitle is added to each panel whose task_id appears in the map.
+        subtitle is added to each panel listing the union of immediate parent
+        class names across all instances in the group.
     :type required_by_map: dict[str, list[str]] | None
     """
     from rich.table import Table
     from rich.panel import Panel
 
+    groups: dict[str, list] = {}
     for task, outputs in task_output_pairs:
+        groups.setdefault(task.__class__.__name__, []).append((task, outputs))
+
+    for class_name, pairs in groups.items():
+        multi = len(pairs) > 1
+
         table = Table(show_header=True, header_style="bold", show_lines=False, box=None)
+        if multi:
+            table.add_column("Params", style="dim")
         table.add_column("Output", style="dim")
         table.add_column("Location")
         table.add_column("", justify="center", no_wrap=True)
 
-        for key, entries in outputs.items():
-            for entry in entries:
-                status = "[green]✓[/green]" if entry["exists"] else "[red]✗[/red]"
-                table.add_row(key, entry["file_name"], status)
+        for task, outputs in pairs:
+            params_str = ""
+            if multi:
+                serialized = get_serialized_parameters(task)
+                params_str = ", ".join(f"{k}={v}" for k, v in serialized.items())
+            for key, entries in outputs.items():
+                for entry in entries:
+                    status = "[green]✓[/green]" if entry["exists"] else "[red]✗[/red]"
+                    if multi:
+                        table.add_row(params_str, key, entry["file_name"], status)
+                    else:
+                        table.add_row(key, entry["file_name"], status)
 
         subtitle = None
         if required_by_map is not None:
-            parents = required_by_map.get(task.task_id, [])
-            if parents:
-                subtitle = f"[dim]required by: {', '.join(parents)}[/dim]"
+            parents_seen: list[str] = []
+            for task, _ in pairs:
+                for parent in required_by_map.get(task.task_id, []):
+                    if parent not in parents_seen:
+                        parents_seen.append(parent)
+            if parents_seen:
+                subtitle = f"[dim]required by: {', '.join(parents_seen)}[/dim]"
 
-        console.print(
-            Panel(table, title=f"[bold]{task.__class__.__name__}[/bold]", subtitle=subtitle, border_style="cyan")
-        )
+        console.print(Panel(table, title=f"[bold]{class_name}[/bold]", subtitle=subtitle, border_style="cyan"))
 
 
 def render_graph_tree(task_list: list, show_params: bool = False, show_status: bool = False) -> None:
