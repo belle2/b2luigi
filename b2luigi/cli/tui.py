@@ -428,12 +428,16 @@ class ProgressApp(App):
             if pending_fill:
                 bar_parts.append(f"[dim]{'░' * pending_fill}[/]")
 
+            status_parts = []
+            if failed > 0:
+                status_parts.append(f"[red]{failed} FAILED[/]")
+            if running > 0:
+                status_parts.append(f"[yellow]{running} RUNNING[/]")
+
             if done == total and total > 0:
                 status_str = "[green]DONE[/]"
-            elif failed > 0:
-                status_str = f"[red]{failed} FAILED[/]"
-            elif running > 0:
-                status_str = f"[yellow]{running} RUNNING[/]"
+            elif status_parts:
+                status_str = " ".join(status_parts)
             else:
                 status_str = "[dim]PENDING[/]"
 
