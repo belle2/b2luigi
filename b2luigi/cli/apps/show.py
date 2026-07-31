@@ -60,6 +60,7 @@ def show_task(
     params: list[str] | None = None,
     direct: bool = False,
     with_requirements: bool = False,
+    details: bool = False,
 ) -> None:
     """Show output files of task(s).
 
@@ -73,6 +74,9 @@ def show_task(
     :param direct: If ``True``, skip graph traversal (expert mode for large graphs).
     :param with_requirements: If ``True``, also show outputs of all tasks that the specified tasks require.
     :type with_requirements: bool
+    :param details: If ``True``, show the ``Output`` key-name column (and, for
+        multi-instance tasks, the ``Params`` column). Hidden by default.
+    :type details: bool
     """
     d = resolve_defaults(task_filename, parameter_filename)
     available = {cls.__name__: cls for cls in get_task_classes(d.task_file)}
@@ -96,7 +100,7 @@ def show_task(
         return result
 
     if names is None:
-        runner.show_all_outputs(get_root_tasks(_all_instantiatable(available.values())))
+        runner.show_all_outputs(get_root_tasks(_all_instantiatable(available.values())), details=details)
         return
 
     validate_classnames(names, available)
@@ -117,9 +121,9 @@ def show_task(
 
     if not unresolvable:
         if with_requirements:
-            runner.show_all_outputs(direct_instances, show_required_by=True)
+            runner.show_all_outputs(direct_instances, show_required_by=True, details=details)
         else:
-            runner.show_task_outputs(direct_instances)
+            runner.show_task_outputs(direct_instances, details=details)
         return
 
     if effective_direct:
@@ -132,9 +136,9 @@ def show_task(
         get_root_tasks(_all_instantiatable(available.values())),
     )
     if with_requirements:
-        runner.show_all_outputs(found, show_required_by=True)
+        runner.show_all_outputs(found, show_required_by=True, details=details)
     else:
-        runner.show_task_outputs(found)
+        runner.show_task_outputs(found, details=details)
 
 
 @show_app.callback(invoke_without_command=True)
@@ -174,6 +178,14 @@ def show(
             help="Also show outputs of all tasks that the specified task(s) require. Requires positional task name(s).",
         ),
     ] = False,
+    details: Annotated[
+        bool,
+        typer.Option(
+            "--details",
+            help="Show the Output key-name column, and (for tasks resolving to multiple parameter "
+            "combinations) the Params column. Both are hidden by default.",
+        ),
+    ] = False,
 ) -> None:
     """Show output files of task(s).
 
@@ -188,6 +200,8 @@ def show(
     :param direct: If ``True``, skip graph traversal (expert mode for large graphs).
     :param with_requirements: If ``True``, also show the full requirement tree of the specified tasks.
     :type with_requirements: bool
+    :param details: If ``True``, show the Output key-name column and the Params column. Hidden by default.
+    :type details: bool
     """
     if ctx.invoked_subcommand is not None:
         return
@@ -198,4 +212,5 @@ def show(
         params=params,
         direct=direct,
         with_requirements=with_requirements,
+        details=details,
     )

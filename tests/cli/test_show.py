@@ -30,7 +30,7 @@ class TestShow(CLITestCase):
         returncode, stdout, stderr = self._run_cli("show", ["LeafTask"])
         self.assertEqual(returncode, 0, f"Command failed with stderr: {stderr}")
         self.assertIn("LeafTask", stdout)
-        self.assertTrue("split" in stdout.lower() or "output" in stdout.lower())
+        self.assertIn("Location", stdout)
 
     def test_show_multiple_named_tasks(self) -> None:
         """Verify that ``b2luigi show LeafTask RootTask`` renders both tasks."""
@@ -226,17 +226,60 @@ class TestShowParameterGeneratorGrouping(CLITestCase):
             "from b2luigi import ParameterGenerator\n" "config = {'value': ParameterGenerator([1, 2, 3])}\n"
         )
 
-    def test_multiple_instances_render_as_single_panel_with_params_column(self) -> None:
+    def test_multiple_instances_render_as_single_panel(self) -> None:
         """show SimpleTask with 3 ParameterGenerator values renders one panel, not three."""
         returncode, stdout, stderr = self._run_cli("show", ["SimpleTask"])
+        self.assertEqual(returncode, 0, f"Command failed with stderr: {stderr}")
+        self.assertEqual(stdout.count("SimpleTask"), 1)
+
+    def test_multiple_instances_hide_params_column_by_default(self) -> None:
+        """Without --details, the Params column must not appear even for multi-instance tasks."""
+        returncode, stdout, stderr = self._run_cli("show", ["SimpleTask"])
+        self.assertEqual(returncode, 0, f"Command failed with stderr: {stderr}")
+        self.assertNotIn("Params", stdout)
+
+    def test_multiple_instances_with_details_shows_params_column(self) -> None:
+        """--details restores the Params column (and its values) for multi-instance tasks."""
+        returncode, stdout, stderr = self._run_cli("show", ["SimpleTask", "--details"])
         self.assertEqual(returncode, 0, f"Command failed with stderr: {stderr}")
         self.assertIn("Params", stdout)
         for v in (1, 2, 3):
             self.assertIn(f"value={v}", stdout)
-        self.assertEqual(stdout.count("SimpleTask"), 1)
 
-    def test_single_instance_unaffected(self) -> None:
-        """A --param override pinning the generator to one value stays free of a Params column."""
-        returncode, stdout, stderr = self._run_cli("show", ["SimpleTask", "--param", "value=1"])
+    def test_single_instance_with_details_omits_params_column(self) -> None:
+        """A --param override pinning the generator to one value stays free of Params even with --details."""
+        returncode, stdout, stderr = self._run_cli("show", ["SimpleTask", "--param", "value=1", "--details"])
         self.assertEqual(returncode, 0, f"Command failed with stderr: {stderr}")
         self.assertNotIn("Params", stdout)
+
+
+class TestShowDetailsFlag(CLITestCase):
+    """Integration tests for the --details flag gating Params/Output columns."""
+
+    def setUp(self) -> None:
+        super().setUp()
+        self._setup_project_files()
+
+    def test_default_hides_output_column(self) -> None:
+        """Without --details, the Output key-name column must not be rendered."""
+        returncode, stdout, stderr = self._run_cli("show", ["LeafTask"])
+        self.assertEqual(returncode, 0, f"Command failed with stderr: {stderr}")
+        self.assertNotIn("Output", stdout)
+
+    def test_details_flag_shows_output_column(self) -> None:
+        """--details must render the Output key-name column."""
+        returncode, stdout, stderr = self._run_cli("show", ["LeafTask", "--details"])
+        self.assertEqual(returncode, 0, f"Command failed with stderr: {stderr}")
+        self.assertIn("Output", stdout)
+
+    def test_details_flag_works_on_full_tree(self) -> None:
+        """--details with no task name (full tree) also renders the Output column."""
+        returncode, stdout, stderr = self._run_cli("show", ["--details"])
+        self.assertEqual(returncode, 0, f"Command failed with stderr: {stderr}")
+        self.assertIn("Output", stdout)
+
+    def test_details_flag_works_with_requirements(self) -> None:
+        """--details combined with --with-requirements still renders the Output column."""
+        returncode, stdout, stderr = self._run_cli("show", ["RootTask", "--with-requirements", "--details"])
+        self.assertEqual(returncode, 0, f"Command failed with stderr: {stderr}")
+        self.assertIn("Output", stdout)

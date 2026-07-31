@@ -410,15 +410,16 @@ def _build_parent_map(root_tasks: list) -> dict[str, list[str]]:
     return parent_map
 
 
-def _render_task_outputs(task_output_pairs, required_by_map: dict[str, list[str]] | None = None) -> None:
+def _render_task_outputs(
+    task_output_pairs, required_by_map: dict[str, list[str]] | None = None, details: bool = False
+) -> None:
     """Render a list of (task, output_dict) pairs using Rich.
 
-    Tasks are grouped by class name. A class resolving to a single task
-    instance renders exactly as before (no ``Params`` column). A class
-    resolving to multiple instances (e.g. via ``ParameterGenerator``) renders
-    as a single panel with an added leftmost ``Params`` column distinguishing
-    each instance's rows, instead of one visually-indistinguishable panel
-    per instance.
+    Tasks are grouped by class name. By default only the ``Location`` and
+    status columns are shown. Pass ``details=True`` to also show the
+    ``Output`` key-name column, and (for classes resolving to more than one
+    task instance, e.g. via ``ParameterGenerator``) a leftmost ``Params``
+    column distinguishing each instance's rows.
 
     :param task_output_pairs: Iterable of ``(task_instance, {key: [{"file_name": ..., "exists": ...}]})``.
     :type task_output_pairs: Iterable[tuple]
@@ -427,6 +428,10 @@ def _render_task_outputs(task_output_pairs, required_by_map: dict[str, list[str]
         subtitle is added to each panel listing the union of immediate parent
         class names across all instances in the group.
     :type required_by_map: dict[str, list[str]] | None
+    :param details: If ``True``, show the ``Output`` key-name column, and (for
+        multi-instance classes) the ``Params`` column. Both are hidden by
+        default to keep the common case terse.
+    :type details: bool
     """
     from rich.table import Table
     from rich.panel import Panel
@@ -437,26 +442,31 @@ def _render_task_outputs(task_output_pairs, required_by_map: dict[str, list[str]
 
     for class_name, pairs in groups.items():
         multi = len(pairs) > 1
+        show_params = details and multi
 
         table = Table(show_header=True, header_style="bold", show_lines=False, box=None)
-        if multi:
+        if show_params:
             table.add_column("Params", style="dim")
-        table.add_column("Output", style="dim")
+        if details:
+            table.add_column("Output", style="dim")
         table.add_column("Location")
         table.add_column("", justify="center", no_wrap=True)
 
         for task, outputs in pairs:
             params_str = ""
-            if multi:
+            if show_params:
                 serialized = get_serialized_parameters(task)
                 params_str = ", ".join(f"{k}={v}" for k, v in serialized.items())
             for key, entries in outputs.items():
                 for entry in entries:
                     status = "[green]✓[/green]" if entry["exists"] else "[red]✗[/red]"
-                    if multi:
-                        table.add_row(params_str, key, entry["file_name"], status)
-                    else:
-                        table.add_row(key, entry["file_name"], status)
+                    row = []
+                    if show_params:
+                        row.append(params_str)
+                    if details:
+                        row.append(key)
+                    row += [entry["file_name"], status]
+                    table.add_row(*row)
 
         subtitle = None
         if required_by_map is not None:
@@ -587,16 +597,19 @@ def render_graph_dot(task_list: list, show_params: bool = False, show_status: bo
     print("}")
 
 
-def show_task_outputs(task_list: list) -> None:
+def show_task_outputs(task_list: list, details: bool = False) -> None:
     """Show output files for the given tasks only — no dependency-tree traversal.
 
     :param task_list: Task instances whose outputs should be displayed.
     :type task_list: list
+    :param details: If ``True``, show the ``Output`` key-name column (and, for
+        multi-instance classes, the ``Params`` column). Hidden by default.
+    :type details: bool
     """
-    _render_task_outputs((task, get_task_outputs(task)) for task in task_list)
+    _render_task_outputs(((task, get_task_outputs(task)) for task in task_list), details=details)
 
 
-def show_all_outputs(task_list: list, show_required_by: bool = False) -> None:
+def show_all_outputs(task_list: list, show_required_by: bool = False, details: bool = False) -> None:
     """Show output files for all tasks in the dependency trees rooted at ``task_list``.
 
     :param task_list: Root task instances; the full dependency tree is traversed.
@@ -604,6 +617,9 @@ def show_all_outputs(task_list: list, show_required_by: bool = False) -> None:
     :param show_required_by: If ``True``, annotate each requirement panel with
         a ``required by:`` subtitle listing immediate parent class names.
     :type show_required_by: bool
+    :param details: If ``True``, show the ``Output`` key-name column (and, for
+        multi-instance classes, the ``Params`` column). Hidden by default.
+    :type details: bool
     """
     parent_map = _build_parent_map(task_list) if show_required_by else None
     seen = set()
@@ -614,7 +630,7 @@ def show_all_outputs(task_list: list, show_required_by: bool = False) -> None:
                 continue
             seen.add(task.task_id)
             pairs.append((task, get_task_outputs(task)))
-    _render_task_outputs(pairs, required_by_map=parent_map)
+    _render_task_outputs(pairs, required_by_map=parent_map, details=details)
 
 
 def dry_run(task_list):
