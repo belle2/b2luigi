@@ -142,6 +142,10 @@ def run(
             "--scheduler-port", help="Port of a central luigi scheduler to connect to (instead of running locally)"
         ),
     ] = None,
+    workers: Annotated[
+        Optional[int],
+        typer.Option("--workers", help="Number of parallel luigi workers to use. Overrides the 'workers' setting."),
+    ] = None,
 ) -> None:
     """Run a task class from tasks.py.
 
@@ -153,11 +157,15 @@ def run(
     :param batch: If ``True``, submit to the configured batch system.
     :param scheduler_host: Host of a central Luigi scheduler.
     :param scheduler_port: Port of a central Luigi scheduler.
+    :param workers: Number of parallel luigi workers to use, or None to fall back to the 'workers' setting (default 1).
     """
     d = resolve_defaults(task_filename, parameter_filename)
     available = {cls.__name__: cls for cls in get_task_classes(d.task_file)}
     validate_classnames([classname], available, hint_cmd="b2luigi tasks")
     overrides = parse_kv_params(params or [])
+    extra_kwargs: dict[str, Any] = {}
+    if workers is not None:
+        extra_kwargs["workers"] = workers
     run_task(
         class_name=classname,
         task_filename=d.task_file,
@@ -167,4 +175,5 @@ def run(
         batch=batch,
         scheduler_host=scheduler_host,
         scheduler_port=scheduler_port,
+        **extra_kwargs,
     )

@@ -13,7 +13,7 @@ from rich.prompt import Confirm
 
 from b2luigi.batch.workers import SendJobWorkerSchedulerFactory
 from b2luigi.cli.utils import parse_kv_params
-from b2luigi.core.settings import set_setting
+from b2luigi.core.settings import get_setting, set_setting
 from b2luigi.core.utils import (
     create_output_dirs,
     flatten_to_dict,
@@ -314,8 +314,8 @@ def run_luigi(task_list: list, kwargs: dict):
     :param task_list: A list of task instances to be executed.
     :type task_list: list
     :param kwargs: Additional keyword arguments to configure :obj:`luigi.build`.
-        Supported keys: ``scheduler_host``, ``scheduler_port``, and any argument
-        accepted by :func:`luigi.build`.
+        Supported keys: ``scheduler_host``, ``scheduler_port``, ``workers``, and any
+        argument accepted by :func:`luigi.build`.
     :type kwargs: dict
     :returns: ``True`` if all tasks completed successfully, ``False`` otherwise.
     :rtype: bool
@@ -333,6 +333,7 @@ def run_luigi(task_list: list, kwargs: dict):
 
     kwargs["worker_scheduler_factory"] = SendJobWorkerSchedulerFactory()
 
+    kwargs.setdefault("workers", get_setting("workers", default=1))
     kwargs.setdefault("log_level", "INFO")
     return luigi.build(task_list, **kwargs)
 

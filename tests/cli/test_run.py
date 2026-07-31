@@ -6,6 +6,11 @@
 
 import os
 import shutil
+from unittest import TestCase
+from unittest.mock import patch
+
+from b2luigi.cli.runner import run_luigi
+from b2luigi.core.settings import set_setting, with_new_settings
 
 from .helpers import CLITestCase
 
@@ -69,3 +74,43 @@ class TestRunWithoutParametersFile(CLITestCase):
         # May fail due to missing parameter (split is required) but must NOT
         # fail with "parameters.py not found"
         self.assertNotIn("parameters.py' not found", stdout + stderr)
+
+
+class TestRunLuigiWorkersSetting(TestCase):
+    """Unit tests for run_luigi's workers-setting fallback."""
+
+    def test_workers_setting_used_as_default(self) -> None:
+        """A globally-set 'workers' setting is forwarded to luigi.build when no explicit kwarg is given."""
+        with with_new_settings():
+            set_setting("workers", 5)
+            with patch("b2luigi.cli.runner.luigi.build", return_value=True) as mock_build:
+                run_luigi([], {})
+            self.assertEqual(mock_build.call_args.kwargs["workers"], 5)
+
+    def test_explicit_workers_kwarg_overrides_setting(self) -> None:
+        """An explicit workers= kwarg takes precedence over the 'workers' setting."""
+        with with_new_settings():
+            set_setting("workers", 5)
+            with patch("b2luigi.cli.runner.luigi.build", return_value=True) as mock_build:
+                run_luigi([], {"workers": 9})
+            self.assertEqual(mock_build.call_args.kwargs["workers"], 9)
+
+    def test_default_workers_is_one_without_setting(self) -> None:
+        """With no setting and no explicit kwarg, luigi.build still receives workers=1 explicitly."""
+        with with_new_settings():
+            with patch("b2luigi.cli.runner.luigi.build", return_value=True) as mock_build:
+                run_luigi([], {})
+            self.assertEqual(mock_build.call_args.kwargs["workers"], 1)
+
+
+class TestRunWorkersFlag(CLITestCase):
+    """Integration test for the --workers CLI flag."""
+
+    def setUp(self) -> None:
+        super().setUp()
+        self._setup_project_files()
+
+    def test_run_with_workers_flag(self) -> None:
+        """Verify that `b2luigi run LeafTask --workers 2 --dry` is accepted without error."""
+        returncode, stdout, stderr = self._run_cli("run", ["LeafTask", "--workers", "2", "--dry"])
+        self.assertIn(returncode, (0, 256), f"Unexpected exit code: {returncode}, stderr: {stderr}")
