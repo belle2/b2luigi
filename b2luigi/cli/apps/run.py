@@ -33,6 +33,16 @@ def _make_wrapper_task(task_class: type, param_dicts: list[dict[str, Any]]) -> b
     :type param_dicts: list[dict[str, Any]]
     :returns: An instance of the dynamically-created wrapper task.
     :rtype: b2luigi.WrapperTask
+
+    The wrapper is forced to ``batch_system = "local"`` since it exists only
+    as an in-memory ``type()``-created class, never importable from
+    ``tasks.py``. Under ``run --batch`` a global (non-``local``) batch system
+    setting would otherwise submit the wrapper itself as a batch job, and the
+    worker's ``--classname`` reconstruction would fail since the class cannot
+    be found in any module. It does no real work (only aggregates
+    ``requires()``), so running it in-process is always correct; the actual
+    per-combination task instances are real, importable classes and are
+    submitted to the batch system individually as normal.
     """
 
     def requires(self) -> list[b2luigi.Task]:
@@ -41,7 +51,7 @@ def _make_wrapper_task(task_class: type, param_dicts: list[dict[str, Any]]) -> b
     wrapper_cls = type(
         f"{task_class.__name__}Wrapper",
         (b2luigi.WrapperTask,),
-        {"requires": requires},
+        {"requires": requires, "batch_system": "local"},
     )
     return wrapper_cls()
 

@@ -5,6 +5,7 @@
 """
 
 import os
+import pathlib
 import shutil
 from unittest import TestCase
 from unittest.mock import patch
@@ -114,3 +115,42 @@ class TestRunWorkersFlag(CLITestCase):
         """Verify that `b2luigi run LeafTask --workers 2 --dry` is accepted without error."""
         returncode, stdout, stderr = self._run_cli("run", ["LeafTask", "--workers", "2", "--dry"])
         self.assertIn(returncode, (0, 256), f"Unexpected exit code: {returncode}, stderr: {stderr}")
+
+
+class TestRunBatchWithParameterGenerator(CLITestCase):
+    """Integration test for `run --batch` when parameters.py expands via ParameterGenerator.
+
+    Multiple combinations make ``run_task`` wrap the real task in a dynamically-created
+    ``WrapperTask`` (via ``_make_wrapper_task``). That wrapper is never importable by
+    name from ``tasks.py``, so it must always execute in-process even under --batch,
+    or the batch worker crashes trying to reconstruct it by classname.
+    """
+
+    def setUp(self) -> None:
+        super().setUp()
+        test_dir = os.path.dirname(__file__)
+        shutil.copy(
+            os.path.join(test_dir, "cli_generator_tasks.py"),
+            os.path.join(self.tmp_dir, "tasks.py"),
+        )
+        pathlib.Path(self.tmp_dir, "parameters.py").write_text(
+            "from b2luigi import ParameterGenerator\n" "config = {'value': ParameterGenerator([1, 2])}\n"
+        )
+        pathlib.Path(self.tmp_dir, "settings.json").write_text('{"batch_system": "test"}')
+
+    def test_wrapper_task_runs_in_process_not_as_batch_job(self) -> None:
+        """The dynamic WrapperTask must not be submitted as its own batch job.
+
+        Note: the CLI's exit code is not a reliable signal here — `run --batch`
+        does not currently propagate luigi build failures to the process exit
+        code (a separate, pre-existing gap, out of scope for this test). The
+        bug under test instead surfaces as a "Failed task ...Wrapper" block in
+        stdout and a missing output file.
+        """
+        returncode, stdout, stderr = self._run_cli("run", ["SimpleTask", "--batch"])
+        combined = stdout + stderr
+        self.assertNotIn("not found in", combined)
+        self.assertNotIn("Failed task SimpleTaskWrapper", combined)
+        self.assertIn("looks :)", combined)
+        self.assertTrue(os.path.exists(os.path.join(self.tmp_dir, "output_1.txt")))
+        self.assertTrue(os.path.exists(os.path.join(self.tmp_dir, "output_2.txt")))
