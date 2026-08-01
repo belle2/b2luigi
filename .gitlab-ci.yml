@@ -12,7 +12,7 @@ variables:
   GITLAB_BELLE2_TOOLS_B2SETUP: "/cvmfs/belle.cern.ch/tools/b2setup"
   FLIT_INDEX_URL: "https://upload.pypi.org/legacy/"
   FLIT_USERNAME: __token__
-  BASF2_RELEASE_VERSION: "light-2604-jellyfish"
+  BASF2_RELEASE_VERSION: "light-2409-toyger"
 
 workflow:
   rules:
