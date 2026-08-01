@@ -282,6 +282,37 @@ class MapFolderTestCase(TestCase):
         self.assertTrue(message.startswith("Could not determine the current script location."))
 
 
+class GetFilenameTestCase(TestCase):
+    """
+    Tests for ``get_filename``'s resolution of the task-definitions file,
+    in particular its handling of ``python -m <package>`` invocations.
+    """
+
+    def test_direct_script_execution_returns_main_file(self):
+        """
+        When Python is invoked directly on a script (``python tasks.py``),
+        ``__main__.__spec__`` is ``None`` and ``__main__.__file__`` is the
+        script itself; ``get_filename`` should return that script path.
+        """
+        with mock.patch("__main__.__file__", "/some/project/tasks.py"), mock.patch("__main__.__spec__", None):
+            self.assertEqual(utils.get_filename(), "/some/project/tasks.py")
+
+    def test_module_invocation_with_py_main_file_falls_back_to_cwd(self):
+        """
+        When Python is invoked via ``-m`` on some package that happens to have
+        a ``__main__.py`` (e.g. ``python -m b2luigi`` or ``python -m pytest``),
+        ``__main__.__file__`` points at *that package's* ``__main__.py``
+        (which ends in ``.py``) rather than the user's task file.
+        ``get_filename`` must not mistake this for direct script execution;
+        it should fall back to the ``cwd``-based ``tasks.py`` placeholder
+        instead of returning the package's own ``__main__.py``.
+        """
+        with mock.patch("__main__.__file__", "/some/site-packages/some_package/__main__.py"), mock.patch(
+            "__main__.__spec__", mock.MagicMock(name="some_package.__main__")
+        ):
+            self.assertEqual(utils.get_filename(), os.path.join(os.path.abspath(os.getcwd()), "tasks.py"))
+
+
 class TaskIteratorTestCase(TestCase):
     def test_task_iterator_unique_tasks(self):
         """

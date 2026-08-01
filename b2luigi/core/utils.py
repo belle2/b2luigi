@@ -418,12 +418,18 @@ def get_filename():
         return os.path.abspath(task_file)
 
     # 2. Direct script execution: python tasks.py
+    #    ``__main__.__spec__`` is None only for a plain ``python script.py`` run;
+    #    ``python -m <package>`` invocations (e.g. ``python -m b2luigi`` or
+    #    ``python -m pytest``) set it to a ModuleSpec even though the resolved
+    #    ``__main__.__file__`` also ends in ``.py`` (the package's own
+    #    __main__.py), so that case must fall through to the cwd-based
+    #    fallback below rather than being mistaken for the user's task file.
     main_file = getattr(__main__, "__file__", None)
     if main_file is None:
         raise AttributeError("module '__main__' has no attribute '__file__'")
 
     abs_main = os.path.abspath(main_file)
-    if abs_main.endswith(".py"):
+    if abs_main.endswith(".py") and getattr(__main__, "__spec__", None) is None:
         return abs_main
 
     # 3. CLI binary invocation (b2luigi run …): the binary has no .py extension.
