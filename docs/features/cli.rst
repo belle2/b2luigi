@@ -316,3 +316,8 @@ flags, the equivalent ``b2luigi`` commands are:
 
 The legacy flags are still supported when calling ``b2luigi.process()``
 directly in a script.  See :ref:`run-modes-label` for the full reference.
+
+For a full worked walkthrough of moving an existing project over — what
+carries over unchanged, how to adopt ``parameters.py`` and
+``ParameterGenerator`` incrementally, and how the two interfaces coexist
+during a gradual migration — see :ref:`migration-label`.
