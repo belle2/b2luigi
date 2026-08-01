@@ -14,6 +14,11 @@ from b2luigi.core.settings import get_setting, set_setting, with_new_settings
 from b2luigi.core.utils import create_cmd_from_task
 from tests.cli.helpers import CLITestCase
 
+# test_task is a production function (not a test), but its name matches pytest's
+# default test_* collection pattern; mark it non-collectible to avoid pytest trying
+# to run it as a test and inject fixtures for its parameters.
+test_task.__test__ = False
+
 
 FIXTURE_DIR = os.path.dirname(__file__)
 
