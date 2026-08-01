@@ -11,7 +11,7 @@ from luigi.util import copies
 __version__ = "1.2.9"
 
 # Warn users if they're using an untested Python version
-min_python_version = (3, 8)
+min_python_version = (3, 11)
 max_python_version = (3, 12)
 if (sys.version_info[:2] > max_python_version) or (sys.version_info[:2] < min_python_version):
     warnings.warn(
