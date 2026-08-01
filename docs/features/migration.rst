@@ -141,19 +141,32 @@ those values into a ``parameters.py`` file instead:
 This step is entirely optional — ``--param`` flags work standalone with no
 ``parameters.py`` present at all.
 
-Step 5 — optional: replace shell loops with ``ParameterGenerator``
-----------------------------------------------------------------------
+Step 5 — optional: replace a hand-written ``WrapperTask`` with ``ParameterGenerator``
+------------------------------------------------------------------------------------------
 
-If your legacy workflow used a shell loop or a Makefile to submit the same
-task once per parameter value, ``ParameterGenerator`` replaces that with a
-single command:
+If your legacy workflow needed to run the same task once per parameter
+value, you wrote a ``WrapperTask`` with a ``requires()`` loop over the
+values, hardcoded directly in ``tasks.py`` — this predates the new CLI
+entirely and is plain luigi/b2luigi:
+
+.. code-block:: python
+
+    # before: tasks.py
+    import b2luigi
+
+    class SplitWrapper(b2luigi.WrapperTask):
+        def requires(self):
+            return [MyTask(split=value) for value in [1, 2, 3]]
+
+    if __name__ == "__main__":
+        b2luigi.process(SplitWrapper())
 
 .. code-block:: bash
 
-    # before: shell loop
-    for split in 1 2 3; do
-        python tasks.py --batch --split $split
-    done
+    python tasks.py
+
+``ParameterGenerator`` writes that same ``requires()`` loop for you from
+``parameters.py`` config, so you no longer hand-author the wrapper task:
 
 .. code-block:: python
 
@@ -166,8 +179,12 @@ single command:
 
 .. code-block:: bash
 
-    # after: one command, one wrapper task fans out to all 3
-    b2luigi run MyTask --batch
+    b2luigi run MyTask
+
+Add ``--batch`` to either the legacy or the new-CLI command above to submit
+to a real batch system instead of running locally — that flag's behavior is
+unrelated to and unaffected by ``ParameterGenerator``; see
+:ref:`cli-label` for its full reference.
 
 See :ref:`cli-label`'s ``b2luigi run`` section for ``ZippedParameterGenerator``
 (pairing multiple parameters positionally instead of taking their full
