@@ -13,7 +13,7 @@ variables:
   GITLAB_BELLE2_TOOLS_B2SETUP: "/cvmfs/belle.cern.ch/tools/b2setup"
   FLIT_INDEX_URL: "https://upload.pypi.org/legacy/"
   FLIT_USERNAME: __token__
-  BASF2_RELEASE_VERSION: "light-2409-toyger"
+  BASF2_RELEASE_VERSION: "light-2604-jellyfish"
 
 workflow:
   rules:
@@ -55,7 +55,7 @@ test:
   coverage: '/(?i)total.*? (100(?:\.0+)?\%|[1-9]?\d(?:\.\d+)?\%)$/'
   parallel:
     matrix:
-      - BASF2_RELEASE_VERSION: [$BASF2_PYTHON38_RELEASE, $BASF2_PYTHON311_RELEASE, $BASF2_PYTHON312_RELEASE]
+      - BASF2_RELEASE_VERSION: [$BASF2_PYTHON311_RELEASE, $BASF2_PYTHON312_RELEASE]
   artifacts:
     reports:
       junit: $ARTIFACTS_TEST_PATH
