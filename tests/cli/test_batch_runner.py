@@ -91,3 +91,45 @@ class TestBatchRunnerTestMode(CLITestCase):
             ],
         )
         self.assertEqual(rc, 0, stderr)
+
+
+class TestBatchRunnerParamRoundTrip(CLITestCase):
+    """batch-runner must reconstruct parameters byte-identically to the submitter."""
+
+    def setUp(self) -> None:
+        super().setUp()
+        shutil.copy(
+            os.path.join(FIXTURE_DIR, "cli_roundtrip_tasks.py"),
+            os.path.join(self.tmp_dir, "tasks.py"),
+        )
+
+    def _dirs_created(self) -> set:
+        """Names of every directory created anywhere under the temp project."""
+        found = set()
+        for _root, dirnames, _files in os.walk(self.tmp_dir):
+            found.update(dirnames)
+        return found
+
+    def _assert_value_preserved(self, value: str) -> None:
+        rc, _, stderr = self._run_cli(
+            "batch-runner",
+            ["--classname", "RoundTripTask", "--param", f"text={value}"],
+        )
+        self.assertEqual(rc, 0, stderr)
+        self.assertIn(f"text={value}", self._dirs_created())
+
+    def test_trailing_zero_float_string_is_preserved(self) -> None:
+        """'1.50' must not be normalised to '1.5'."""
+        self._assert_value_preserved("1.50")
+
+    def test_boolean_shaped_string_is_preserved(self) -> None:
+        """'true' must not become 'True'."""
+        self._assert_value_preserved("true")
+
+    def test_json_shaped_string_is_preserved(self) -> None:
+        """A Parameter holding '[1,2]' must not gain a space."""
+        self._assert_value_preserved("[1,2]")
+
+    def test_plain_string_is_unaffected(self) -> None:
+        """Control: a non-JSON value already round-trips correctly today."""
+        self._assert_value_preserved("plain")

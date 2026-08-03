@@ -14,6 +14,7 @@ from b2luigi.cli.errors import CliUserError
 from b2luigi.cli.utils import (
     parse_classnames,
     parse_kv_params,
+    split_kv_params,
     validate_classnames,
     try_instantiate,
     build_task_list,
@@ -253,3 +254,39 @@ class TestLoadParametersMissingFile(TestCase):
             f.write("# no config variable here\n")
         with self.assertRaises(AttributeError):
             load_parameters("parameters.py")
+
+
+class TestSplitKvParams(TestCase):
+    """split_kv_params returns raw strings and leaves typing to the caller."""
+
+    def test_values_are_returned_as_raw_strings(self) -> None:
+        """No JSON coercion: every value stays exactly as written."""
+        self.assertEqual(
+            split_kv_params(["n=5", "flag=true", "xs=[1,2]", "s=1.50"]),
+            {"n": "5", "flag": "true", "xs": "[1,2]", "s": "1.50"},
+        )
+
+    def test_splits_on_first_equals_only(self) -> None:
+        """Values may legitimately contain '='."""
+        self.assertEqual(split_kv_params(["expr=a=b"]), {"expr": "a=b"})
+
+    def test_missing_equals_is_an_error(self) -> None:
+        """Validation matches parse_kv_params."""
+        with self.assertRaises(CliUserError):
+            split_kv_params(["noequals"])
+
+    def test_empty_key_is_an_error(self) -> None:
+        """Validation matches parse_kv_params."""
+        with self.assertRaises(CliUserError):
+            split_kv_params(["=value"])
+
+
+class TestParseKvParamsStillTypes(TestCase):
+    """Regression guard: the user-facing --param path keeps JSON semantics."""
+
+    def test_json_typing_is_unchanged(self) -> None:
+        """parse_kv_params must still coerce, since its values reach constructors directly."""
+        self.assertEqual(
+            parse_kv_params(["n=5", "flag=true", "xs=[1,2]", "s=plain"]),
+            {"n": 5, "flag": True, "xs": [1, 2], "s": "plain"},
+        )

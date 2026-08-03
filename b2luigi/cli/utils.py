@@ -409,20 +409,21 @@ def complete_task_names(ctx: ClickContext, _param: ClickParameter, incomplete: s
         return []
 
 
-def parse_kv_params(items: List[str]) -> Dict[str, object]:
-    """Parse a list of ``key=value`` strings into a dict.
+def split_kv_params(items: List[str]) -> Dict[str, str]:
+    """Split a list of ``key=value`` strings into a dict of raw strings.
 
-    Values are interpreted as JSON when possible (covering integers, floats,
-    booleans, lists, dicts, and quoted strings).  Plain strings that are not
-    valid JSON are kept as-is.
+    Performs no type coercion.  Use this when the values are destined for
+    :meth:`luigi.Task.from_str_params`, which parses each value through the
+    owning :class:`luigi.Parameter` and must therefore receive the value
+    exactly as it was serialised.
 
     :param items: List of ``"key=value"`` strings.
     :type items: List[str]
-    :returns: Dict mapping parameter names to their parsed values.
-    :rtype: Dict[str, object]
+    :returns: Dict mapping parameter names to their raw string values.
+    :rtype: Dict[str, str]
     :raises CliUserError: If an item is missing ``=`` or the key is empty.
     """
-    out: Dict[str, object] = {}
+    out: Dict[str, str] = {}
     for item in items:
         if "=" not in item:
             raise CliUserError(f"Invalid --param '{item}'. Use key=value.")
@@ -431,9 +432,31 @@ def parse_kv_params(items: List[str]) -> Dict[str, object]:
         raw = raw.strip()
         if not key:
             raise CliUserError(f"Invalid --param '{item}'. Key is empty.")
+        out[key] = raw
+    return out
+
+
+def parse_kv_params(items: List[str]) -> Dict[str, object]:
+    """Parse a list of ``key=value`` strings into a dict, typing values as JSON.
+
+    Values are interpreted as JSON when possible (covering integers, floats,
+    booleans, lists, dicts, and quoted strings).  Plain strings that are not
+    valid JSON are kept as-is.
+
+    Use this for user-facing ``--param`` options, whose values are passed
+    directly to a task constructor.  For batch-worker reconstruction use
+    :func:`split_kv_params` instead — see its docstring.
+
+    :param items: List of ``"key=value"`` strings.
+    :type items: List[str]
+    :returns: Dict mapping parameter names to their parsed values.
+    :rtype: Dict[str, object]
+    :raises CliUserError: If an item is missing ``=`` or the key is empty.
+    """
+    out: Dict[str, object] = {}
+    for key, raw in split_kv_params(items).items():
         try:
-            val = json.loads(raw)
+            out[key] = json.loads(raw)
         except Exception:
-            val = raw
-        out[key] = val
+            out[key] = raw
     return out
