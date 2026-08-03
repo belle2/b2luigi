@@ -796,3 +796,52 @@ class TestCreateCmdFromTaskQuoting(TestCase):
         mock_gs.side_effect = self._cli_settings()
         cmd = create_cmd_from_task(_mock_task(str_params={"alpha": "1"}))
         self.assertIn("alpha=1", cmd)
+
+
+def _make_apptainer_get_setting(overrides=None):
+    """Settings side_effect for create_apptainer_command with mounts disabled."""
+    values = {
+        "env_script": "/env.sh",
+        "apptainer_image": "/img.sif",
+        "batch_system": "local",
+        "apptainer_additional_params": "",
+        "apptainer_mounts": None,
+        "apptainer_mount_defaults": False,
+    }
+    if overrides:
+        values.update(overrides)
+
+    def _side_effect(key, task=None, default=None, deprecated_keys=None):
+        return values.get(key, default)
+
+    return _side_effect
+
+
+class TestCreateApptainerCommandQuoting(TestCase):
+    """create_apptainer_command must return a clean argv list and own no quoting."""
+
+    @patch("b2luigi.core.utils.get_apptainer_or_singularity", return_value="apptainer")
+    @patch("b2luigi.core.utils.get_setting")
+    def test_payload_element_is_unquoted(self, mock_gs, _mock_ap):
+        """The bash payload must not carry its own surrounding quotes."""
+        mock_gs.side_effect = _make_apptainer_get_setting()
+        cmd = utils.create_apptainer_command("b2luigi batch-runner --param 'x=1 2'")
+        self.assertEqual(cmd[-1], "source /env.sh && b2luigi batch-runner --param 'x=1 2'")
+
+    @patch("b2luigi.core.utils.get_apptainer_or_singularity", return_value="apptainer")
+    @patch("b2luigi.core.utils.get_setting")
+    def test_bash_c_is_followed_by_exactly_one_element(self, mock_gs, _mock_ap):
+        """/bin/bash -c takes exactly one argument; the payload must be that one element."""
+        mock_gs.side_effect = _make_apptainer_get_setting()
+        cmd = utils.create_apptainer_command("echo hi")
+        self.assertEqual(cmd[-3:], ["/bin/bash", "-c", "source /env.sh && echo hi"])
+
+    @patch("b2luigi.core.utils.get_apptainer_or_singularity", return_value="apptainer")
+    @patch("b2luigi.core.utils.get_setting")
+    def test_additional_params_become_separate_argv_elements(self, mock_gs, _mock_ap):
+        """apptainer_additional_params is a free-form string that must be word-split."""
+        mock_gs.side_effect = _make_apptainer_get_setting({"apptainer_additional_params": "--cleanenv --nv"})
+        cmd = utils.create_apptainer_command("echo hi")
+        self.assertIn("--cleanenv", cmd)
+        self.assertIn("--nv", cmd)
+        self.assertNotIn(" --cleanenv --nv", cmd)

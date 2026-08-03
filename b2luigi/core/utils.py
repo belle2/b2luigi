@@ -783,8 +783,10 @@ def create_apptainer_command(command, task=None):
             task-specific settings.
 
     Returns:
-        list: A list of command-line arguments representing the full Apptainer
-        execution command.
+        list: A clean, unquoted argv list representing the full Apptainer
+        execution command. No element carries its own shell quoting; quoting
+        (or passing the list directly to ``subprocess.Popen`` without
+        ``shell=True``) is the caller's responsibility.
 
     Raises:
         ValueError: If the ``env_script`` is not provided.
@@ -812,7 +814,7 @@ def create_apptainer_command(command, task=None):
 
     exec_command = [get_apptainer_or_singularity(task=task), "exec"]
     additional_params = get_setting("apptainer_additional_params", default="", task=task)
-    exec_command += [f" {additional_params}"] if additional_params else []
+    exec_command += shlex.split(additional_params) if additional_params else []
 
     # Add apptainer mount points if given
     apptainer_mounts = get_setting("apptainer_mounts", task=task, default=None)
@@ -836,10 +838,9 @@ def create_apptainer_command(command, task=None):
 
     exec_command += [apptainer_image]
     exec_command += ["/bin/bash", "-c"]
-    exec_command += [f"'source {env_setup_script} && {command}'"]
+    exec_command += [f"source {env_setup_script} && {command}"]
 
-    # Do the shlex split for correct string interpretation
-    return shlex.split(" ".join(exec_command))
+    return exec_command
 
 
 def get_luigi_logger():
