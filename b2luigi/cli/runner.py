@@ -438,7 +438,7 @@ def run_local(task_list, kwargs):
     run_luigi(task_list, kwargs)
 
 
-def run_with_tui(task_list:list, kwargs:dict, batch=False):
+def run_with_tui(task_list: list, kwargs: dict, batch=False):
     """
     Run tasks with a live Textual progress TUI.
 
@@ -465,7 +465,7 @@ def run_with_tui(task_list:list, kwargs:dict, batch=False):
         os._exit(0)
 
 
-def run_luigi(task_list:list, kwargs:dict, worker_scheduler_factory=None):
+def run_luigi(task_list: list, kwargs: dict, worker_scheduler_factory=None):
     """
     Executes Luigi tasks with the specified configuration.
 

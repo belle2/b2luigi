@@ -28,6 +28,12 @@ Pass ``--tui`` on the command line:
 
 .. code-block:: bash
 
+    b2luigi run MyTask --tui
+
+or:
+
+.. code-block:: bash
+
     python my_workflow.py --tui
 
 or set ``progress_tui=True`` in :meth:`b2luigi.process`:
