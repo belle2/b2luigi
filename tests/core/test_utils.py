@@ -726,3 +726,73 @@ class TestCreateCmdFromTask(TestCase):
             # Clean up settings
             b2luigi.clear_setting("__batch_runner_use_cli")
             b2luigi.clear_setting("result_dir")
+
+
+class TestCreateCmdFromTaskQuoting(TestCase):
+    """create_cmd_from_task must emit tokens that survive shell word-splitting."""
+
+    @staticmethod
+    def _cli_settings(overrides=None):
+        values = {
+            "__batch_runner_use_cli": True,
+            "executable": ["b2luigi"],
+            "executable_is_entrypoint": True,
+        }
+        if overrides:
+            values.update(overrides)
+        return _make_get_setting(values)
+
+    @patch("b2luigi.core.utils.get_setting")
+    def test_list_parameter_survives_shell_split(self, mock_gs):
+        """A ListParameter's serialized form contains spaces and must stay one token."""
+        mock_gs.side_effect = self._cli_settings()
+        cmd = create_cmd_from_task(_mock_task(str_params={"mylist": "[1, 2, 3]"}))
+        self.assertEqual(
+            shlex.split(" ".join(cmd)),
+            ["b2luigi", "batch-runner", "--classname", "MyTask", "--param", "mylist=[1, 2, 3]"],
+        )
+
+    @patch("b2luigi.core.utils.get_setting")
+    def test_plain_parameter_with_space_survives_shell_split(self, mock_gs):
+        """Any parameter value containing a space is affected, not just list types."""
+        mock_gs.side_effect = self._cli_settings()
+        cmd = create_cmd_from_task(_mock_task(str_params={"name": "hello world"}))
+        self.assertEqual(
+            shlex.split(" ".join(cmd)),
+            ["b2luigi", "batch-runner", "--classname", "MyTask", "--param", "name=hello world"],
+        )
+
+    @patch("b2luigi.core.utils.get_setting")
+    def test_embedded_single_quote_survives_shell_split(self, mock_gs):
+        """shlex.quote uses the '\\'' idiom; the value must come back byte-identical."""
+        mock_gs.side_effect = self._cli_settings()
+        cmd = create_cmd_from_task(_mock_task(str_params={"label": "it's here"}))
+        self.assertEqual(
+            shlex.split(" ".join(cmd)),
+            ["b2luigi", "batch-runner", "--classname", "MyTask", "--param", "label=it's here"],
+        )
+
+    @patch("b2luigi.core.utils.get_setting")
+    def test_task_file_path_with_space_survives_shell_split(self, mock_gs):
+        """The --task-file path has the same exposure as --param values."""
+        mock_gs.side_effect = self._cli_settings({"__batch_runner_task_file": "/my path/tasks.py"})
+        cmd = create_cmd_from_task(_mock_task())
+        argv = shlex.split(" ".join(cmd))
+        self.assertEqual(argv[argv.index("--task-file") + 1], "/my path/tasks.py")
+
+    @patch("b2luigi.core.utils.get_setting")
+    def test_user_supplied_settings_are_not_quoted(self, mock_gs):
+        """Negative control: executable_prefix and task_cmd_additional_args pass through verbatim."""
+        mock_gs.side_effect = self._cli_settings(
+            {"executable_prefix": ["time"], "task_cmd_additional_args": ["--flag=a b"]}
+        )
+        cmd = create_cmd_from_task(_mock_task())
+        self.assertIn("time", cmd)
+        self.assertIn("--flag=a b", cmd)
+
+    @patch("b2luigi.core.utils.get_setting")
+    def test_simple_values_are_left_unchanged(self, mock_gs):
+        """shlex.quote is a no-op for tokens with no shell-significant characters."""
+        mock_gs.side_effect = self._cli_settings()
+        cmd = create_cmd_from_task(_mock_task(str_params={"alpha": "1"}))
+        self.assertIn("alpha=1", cmd)

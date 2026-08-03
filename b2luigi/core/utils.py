@@ -667,10 +667,10 @@ def create_cmd_from_task(task):
         else:
             cmd += ["-m", cli_module, "batch-runner", "--classname", task.get_task_family()]
         for param_name, param_value in task.to_str_params().items():
-            cmd += ["--param", f"{param_name}={param_value}"]
+            cmd += ["--param", shlex.quote(f"{param_name}={param_value}")]
         task_file = get_setting("__batch_runner_task_file", default=False) or None
         if task_file is not None:
-            cmd += ["--task-file", task_file]
+            cmd += ["--task-file", shlex.quote(task_file)]
     else:
         filename = (
             os.path.basename(get_filename()) if get_setting("add_filename_to_cmd", task=task, default=True) else ""
