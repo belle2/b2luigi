@@ -127,9 +127,9 @@ def process(
     elif dry_run or cli_args.dry_run:
         runner.dry_run(task_list)
     elif cli_args.test or test:
-        runner.run_test_mode(task_list, cli_args, kwargs)
+        runner.run_test_mode(task_list, kwargs)
     elif cli_args.batch_runner:
-        runner.run_as_batch_worker(task_list, cli_args, kwargs)
+        runner.run_as_batch_worker(task_list, cli_args)
     elif cli_args.remove or remove:
         runner.legacy_remove_outputs(
             task_list,
@@ -146,6 +146,6 @@ def process(
             keep_tasks=cli_args.keep or keep_tasks,
         )
     elif cli_args.batch or batch:
-        runner.run_batched(task_list, cli_args, kwargs)
+        runner.run_batched(task_list, kwargs)
     else:
-        runner.run_local(task_list, cli_args, kwargs)
+        runner.run_local(task_list, kwargs)

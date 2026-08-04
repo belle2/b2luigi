@@ -254,7 +254,7 @@ def run_batch_worker(task):
         raise ex
 
 
-def run_as_batch_worker(task_list, cli_args, kwargs):
+def run_as_batch_worker(task_list, cli_args):
     """
     Executes a specific task from a list of tasks as a batch worker.
 
@@ -266,8 +266,6 @@ def run_as_batch_worker(task_list, cli_args, kwargs):
     :param task_list: A list of tasks to search for the specified task.
     :type task_list: list
     :param cli_args: Command-line arguments containing the ``task_id`` of the task to execute.
-    :param kwargs: Additional keyword arguments (currently unused).
-    :type kwargs: dict
     :raises ValueError: If the specified ``task_id`` does not exist in the task graph.
     :raises BaseException: If the task execution fails, the exception is raised after
         invoking the task's failure handler.
@@ -300,26 +298,24 @@ def run_as_batch_worker(task_list, cli_args, kwargs):
         )
 
 
-def run_batched(task_list, cli_args, kwargs):
+def run_batched(task_list, kwargs):
     """
-    Executes a batch of Luigi tasks with the provided command-line arguments and keyword arguments.
+    Executes a batch of Luigi tasks with the provided keyword arguments.
 
     :param task_list: A list of task instances to be executed.
     :type task_list: list
-    :param cli_args: A list of command-line arguments (unused; kept for legacy callers).
     :param kwargs: A dictionary of additional keyword arguments to pass to the Luigi runner.
     :type kwargs: dict
     """
     run_luigi(task_list, kwargs)
 
 
-def run_local(task_list, cli_args, kwargs):
+def run_local(task_list, kwargs):
     """
     Executes a list of Luigi tasks locally by setting the batch system to ``local``.
 
     :param task_list: A list of Luigi task instances to be executed.
     :type task_list: list
-    :param cli_args: Command-line arguments (unused; kept for legacy callers).
     :param kwargs: Additional keyword arguments for task execution.
     :type kwargs: dict
     """
@@ -361,7 +357,7 @@ def run_luigi(task_list: list, kwargs: dict):
     return luigi.build(task_list, **kwargs)
 
 
-def run_test_mode(task_list, cli_args, kwargs):
+def run_test_mode(task_list, kwargs):
     """
     Executes the given tasks in test mode with local execution enabled.
 
@@ -370,7 +366,6 @@ def run_test_mode(task_list, cli_args, kwargs):
 
     :param task_list: A list of task instances to be executed.
     :type task_list: list
-    :param cli_args: Command-line arguments passed to the CLI (not used in this function).
     :param kwargs: Additional keyword arguments to be passed to :obj:`luigi.build`.
     :type kwargs: dict
     """
