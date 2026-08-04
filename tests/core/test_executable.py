@@ -51,7 +51,12 @@ class TestApptainerWrapperQuoting(B2LuigiTestCase):
         self.assertEqual(len(argv), argv.index("-c") + 2)
 
     def test_ampersand_never_escapes_to_the_outer_shell(self):
-        """Regression guard: a bare && token would mean the job runs outside the container."""
+        """Sanity check only: a bare && token would mean the job runs outside the container.
+
+        This payload has no shell-significant characters of its own, so it does not
+        discriminate old vs. new quoting behaviour on its own — see
+        ``test_payload_stays_one_argv_element`` for the actual regression guard.
+        """
         payload = "source /env.sh && b2luigi batch-runner"
         content = self._generate(["apptainer", "exec", "/img.sif", "/bin/bash", "-c", payload])
 
