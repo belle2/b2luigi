@@ -6,8 +6,8 @@ import typer
 import b2luigi
 from b2luigi.cli import runner
 from b2luigi.cli.errors import CliUserError
+from b2luigi.cli.options import Params, ParamsFile, TaskFile, class_names_arg
 from b2luigi.cli.utils import (
-    complete_task_names,
     find_tasks_in_tree,
     get_root_tasks,
     resolve_task_context,
@@ -136,25 +136,12 @@ def show_task(
 @show_app.callback(invoke_without_command=True)
 def show(
     ctx: typer.Context,
-    classnames: Annotated[
-        list[str] | None,
-        typer.Argument(
-            help="Task class name(s) to show. Omit to show the full dependency tree for all tasks.",
-            shell_complete=complete_task_names,
-        ),
-    ] = None,
-    task_filename: Annotated[
-        str | None,
-        typer.Option("--task-file", "-f", help="Task definitions file (or $B2LUIGI_TASK_FILE)"),
-    ] = None,
-    parameter_filename: Annotated[
-        str | None,
-        typer.Option("--params-file", "-p", help="Parameters file (or $B2LUIGI_PARAMS_FILE)"),
-    ] = None,
-    params: Annotated[
-        list[str] | None,
-        typer.Option("--param", "-P", help="Override task parameters (repeatable): key=value."),
-    ] = None,
+    classnames: class_names_arg(
+        "Task class name(s) to show. Omit to show the full dependency tree for all tasks."
+    ) = None,
+    task_filename: TaskFile = None,
+    parameter_filename: ParamsFile = None,
+    params: Params = None,
     direct: Annotated[
         bool,
         typer.Option(

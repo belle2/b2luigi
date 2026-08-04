@@ -1,13 +1,13 @@
-from typing import Annotated, List, Optional
+from typing import Annotated, Optional
 
 import luigi
 import typer
 
 from b2luigi.cli import runner
 from b2luigi.cli.errors import CliUserError
+from b2luigi.cli.options import Params, ParamsFile, TaskFile, class_names_arg
 from b2luigi.cli.utils import (
     build_task_list,
-    complete_task_names,
     parse_classnames,
     resolve_task_context,
     validate_classnames,
@@ -23,21 +23,11 @@ remove_app = typer.Typer(
 
 @remove_app.callback(invoke_without_command=True)
 def remove(
-    classnames: Annotated[
-        Optional[List[str]],
-        typer.Argument(
-            help="Task class name(s) to remove. Omit to remove outputs for all tasks in tasks.py.",
-            shell_complete=complete_task_names,
-        ),
-    ] = None,
-    task_filename: Annotated[
-        Optional[str],
-        typer.Option("--task-file", "-f", help="Task definitions file (or $B2LUIGI_TASK_FILE)"),
-    ] = None,
-    parameter_filename: Annotated[
-        Optional[str],
-        typer.Option("--params-file", "-p", help="Parameters file (or $B2LUIGI_PARAMS_FILE)"),
-    ] = None,
+    classnames: class_names_arg(
+        "Task class name(s) to remove. Omit to remove outputs for all tasks in tasks.py."
+    ) = None,
+    task_filename: TaskFile = None,
+    parameter_filename: ParamsFile = None,
     yes: Annotated[
         bool,
         typer.Option("-y", "--yes", help="Skip confirmation prompt."),
@@ -46,10 +36,7 @@ def remove(
         Optional[str],
         typer.Option("--keep", help="Comma-separated task class names whose outputs should NOT be removed."),
     ] = None,
-    params: Annotated[
-        Optional[List[str]],
-        typer.Option("--param", "-P", help="Override task parameters (repeatable): key=value."),
-    ] = None,
+    params: Params = None,
     direct: Annotated[
         bool,
         typer.Option(
