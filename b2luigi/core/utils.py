@@ -437,6 +437,13 @@ def get_filename():
     #    to os.getcwd(), which is the project root when the user invokes b2luigi from
     #    there — and on batch workers, create_executable_wrapper already does
     #    'cd {working_dir}' before running, so os.getcwd() is also the project root.
+    #
+    #    Deliberately NOT checked for existence. The "tasks.py" component is a
+    #    placeholder that exists only to be stripped by the dirname() call every
+    #    consumer applies; nothing ever opens this path. Requiring the file to exist
+    #    would break the legitimate case of pointing the CLI at a differently named
+    #    task file (``b2luigi run -f mytasks.py``), where no ./tasks.py is present but
+    #    the resolved directory is still correct.
     return os.path.join(os.path.abspath(os.getcwd()), "tasks.py")
 
 
