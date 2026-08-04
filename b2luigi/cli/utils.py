@@ -151,6 +151,67 @@ def expand_parameters(config: dict[str, Any]) -> list[dict[str, Any]]:
     return result
 
 
+@dataclass(frozen=True)
+class TaskContext:
+    """Everything the inspection commands need to address a set of tasks.
+
+    :param available: Task classes defined in the task file, keyed by class name.
+    :type available: Dict[str, Type[b2luigi.Task]]
+    :param merged_params: The ``parameters.py`` config with ``--param`` overrides
+        applied on top, still unexpanded (generator objects intact).
+    :type merged_params: Dict[str, Any]
+    :param param_dicts: ``merged_params`` expanded into one concrete dict per
+        parameter combination.
+    :type param_dicts: List[Dict[str, Any]]
+    """
+
+    available: Dict[str, Type[b2luigi.Task]]
+    merged_params: Dict[str, Any]
+    param_dicts: List[Dict[str, Any]]
+
+
+def resolve_task_context(
+    task_filename: str | None,
+    parameter_filename: str | None,
+    params: Optional[List[str]] = None,
+) -> TaskContext:
+    """Resolve task/parameter files and build the shared task-addressing context.
+
+    This is the common preamble of the inspection commands (``show``, ``remove``
+    and ``graph``): resolve the file locations, import the task classes, load the
+    parameter config, apply ``--param`` overrides on top of it, and expand the
+    result into concrete parameter combinations.
+
+    ``--param`` overrides take precedence over ``parameters.py`` on a per-key
+    basis; keys absent from ``params`` keep their configured values.
+
+    .. note::
+        ``b2luigi run`` deliberately does not use this helper. It forwards the
+        raw overrides to :func:`~b2luigi.cli.apps.run.run_task`, which loads and
+        expands the config itself; routing it through here would load
+        ``parameters.py`` twice.
+
+    :param task_filename: Explicit task file, or ``None`` to fall back to
+        ``$B2LUIGI_TASK_FILE`` and then ``tasks.py``.
+    :type task_filename: str | None
+    :param parameter_filename: Explicit parameters file, or ``None`` to fall back
+        to ``$B2LUIGI_PARAMS_FILE`` and then ``parameters.py``.
+    :type parameter_filename: str | None
+    :param params: Raw ``key=value`` strings from repeated ``--param`` flags.
+    :type params: Optional[List[str]]
+    :returns: The resolved classes, merged parameters and expanded combinations.
+    :rtype: TaskContext
+    """
+    d = resolve_defaults(task_filename, parameter_filename)
+    available = {cls.__name__: cls for cls in get_task_classes(d.task_file)}
+    merged_params = {**load_parameters(d.params_file), **parse_kv_params(params or [])}
+    return TaskContext(
+        available=available,
+        merged_params=merged_params,
+        param_dicts=expand_parameters(merged_params),
+    )
+
+
 def load_task_class(class_name: str, filename="tasks.py") -> Type[b2luigi.Task]:
     tasks_module = import_from_file(filename, "TaskClasses")
     if not hasattr(tasks_module, class_name):

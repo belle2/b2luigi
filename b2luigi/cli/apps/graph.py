@@ -13,13 +13,9 @@ import b2luigi
 from b2luigi.cli import runner
 from b2luigi.cli.utils import (
     complete_task_names,
-    expand_parameters,
     find_tasks_in_tree,
     get_root_tasks,
-    get_task_classes,
-    load_parameters,
-    parse_kv_params,
-    resolve_defaults,
+    resolve_task_context,
     try_instantiate,
     validate_classnames,
 )
@@ -67,12 +63,8 @@ def graph_task(
         on each node.
     :type show_status: bool
     """
-    d = resolve_defaults(task_filename, parameter_filename)
-    available = {cls.__name__: cls for cls in get_task_classes(d.task_file)}
-    base_params = load_parameters(d.params_file)
-    overrides = parse_kv_params(params or [])
-    merged_params = {**base_params, **overrides}
-    param_dicts = expand_parameters(merged_params)
+    ctx = resolve_task_context(task_filename, parameter_filename, params)
+    available, param_dicts = ctx.available, ctx.param_dicts
 
     def _all_instantiatable(classes: Iterable[type[b2luigi.Task]]) -> list[b2luigi.Task]:
         seen: set[str] = set()

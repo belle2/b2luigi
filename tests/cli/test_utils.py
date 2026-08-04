@@ -20,6 +20,7 @@ from b2luigi.cli.utils import (
     build_task_list,
     find_tasks_in_tree,
     load_parameters,
+    resolve_task_context,
 )
 
 
@@ -254,6 +255,72 @@ class TestLoadParametersMissingFile(TestCase):
             f.write("# no config variable here\n")
         with self.assertRaises(AttributeError):
             load_parameters("parameters.py")
+
+
+class TestResolveTaskContext(TestCase):
+    """resolve_task_context merges --param over parameters.py."""
+
+    def setUp(self) -> None:
+        self.tmp_dir = tempfile.mkdtemp()
+        self.original_dir = os.getcwd()
+        os.chdir(self.tmp_dir)
+        with open(os.path.join(self.tmp_dir, "tasks.py"), "w") as f:
+            f.write(
+                "import b2luigi\n"
+                "import luigi\n"
+                "\n"
+                "class CtxTask(b2luigi.Task):\n"
+                "    my_parameter = luigi.IntParameter()\n"
+                "    other_parameter = luigi.Parameter()\n"
+            )
+
+    def tearDown(self) -> None:
+        os.chdir(self.original_dir)
+        shutil.rmtree(self.tmp_dir)
+
+    def _write_params(self, body: str) -> None:
+        with open(os.path.join(self.tmp_dir, "parameters.py"), "w") as f:
+            f.write(body)
+
+    def test_overrides_win_and_untouched_keys_survive(self) -> None:
+        """A --param value replaces its config counterpart; other keys are kept."""
+        self._write_params('config = {"my_parameter": 1, "other_parameter": "a"}\n')
+
+        ctx = resolve_task_context(None, None, ["my_parameter=2"])
+
+        self.assertIn("CtxTask", ctx.available)
+        self.assertEqual(ctx.merged_params["my_parameter"], 2)
+        self.assertEqual(ctx.merged_params["other_parameter"], "a")
+        self.assertEqual(ctx.param_dicts, [{"my_parameter": 2, "other_parameter": "a"}])
+
+    def test_scalar_override_collapses_a_generator_sweep(self) -> None:
+        """Overriding a ParameterGenerator pins it to a single combination."""
+        self._write_params(
+            "from b2luigi import ParameterGenerator\n"
+            'config = {"my_parameter": ParameterGenerator([1, 2, 3]), "other_parameter": "a"}\n'
+        )
+
+        without_override = resolve_task_context(None, None, [])
+        self.assertEqual(len(without_override.param_dicts), 3)
+
+        with_override = resolve_task_context(None, None, ["my_parameter=2"])
+        self.assertEqual(with_override.param_dicts, [{"my_parameter": 2, "other_parameter": "a"}])
+
+    def test_json_list_override_is_one_value_not_a_sweep(self) -> None:
+        """A JSON list from --param is a single list value, not multiple combinations."""
+        self._write_params('config = {"my_parameter": 1, "other_parameter": "a"}\n')
+
+        ctx = resolve_task_context(None, None, ["my_parameter=[1,2,3]"])
+
+        self.assertEqual(len(ctx.param_dicts), 1)
+        self.assertEqual(ctx.param_dicts[0]["my_parameter"], [1, 2, 3])
+
+    def test_works_without_a_parameters_file(self) -> None:
+        """A missing parameters.py leaves --param as the only source of values."""
+        ctx = resolve_task_context(None, None, ["my_parameter=7"])
+
+        self.assertEqual(ctx.merged_params, {"my_parameter": 7})
+        self.assertEqual(ctx.param_dicts, [{"my_parameter": 7}])
 
 
 class TestSplitKvParams(TestCase):

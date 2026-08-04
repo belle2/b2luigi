@@ -8,12 +8,8 @@ from b2luigi.cli.errors import CliUserError
 from b2luigi.cli.utils import (
     build_task_list,
     complete_task_names,
-    expand_parameters,
-    get_task_classes,
-    load_parameters,
     parse_classnames,
-    parse_kv_params,
-    resolve_defaults,
+    resolve_task_context,
     validate_classnames,
 )
 from b2luigi.core.settings import get_setting
@@ -89,12 +85,8 @@ def remove(
         Task names are passed as positional arguments. The ``-t``/``--task``
         option that existed in earlier versions has been removed.
     """
-    d = resolve_defaults(task_filename, parameter_filename)
-    available = {cls.__name__: cls for cls in get_task_classes(d.task_file)}
-    base_params = load_parameters(d.params_file)
-    overrides = parse_kv_params(params or [])
-    merged_params = {**base_params, **overrides}
-    param_dicts = expand_parameters(merged_params)
+    ctx = resolve_task_context(task_filename, parameter_filename, params)
+    available, merged_params, param_dicts = ctx.available, ctx.merged_params, ctx.param_dicts
 
     names = classnames
     keep_tasks = parse_classnames(keep)
