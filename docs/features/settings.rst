@@ -94,8 +94,10 @@ Apptainer settings
     If set to ``True``, the ``result_dir`` and ``log_dir`` are mounted into the apptainer container by default.
     Default is ``True``.
 
-- ``apptainer_additional_params``: List[String]
-    A list of additional parameters to pass to the apptainer container.
+- ``apptainer_additional_params``: String or List[String]
+    Additional parameters to pass to the apptainer container. Either a single
+    string (word-split via ``shlex.split``, e.g. ``"--cleanenv --nv"``) or a
+    list of strings (used verbatim, e.g. ``["--cleanenv", "--nv"]``) is accepted.
     If not set, no additional parameters are passed.
     Default is an empty list.
 

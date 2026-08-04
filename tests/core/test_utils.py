@@ -440,6 +440,37 @@ class CreateApptainerCommandTestCase(TestCase):
                 "Invalid batch system for apptainer usage. Apptainer is not supported for gbasf2.",
             )
 
+    def test_create_apptainer_command_additional_params_as_string(self):
+        """A string ``apptainer_additional_params`` is word-split via shlex.split."""
+        self.settings["apptainer_additional_params"] = "--cleanenv --nv"
+        with mock.patch(
+            "b2luigi.core.utils.get_setting",
+            side_effect=lambda key, **kwargs: self.settings.get(key, kwargs.get("default")),
+        ):
+            with mock.patch("b2luigi.core.utils.map_folder", side_effect=lambda x: x):
+                with mock.patch("b2luigi.core.utils.get_log_file_dir", return_value=self.log_dir):
+                    with mock.patch("os.makedirs"):
+                        with mock.patch("b2luigi.core.utils.get_apptainer_or_singularity", return_value="apptainer"):
+                            result = utils.create_apptainer_command(self.command, task=self.task)
+                        self.assertIn("--cleanenv", result)
+                        self.assertIn("--nv", result)
+                        self.assertNotIn("--cleanenv --nv", result)
+
+    def test_create_apptainer_command_additional_params_as_list(self):
+        """A list ``apptainer_additional_params`` is used verbatim, no shlex.split involved."""
+        self.settings["apptainer_additional_params"] = ["--cleanenv", "--nv"]
+        with mock.patch(
+            "b2luigi.core.utils.get_setting",
+            side_effect=lambda key, **kwargs: self.settings.get(key, kwargs.get("default")),
+        ):
+            with mock.patch("b2luigi.core.utils.map_folder", side_effect=lambda x: x):
+                with mock.patch("b2luigi.core.utils.get_log_file_dir", return_value=self.log_dir):
+                    with mock.patch("os.makedirs"):
+                        with mock.patch("b2luigi.core.utils.get_apptainer_or_singularity", return_value="apptainer"):
+                            result = utils.create_apptainer_command(self.command, task=self.task)
+                        self.assertIn("--cleanenv", result)
+                        self.assertIn("--nv", result)
+
     def test_create_apptainer_command_no_additional_params(self):
         self.settings["apptainer_additional_params"] = ""
         with mock.patch(

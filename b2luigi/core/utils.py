@@ -627,7 +627,18 @@ def create_cmd_from_task(task):
         task: An object representing the task for which the command is being created.
 
     Returns:
-        list: A list of strings representing the command-line arguments.
+        list: A list of strings representing the command-line arguments, intended
+        to be flattened into a **shell** context (e.g. ``" ".join(...)`` embedded
+        in a generated shell script, as :func:`b2luigi.core.executable.create_executable_wrapper`
+        does), not passed directly to ``subprocess.Popen`` without ``shell=True``.
+        The b2luigi-generated ``--param key=value`` and ``--task-file`` tokens are
+        individually ``shlex.quote``-d so they survive that flattening intact even
+        when a parameter value contains spaces, brackets, or quotes. User-supplied
+        settings — ``executable_prefix``, ``executable``, and
+        ``task_cmd_additional_args`` — are passed through **verbatim**, by design:
+        they may themselves already contain multiple shell words (e.g.
+        ``executable_prefix=["nice", "-n", "10"]``) that must not be quoted into a
+        single token.
 
     Raises:
         ValueError: If ``task_cmd_additional_args``, ``executable_prefix``, or
@@ -796,7 +807,9 @@ def create_apptainer_command(command, task=None):
     Notes:
         - ``apptainer_image`` is retrieved from the task settings.
         - ``apptainer_additional_params`` is used to specify additional parameters
-          for the Apptainer command. Expecting a string.
+          for the Apptainer command. Accepts either a single string (word-split via
+          :func:`shlex.split`, e.g. ``"--cleanenv --nv"``) or a list of strings
+          (used verbatim, e.g. ``["--cleanenv", "--nv"]``).
         - ``apptainer_mounts`` is used to specify additional mount points for the
           Apptainer command. Expecting a list of strings.
         - ``apptainer_mount_defaults`` determines whether to include default
@@ -814,7 +827,10 @@ def create_apptainer_command(command, task=None):
 
     exec_command = [get_apptainer_or_singularity(task=task), "exec"]
     additional_params = get_setting("apptainer_additional_params", default="", task=task)
-    exec_command += shlex.split(additional_params) if additional_params else []
+    if additional_params:
+        exec_command += (
+            shlex.split(additional_params) if isinstance(additional_params, str) else list(additional_params)
+        )
 
     # Add apptainer mount points if given
     apptainer_mounts = get_setting("apptainer_mounts", task=task, default=None)
