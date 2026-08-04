@@ -123,6 +123,64 @@ positionally instead of taking their Cartesian product:
 
 See :ref:`cli-api-label` for the full class reference.
 
+.. _cli-param-precedence-label:
+
+Precedence: ``--param`` overrides ``parameters.py``
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+When a parameter is defined in both places, **the command line wins**.  The
+``config`` dict from ``parameters.py`` is loaded first and each ``--param``
+value is merged on top of it, key by key.  This applies identically to
+``b2luigi run``, ``show``, ``remove`` and ``graph``.
+
+Only the keys you actually pass are affected — everything else in
+``parameters.py`` is left untouched:
+
+.. code-block:: python
+
+    # parameters.py
+    config = {
+        "my_parameter": 1,
+        "other_parameter": "a",
+    }
+
+.. code-block:: bash
+
+    b2luigi run MyTask --param my_parameter=2
+
+runs with ``my_parameter=2`` and ``other_parameter="a"``.
+
+Values are parsed as JSON when possible, so ``--param n=5`` yields the integer
+``5`` and ``--param items=[1,2,3]`` a list (useful for a
+:class:`luigi.ListParameter`).  Anything that is not valid JSON is kept as a
+plain string.
+
+.. warning::
+
+    Overriding a :class:`~b2luigi.cli.parameter_generator.ParameterGenerator`
+    from the command line **collapses the sweep to a single value**.  Given
+
+    .. code-block:: python
+
+        config = {"my_parameter": ParameterGenerator([1, 2, 3])}
+
+    then ``b2luigi run MyTask`` schedules three task instances, but
+
+    .. code-block:: bash
+
+        b2luigi run MyTask --param my_parameter=2
+
+    schedules exactly one.  This is the intended way to re-run a single point
+    of a sweep — for example to reproduce one failed job — but it is easy to
+    do by accident.
+
+    Note that this holds for *any* ``--param`` value, including a JSON list.
+    Only ``ParameterGenerator`` and ``ZippedParameterGenerator`` objects expand
+    into multiple task instances, and those can only be constructed in
+    ``parameters.py``.  Passing ``--param my_parameter=[1,2,3]`` therefore
+    schedules one task whose ``my_parameter`` *is* the list ``[1, 2, 3]``, not
+    three tasks.  To change the sweep itself, edit ``parameters.py``.
+
 b2luigi show
 ------------
 
