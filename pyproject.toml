@@ -51,6 +51,7 @@ doc = [
     "sphinxcontrib-jsmath",
     "sphinxcontrib-qthelp",
     "sphinxcontrib-serializinghtml",
+    "sphinxcontrib-typer",
     "sphinx-gallery",
     "sphinx-autobuild",
     "sphinx-sitemap",

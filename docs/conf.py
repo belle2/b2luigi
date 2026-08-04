@@ -17,7 +17,6 @@ import pathlib
 import sys
 
 sys.path.insert(0, pathlib.Path(__file__).parents[1].resolve().as_posix())
-sys.path.insert(0, pathlib.Path(__file__).parent.joinpath("_ext").as_posix())
 
 
 # -- Project information -----------------------------------------------------
@@ -90,7 +89,7 @@ extensions = [
     "sphinx.ext.viewcode",
     "sphinx_sitemap",
     "notfound.extension",
-    "typer_cli",
+    "sphinxcontrib.typer",
 ]
 
 sphinx_gallery_conf = {
