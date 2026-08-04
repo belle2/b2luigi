@@ -13,7 +13,8 @@ from typer.main import get_command
 
 
 def _synopsis(prog: str, cmd_name: str, cmd: Any) -> str:
-    parts = [prog, cmd_name, "[OPTIONS]"]
+    parts = [prog] if not cmd_name else [prog, cmd_name]
+    parts.append("[OPTIONS]")
     for p in cmd.params:
         if p.param_type_name != "argument" or getattr(p, "hidden", False):
             continue
@@ -24,11 +25,14 @@ def _synopsis(prog: str, cmd_name: str, cmd: Any) -> str:
             parts.append(f"[{name}]")
         else:
             parts.append(name)
+    # Groups dispatch to subcommands; mirror click's own usage line for them.
+    if getattr(cmd, "commands", None):
+        parts += ["COMMAND", "[ARGS]..."]
     return " ".join(parts)
 
 
 def _command_rst(prog: str, cmd_name: str, cmd: Any, level: int) -> str:
-    heading = f"{prog} {cmd_name}"
+    heading = f"{prog} {cmd_name}".strip()
     underline = ("-" if level == 2 else "~") * len(heading)
     help_text = (cmd.help or "").strip()
     synopsis = _synopsis(prog, cmd_name, cmd)
@@ -74,7 +78,10 @@ def _command_rst(prog: str, cmd_name: str, cmd: Any, level: int) -> str:
 
 
 def _build_rst(prog: str, click_group: Any) -> str:
-    sections: list[str] = []
+    # The root group carries its own help text and global options (``--version``,
+    # ``--install-completion``, …). Without this section they are undocumented,
+    # since the loop below only walks the registered subcommands.
+    sections: list[str] = [_command_rst(prog, "", click_group, level=2)]
     for cmd_name, cmd in sorted(click_group.commands.items()):
         if getattr(cmd, "hidden", False):
             continue
