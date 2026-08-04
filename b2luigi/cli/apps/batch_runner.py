@@ -2,6 +2,7 @@ from typing import Annotated, List, Optional
 
 import typer
 
+from b2luigi.cli.options import TaskFile
 from b2luigi.cli.runner import _build_fast_task
 from b2luigi.cli.utils import load_task_class, process_task_instance, resolve_defaults, split_kv_params
 
@@ -17,10 +18,7 @@ def batch_runner(
         Optional[str],
         typer.Option("--classname", "-c", help="The task class name (task family)."),
     ] = None,
-    task_filename: Annotated[
-        Optional[str],
-        typer.Option("--task-file", "-f", help="Task definitions file (or $B2LUIGI_TASK_FILE)."),
-    ] = None,
+    task_filename: TaskFile = None,
     params: Annotated[
         Optional[List[str]],
         typer.Option(

@@ -1,10 +1,11 @@
 import os
-from typing import Annotated, Any, List, Optional
+from typing import Annotated, Any, Optional
 
 import typer
 
 import b2luigi
 
+from b2luigi.cli.options import Params, ParamsFile, TaskFile
 from b2luigi.cli.utils import (
     complete_task_names,
     expand_parameters,
@@ -116,22 +117,9 @@ def run(
             shell_complete=complete_task_names,
         ),
     ],
-    task_filename: Annotated[
-        Optional[str],
-        typer.Option("--task-file", "-f", help="Task definitions file (or $B2LUIGI_TASK_FILE)"),
-    ] = None,
-    parameter_filename: Annotated[
-        Optional[str],
-        typer.Option("--params-file", "-p", help="Parameters file (or $B2LUIGI_PARAMS_FILE)"),
-    ] = None,
-    params: Annotated[
-        Optional[List[str]],
-        typer.Option(
-            "--param",
-            "-P",
-            help="Override task parameters (repeatable): key=value. Values are parsed as JSON when possible.",
-        ),
-    ] = None,
+    task_filename: TaskFile = None,
+    parameter_filename: ParamsFile = None,
+    params: Params = None,
     dry_run: Annotated[
         bool,
         typer.Option("--dry", "-d", help="Instead of running the task(s), write out which tasks will be executed."),

@@ -10,6 +10,7 @@ import typer
 
 from b2luigi.cli import runner
 from b2luigi.cli.errors import CliUserError
+from b2luigi.cli.options import TaskFile
 from b2luigi.cli.utils import (
     complete_task_names,
     get_task_classes,
@@ -74,10 +75,7 @@ def show_task_info(classname: Optional[str] = None, task_filename: Optional[str]
 @tasks_app.callback(invoke_without_command=True)
 def tasks(
     ctx: typer.Context,
-    task_filename: Annotated[
-        Optional[str],
-        typer.Option("--task-file", "-f", help="Task definitions file (or $B2LUIGI_TASK_FILE)"),
-    ] = None,
+    task_filename: TaskFile = None,
 ) -> None:
     """List all available task classes.
 
@@ -100,10 +98,7 @@ def task_info(
             shell_complete=complete_task_names,
         ),
     ] = None,
-    task_filename: Annotated[
-        Optional[str],
-        typer.Option("--task-file", "-f", help="Task definitions file (or $B2LUIGI_TASK_FILE)"),
-    ] = None,
+    task_filename: TaskFile = None,
 ) -> None:
     """Show docstring and parameters for a task class, or all task classes if omitted.
 
