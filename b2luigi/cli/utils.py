@@ -412,14 +412,17 @@ def complete_task_names(ctx: ClickContext, _param: ClickParameter, incomplete: s
 def split_kv_params(items: List[str]) -> Dict[str, str]:
     """Split a list of ``key=value`` strings into a dict of raw strings.
 
-    Performs no type coercion.  Use this when the values are destined for
+    Performs no type coercion and no value whitespace stripping: the value is
+    returned byte-exact.  Use this when the values are destined for
     :meth:`luigi.Task.from_str_params`, which parses each value through the
     owning :class:`luigi.Parameter` and must therefore receive the value
-    exactly as it was serialised.
+    exactly as it was serialised — stripping here would silently change the
+    reconstructed ``task_id`` for any :class:`luigi.Parameter` whose value
+    legitimately carries leading/trailing whitespace.
 
     :param items: List of ``"key=value"`` strings.
     :type items: List[str]
-    :returns: Dict mapping parameter names to their raw string values.
+    :returns: Dict mapping parameter names to their raw, unstripped string values.
     :rtype: Dict[str, str]
     :raises CliUserError: If an item is missing ``=`` or the key is empty.
     """
@@ -429,7 +432,6 @@ def split_kv_params(items: List[str]) -> Dict[str, str]:
             raise CliUserError(f"Invalid --param '{item}'. Use key=value.")
         key, raw = item.split("=", 1)
         key = key.strip()
-        raw = raw.strip()
         if not key:
             raise CliUserError(f"Invalid --param '{item}'. Key is empty.")
         out[key] = raw
@@ -455,6 +457,7 @@ def parse_kv_params(items: List[str]) -> Dict[str, object]:
     """
     out: Dict[str, object] = {}
     for key, raw in split_kv_params(items).items():
+        raw = raw.strip()
         try:
             out[key] = json.loads(raw)
         except Exception:

@@ -280,6 +280,24 @@ class TestSplitKvParams(TestCase):
         with self.assertRaises(CliUserError):
             split_kv_params(["=value"])
 
+    def test_value_whitespace_is_preserved(self) -> None:
+        """Unlike parse_kv_params, values are returned byte-exact (no strip)."""
+        self.assertEqual(split_kv_params(["  name  =  value  "]), {"name": "  value  "})
+
+    def test_padded_parameter_round_trips_to_the_same_task_id(self) -> None:
+        """A Parameter with legitimate leading/trailing whitespace must reconstruct
+        to the same task_id on the worker as it had on the submitter — the exact
+        failure this helper exists to prevent.
+        """
+
+        class PaddedTask(b2luigi.Task):
+            some_parameter = b2luigi.Parameter()
+
+        submitter = PaddedTask(some_parameter=" padded value ")
+        params = [f"{k}={v}" for k, v in submitter.to_str_params().items()]
+        worker = PaddedTask.from_str_params(split_kv_params(params))
+        self.assertEqual(worker.task_id, submitter.task_id)
+
 
 class TestParseKvParamsStillTypes(TestCase):
     """Regression guard: the user-facing --param path keeps JSON semantics."""
