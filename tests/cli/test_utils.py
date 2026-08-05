@@ -6,6 +6,7 @@
 
 import os
 import shutil
+import sys
 import tempfile
 from unittest import TestCase
 
@@ -19,6 +20,7 @@ from b2luigi.cli.utils import (
     try_instantiate,
     build_task_list,
     find_tasks_in_tree,
+    get_task_classnames,
     load_parameters,
     resolve_task_context,
 )
@@ -229,6 +231,50 @@ class TestFindTasksInTree(TestCase):
         roots = [_ParentTask(parent_param=3)]
         result = find_tasks_in_tree({"NonExistent"}, roots)
         self.assertEqual(result, [])
+
+
+class TestImportedTaskCollection(TestCase):
+    """Tasks imported into tasks.py are as visible to the CLI as tasks defined there."""
+
+    def setUp(self) -> None:
+        self.tmp_dir = tempfile.mkdtemp()
+        self.original_dir = os.getcwd()
+        os.chdir(self.tmp_dir)
+
+    def tearDown(self) -> None:
+        os.chdir(self.original_dir)
+        shutil.rmtree(self.tmp_dir)
+        for mod in ("analysis", "analysis.skim"):
+            sys.modules.pop(mod, None)
+        if self.tmp_dir in sys.path:
+            sys.path.remove(self.tmp_dir)
+
+    def _write(self, relpath: str, content: str) -> None:
+        path = os.path.join(self.tmp_dir, relpath)
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+        with open(path, "w") as f:
+            f.write(content)
+
+    def test_imported_tasks_are_collected(self) -> None:
+        """A task imported into tasks.py from a sibling package is found alongside locally defined ones."""
+        self._write("analysis/__init__.py", "")
+        self._write(
+            "analysis/skim.py",
+            "import b2luigi\n\n\nclass SkimTask(b2luigi.Task):\n    pass\n",
+        )
+        self._write(
+            "tasks.py",
+            "from analysis.skim import SkimTask\n\nimport b2luigi\n\n\nclass LocalTask(b2luigi.Task):\n    pass\n",
+        )
+        self.assertEqual(get_task_classnames("tasks.py"), ["LocalTask", "SkimTask"])
+
+    def test_b2luigi_internals_are_not_collected(self) -> None:
+        """Importing b2luigi's own classes into tasks.py does not make them CLI tasks."""
+        self._write(
+            "tasks.py",
+            "from b2luigi import Task, WrapperTask\n\nimport b2luigi\n\n\nclass LocalTask(b2luigi.Task):\n    pass\n",
+        )
+        self.assertEqual(get_task_classnames("tasks.py"), ["LocalTask"])
 
 
 class TestLoadParametersMissingFile(TestCase):

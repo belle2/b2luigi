@@ -5,6 +5,7 @@ import inspect
 import itertools
 import json
 import os
+import sys
 from typing import Any, Dict, Generator, List, Optional, Tuple, Type
 
 import luigi
@@ -34,6 +35,20 @@ def suggest(bad: str, candidates: List[str]) -> str | None:
 
 
 def import_from_file(filename: str, module_name: str) -> Any:
+    """Load a module from a file and ensure its directory is importable.
+
+    Loads the file as *module_name* and guarantees the file's directory is on
+    ``sys.path`` so ``tasks.py`` can import sibling packages.
+
+    :param filename: Path (relative to ``os.getcwd()``) of the module file.
+    :type filename: str
+    :param module_name: The name to assign to the loaded module.
+    :type module_name: str
+    :returns: The loaded module object.
+    :rtype: Any
+    :raises CliUserError: If *filename* is not found in the current directory.
+    :raises ImportError: If the module spec cannot be created or loaded.
+    """
     path = os.path.join(os.getcwd(), filename)  # TODO: Replace getcwd
     if not os.path.exists(path):
         raise CliUserError(
@@ -43,6 +58,10 @@ def import_from_file(filename: str, module_name: str) -> Any:
     spec = importlib.util.spec_from_file_location(module_name, path)
     if spec is None or spec.loader is None:
         raise ImportError(f"Could not load spec for {filename}")
+
+    module_dir = os.path.dirname(path)
+    if module_dir not in sys.path:
+        sys.path.insert(0, module_dir)
 
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
@@ -56,7 +75,23 @@ def task_generator(task_file: str = "tasks.py") -> Generator[Tuple[str, Any], An
 
 
 def is_from_task_classes(obj: Any) -> bool:
-    return inspect.isclass(obj) and issubclass(obj, b2luigi.Task) and obj.__module__ == "TaskClasses"
+    """Return True if ``obj`` is a task class the CLI should treat as part of the manifest.
+
+    A CLI task is any :class:`b2luigi.Task` subclass present in the task file's
+    namespace — defined there or imported into it — except classes belonging to
+    the ``b2luigi`` or ``luigi`` packages themselves (e.g. ``from b2luigi import
+    Task`` must not turn the base class into a runnable CLI task).
+
+    :param obj: Any object found in the loaded task module's namespace.
+    :type obj: Any
+    :returns: True if ``obj`` counts as a CLI task class.
+    :rtype: bool
+    """
+    return (
+        inspect.isclass(obj)
+        and issubclass(obj, b2luigi.Task)
+        and obj.__module__.partition(".")[0] not in ("b2luigi", "luigi")
+    )
 
 
 def get_task_classnames(task_file: str = "tasks.py") -> list[str]:
