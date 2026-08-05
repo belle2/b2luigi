@@ -63,15 +63,17 @@ via ``--param key=value``; ``parameters.py`` is only needed when using
 
 ``tasks.py`` is a *manifest*, not a required home: a task class counts for the
 CLI when it is present in the file's namespace, whether it is defined there or
-imported from anywhere in your project::
+imported from anywhere in your project.
+
+.. code-block:: python
 
     # tasks.py
     from analysis.skim import SkimTask
     from analysis.reco import RecoTask
 
 Your task code stays where it lives; importing a class into ``tasks.py`` is
-what makes it addressable by ``b2luigi run``, ``show``, ``graph`` and
-``remove``. Classes belonging to ``b2luigi`` or ``luigi`` themselves (e.g.
+what makes it addressable by ``b2luigi run``, ``tasks``, ``show``, ``graph``
+and ``remove``. Classes belonging to ``b2luigi`` or ``luigi`` themselves (e.g.
 ``from b2luigi import Task``) are never treated as runnable tasks.
 
 You can override these paths with flags or environment variables:
