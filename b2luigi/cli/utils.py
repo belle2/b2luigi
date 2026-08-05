@@ -247,11 +247,27 @@ def resolve_task_context(
     )
 
 
-def load_task_class(class_name: str, filename="tasks.py") -> Type[b2luigi.Task]:
+def load_task_class(class_name: str, filename: str = "tasks.py") -> Type[b2luigi.Task]:
+    """Load a single task class from the task file by name.
+
+    Applies the same membership rule as task discovery
+    (:func:`is_from_task_classes`), so a name that resolves to something other
+    than a manifest task — e.g. ``Task`` after ``from b2luigi import Task`` —
+    is rejected rather than executed.
+
+    :param class_name: Name of the task class in the task file's namespace.
+    :type class_name: str
+    :param filename: The task file to load, relative to the current directory.
+    :type filename: str
+    :returns: The task class.
+    :rtype: Type[b2luigi.Task]
+    :raises AttributeError: If the name is absent or not a manifest task.
+    """
     tasks_module = import_from_file(filename, "TaskClasses")
-    if not hasattr(tasks_module, class_name):
+    obj = getattr(tasks_module, class_name, None)
+    if obj is None or not is_from_task_classes(obj):
         raise AttributeError(f"Class '{class_name}' not found in {filename}")
-    return getattr(tasks_module, class_name)
+    return obj
 
 
 def try_instantiate(cls: Type[b2luigi.Task], params: Dict[str, Any]) -> Optional[b2luigi.Task]:

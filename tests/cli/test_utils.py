@@ -23,6 +23,7 @@ from b2luigi.cli.utils import (
     get_task_classnames,
     load_parameters,
     resolve_task_context,
+    load_task_class,
 )
 
 
@@ -275,6 +276,15 @@ class TestImportedTaskCollection(TestCase):
             "from b2luigi import Task, WrapperTask\n\nimport b2luigi\n\n\nclass LocalTask(b2luigi.Task):\n    pass\n",
         )
         self.assertEqual(get_task_classnames("tasks.py"), ["LocalTask"])
+
+    def test_load_task_class_rejects_non_task_names(self) -> None:
+        """A namespace member that is not a manifest task cannot be loaded for execution."""
+        self._write(
+            "tasks.py",
+            "from b2luigi import Task\n\nimport b2luigi\n\n\nclass LocalTask(b2luigi.Task):\n    pass\n",
+        )
+        with self.assertRaises(AttributeError):
+            load_task_class("Task", "tasks.py")
 
 
 class TestLoadParametersMissingFile(TestCase):
