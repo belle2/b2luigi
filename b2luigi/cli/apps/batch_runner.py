@@ -48,8 +48,12 @@ def batch_runner(
     ] = False,
     literal_path: Annotated[
         bool,
-        typer.Option("--literal-path", help="Write -o to the literal path given (test mode)."),
-    ] = False,
+        typer.Option(
+            "--literal-path/--no-literal-path",
+            help="Write -o to the literal path given (test mode). The submission host "
+            "always sends one of the two flags explicitly; this default is never relied on.",
+        ),
+    ] = True,
     extra_arg: Annotated[
         Optional[List[str]],
         typer.Option(

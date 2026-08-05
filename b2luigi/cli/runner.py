@@ -60,7 +60,7 @@ def _build_fast_task(
     batch: bool,
     extra_args: list[str],
     env_script: str | None = None,
-    literal_path: bool = False,
+    literal_path: bool = True,
 ) -> type:
     """Build the main task class that runs *exec_script* as a subprocess.
 
@@ -96,10 +96,10 @@ def _build_fast_task(
         never forwarded to the batch worker, since the worker inherits the already-sourced
         environment from the submission-host wrapper.
     :type env_script: str | None
-    :param literal_path: When ``True``, ``-o``'s target is the literal *output*
-        path (resolved to absolute, exactly like *input_file* is already handled),
-        bypassing :meth:`~b2luigi.core.task.Task.add_to_output`'s ``result_dir``
-        nesting entirely. Default ``False`` preserves existing behavior. No-op
+    :param literal_path: When ``True`` (the default), ``-o``'s target is the literal
+        *output* path (resolved to absolute, exactly like *input_file* is already
+        handled), bypassing :meth:`~b2luigi.core.task.Task.add_to_output`'s
+        ``result_dir`` nesting entirely. ``False`` restores the nesting. No-op
         when *force* is ``True`` (no ``output()`` is declared either way).
     :type literal_path: bool
     :returns: A dynamically created ``b2luigi.Task`` subclass.
@@ -138,7 +138,10 @@ def _build_fast_task(
             ["--script", exec_script, "--output-file", output]
             + (["--input-file", input_file] if input_file is not None else [])
             + (["--force"] if force else [])
-            + (["--literal-path"] if literal_path else [])
+            # Always explicit (never omitted): the worker's own default must never
+            # decide this, or a submission-side flip would silently change where
+            # the batch job writes its output.
+            + (["--literal-path"] if literal_path else ["--no-literal-path"])
             + [arg for e in extra_args for arg in ("--extra-arg", e)]
         ),
     }
@@ -168,7 +171,7 @@ def test_task(
     extra_args: list[str],
     env_script: str | None = None,
     settings: list[str] | None = None,
-    literal_path: bool = False,
+    literal_path: bool = True,
 ) -> None:
     """Run a one-off b2luigi task that executes *exec_script* as a subprocess.
 

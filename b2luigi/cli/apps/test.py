@@ -56,14 +56,14 @@ def test(
     literal_path: Annotated[
         bool,
         typer.Option(
-            "--literal-path",
+            "--literal-path/--no-literal-path",
             help=(
-                "Write -o to the literal path given, exactly as -i already does, instead of "
-                "nesting it under result_dir/param dirs via add_to_output(). No-op with --force "
-                "(no output() is declared either way)."
+                "Write -o to the literal path given, exactly as -i already does (the default). "
+                "Use --no-literal-path to nest the output under result_dir/param dirs via "
+                "add_to_output() instead. No-op with --force (no output() is declared either way)."
             ),
         ),
-    ] = False,
+    ] = True,
     extra_args: Annotated[
         list[str] | None,
         typer.Argument(help="Extra arguments forwarded verbatim to the script subprocess."),
@@ -78,7 +78,8 @@ def test(
     :param batch: Submit task via batch system.
     :param env_script: Path to an environment setup script; only takes effect with --batch.
     :param setting: List of key=value overrides applied via set_setting() before the run.
-    :param literal_path: When True, -o writes to the literal path given, bypassing result_dir nesting.
+    :param literal_path: When True (the default), -o writes to the literal path given,
+        bypassing result_dir nesting; --no-literal-path restores the nesting.
     :param extra_args: Extra arguments forwarded verbatim to the script subprocess.
     """
     test_task(

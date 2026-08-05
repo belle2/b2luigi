@@ -146,11 +146,11 @@ class TestFastTaskCmdGeneration(TestCase):
     """Unit tests for task_cmd_additional_args injected by _build_fast_task."""
 
     def test_basic_flags_present(self) -> None:
-        """Script and output file are encoded as --script / --output-file."""
+        """Script, output file and the always-explicit literal-path flag are encoded."""
         FastTask = _build_fast_task("script.py", "out.txt", None, False, False, [])
         self.assertEqual(
             FastTask.task_cmd_additional_args,
-            ["--script", os.path.abspath("script.py"), "--output-file", "out.txt"],
+            ["--script", os.path.abspath("script.py"), "--output-file", "out.txt", "--literal-path"],
         )
 
     def test_input_file_included(self) -> None:
@@ -202,14 +202,15 @@ class TestFastTaskCmdGeneration(TestCase):
         FastTask = _build_fast_task("script.py", "out.txt", None, False, False, [], env_script="env.sh")
         self.assertNotIn("--env-script", FastTask.task_cmd_additional_args)
 
-    def test_literal_path_flag_included_when_true(self) -> None:
-        """--literal-path is appended to task_cmd_additional_args when literal_path=True."""
-        FastTask = _build_fast_task("script.py", "out.txt", None, False, False, [], literal_path=True)
+    def test_literal_path_flag_included_by_default(self) -> None:
+        """--literal-path is appended to task_cmd_additional_args by default (literal_path=True)."""
+        FastTask = _build_fast_task("script.py", "out.txt", None, False, False, [])
         self.assertIn("--literal-path", FastTask.task_cmd_additional_args)
 
-    def test_literal_path_flag_absent_when_false(self) -> None:
-        """--literal-path is not appended when literal_path=False (default)."""
-        FastTask = _build_fast_task("script.py", "out.txt", None, False, False, [])
+    def test_no_literal_path_flag_encoded_when_false(self) -> None:
+        """literal_path=False is encoded explicitly as --no-literal-path so the worker cannot disagree."""
+        FastTask = _build_fast_task("script.py", "out.txt", None, False, False, [], literal_path=False)
+        self.assertIn("--no-literal-path", FastTask.task_cmd_additional_args)
         self.assertNotIn("--literal-path", FastTask.task_cmd_additional_args)
 
 
@@ -343,10 +344,22 @@ class TestTestSettingFlag(CLITestCase):
         self.assertEqual(rc, 0, stderr)
 
     def test_setting_result_dir_moves_output_location(self) -> None:
-        """--setting result_dir=custom_out actually relocates the output file, not just accepted."""
+        """--setting result_dir=custom_out actually relocates the output file, not just accepted.
+
+        Needs --no-literal-path since the literal-path default would bypass result_dir
+        entirely and hide whether the setting was applied.
+        """
         rc, _, stderr = self._run_cli(
             "test",
-            ["-s", "cli_test_script.py", "-o", "result.txt", "--setting", "result_dir=custom_out"],
+            [
+                "-s",
+                "cli_test_script.py",
+                "-o",
+                "result.txt",
+                "--setting",
+                "result_dir=custom_out",
+                "--no-literal-path",
+            ],
         )
         self.assertEqual(rc, 0, stderr)
         self.assertTrue(os.path.exists(os.path.join(self.tmp_dir, "custom_out", "result.txt")))
@@ -412,21 +425,21 @@ class TestFastTaskLiteralPathTargetResolution(TestCase):
         os.chdir(self._old_cwd)
         shutil.rmtree(self.tmp_dir)
 
-    def test_literal_path_bypasses_result_dir(self) -> None:
-        """With literal_path=True, the output target must point at the literal path, not result_dir/out.txt."""
+    def test_default_bypasses_result_dir(self) -> None:
+        """By default (literal_path=True), the output target must point at the literal path, not result_dir/out.txt."""
         with with_new_settings():
             set_setting("result_dir", "results")
-            FastTask = _build_fast_task("script.py", "out.txt", None, False, False, [], literal_path=True)
+            FastTask = _build_fast_task("script.py", "out.txt", None, False, False, [])
             outputs = list(FastTask().output())
             self.assertEqual(len(outputs), 1)
             target = outputs[0]["out.txt"]
             self.assertEqual(target.path, os.path.abspath("out.txt"))
 
-    def test_default_still_nests_under_result_dir(self) -> None:
-        """Without literal_path (default), behavior is unchanged: output nests under result_dir."""
+    def test_no_literal_path_nests_under_result_dir(self) -> None:
+        """With literal_path=False, the output nests under result_dir as before the default flip."""
         with with_new_settings():
             set_setting("result_dir", "results")
-            FastTask = _build_fast_task("script.py", "out.txt", None, False, False, [])
+            FastTask = _build_fast_task("script.py", "out.txt", None, False, False, [], literal_path=False)
             outputs = list(FastTask().output())
             target = outputs[0]["out.txt"]
             self.assertTrue(target.path.endswith(os.path.join("results", "out.txt")))
@@ -467,8 +480,8 @@ class TestTestLiteralPathFlag(CLITestCase):
             os.path.join(self.tmp_dir, "cli_test_script.py"),
         )
 
-    def test_literal_path_writes_to_given_path_not_result_dir(self) -> None:
-        """--literal-path with a custom result_dir must still write to the literal -o path."""
+    def test_default_writes_to_given_path_not_result_dir(self) -> None:
+        """By default, even with a custom result_dir, -o is written at the literal path given."""
         rc, _, stderr = self._run_cli(
             "test",
             [
@@ -478,18 +491,25 @@ class TestTestLiteralPathFlag(CLITestCase):
                 "result.txt",
                 "--setting",
                 "result_dir=custom_out",
-                "--literal-path",
             ],
         )
         self.assertEqual(rc, 0, stderr)
         self.assertTrue(os.path.exists(os.path.join(self.tmp_dir, "result.txt")))
         self.assertFalse(os.path.exists(os.path.join(self.tmp_dir, "custom_out", "result.txt")))
 
-    def test_default_without_flag_still_nests_under_result_dir(self) -> None:
-        """Without --literal-path, --setting result_dir=... still relocates the output (no regression)."""
+    def test_no_literal_path_nests_under_result_dir(self) -> None:
+        """--no-literal-path restores the old behavior: --setting result_dir=... relocates the output."""
         rc, _, stderr = self._run_cli(
             "test",
-            ["-s", "cli_test_script.py", "-o", "result.txt", "--setting", "result_dir=custom_out"],
+            [
+                "-s",
+                "cli_test_script.py",
+                "-o",
+                "result.txt",
+                "--setting",
+                "result_dir=custom_out",
+                "--no-literal-path",
+            ],
         )
         self.assertEqual(rc, 0, stderr)
         self.assertTrue(os.path.exists(os.path.join(self.tmp_dir, "custom_out", "result.txt")))
