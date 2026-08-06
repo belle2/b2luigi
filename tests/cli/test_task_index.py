@@ -12,6 +12,9 @@ import tempfile
 import textwrap
 from unittest import TestCase
 
+from typer.testing import CliRunner
+
+from b2luigi.cli import app
 from b2luigi.cli.errors import CliUserError
 from b2luigi.cli.utils import build_task_index
 
@@ -210,3 +213,37 @@ class TestTaskIndexStaleClassFiltering(TaskIndexTestBase):
         live_deep_tasks = [c for c in index2.project["DeepTask"] if c.__module__ == "analysis_ti.deep"]
         self.assertEqual(len(live_deep_tasks), 1, "Should have exactly 1 live analysis_ti.deep.DeepTask candidate")
         self.assertIs(live_deep_tasks[0], new_cls_obj, "The live class should be the one in sys.modules")
+
+
+class TestTransitiveAddressability(TaskIndexTestBase):
+    def setUp(self) -> None:
+        super().setUp()
+        with open(os.path.join(self.proj, "settings.json"), "w") as f:
+            f.write('{"result_dir": "results"}\n')
+        self.runner = CliRunner()
+
+    def test_show_accepts_dotted_transitive_name(self) -> None:
+        result = self.runner.invoke(app, ["show", "analysis_ti.deep.DeepTask"])
+        self.assertEqual(result.exit_code, 0, result.output)
+        self.assertIn("DeepTask", result.output)
+
+    def test_show_bare_ambiguous_name_errors(self) -> None:
+        result = self.runner.invoke(app, ["show", "DeepTask"])
+        self.assertEqual(result.exit_code, 2)
+        self.assertIn("Ambiguous", result.output)
+
+    def test_graph_scopes_to_dotted_name(self) -> None:
+        result = self.runner.invoke(app, ["graph", "analysis_ti.skim.SkimTask"])
+        self.assertEqual(result.exit_code, 0, result.output)
+        self.assertIn("SkimTask", result.output)
+
+    def test_remove_keep_unknown_name_errors(self) -> None:
+        result = self.runner.invoke(app, ["remove", "SkimTask", "-y", "--keep", "TypoTask"])
+        self.assertEqual(result.exit_code, 2)
+        self.assertIn("Unknown task 'TypoTask'", result.output)
+
+    def test_remove_keep_accepts_dotted_transitive_name(self) -> None:
+        result = self.runner.invoke(
+            app, ["remove", "SkimTask", "-y", "--with-requirements", "--keep", "analysis_ti.deep.DeepTask"]
+        )
+        self.assertEqual(result.exit_code, 0, result.output)

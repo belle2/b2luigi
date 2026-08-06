@@ -13,11 +13,11 @@ import b2luigi
 from b2luigi.cli import runner
 from b2luigi.cli.options import Params, ParamsFile, TaskFile, class_names_arg
 from b2luigi.cli.utils import (
+    cli_error_boundary,
     find_tasks_in_tree,
     get_root_tasks,
     resolve_task_context,
     try_instantiate,
-    validate_classnames,
 )
 
 
@@ -64,7 +64,7 @@ def graph_task(
     :type show_status: bool
     """
     ctx = resolve_task_context(task_filename, parameter_filename, params)
-    available, param_dicts = ctx.available, ctx.param_dicts
+    index, param_dicts = ctx.index, ctx.param_dicts
 
     def _all_instantiatable(classes: Iterable[type[b2luigi.Task]]) -> list[b2luigi.Task]:
         seen: set[str] = set()
@@ -80,27 +80,27 @@ def graph_task(
     names = classnames
 
     if names is None:
-        root_tasks = get_root_tasks(_all_instantiatable(available.values()))
+        root_tasks = get_root_tasks(_all_instantiatable(index.all_classes()))
     else:
-        validate_classnames(names, available)
+        target_classes = index.resolve_many(names)
         direct_instances: list[b2luigi.Task] = []
         seen_ids: set[str] = set()
-        unresolvable: list[str] = []
-        for name in names:
+        unresolvable: list[type[b2luigi.Task]] = []
+        for cls in target_classes:
             found_any = False
             for pd in param_dicts:
-                inst = try_instantiate(available[name], pd)
+                inst = try_instantiate(cls, pd)
                 if inst is not None and inst.task_id not in seen_ids:
                     seen_ids.add(inst.task_id)
                     direct_instances.append(inst)
                     found_any = True
             if not found_any:
-                unresolvable.append(name)
+                unresolvable.append(cls)
 
         if unresolvable:
             root_tasks = find_tasks_in_tree(
-                set(names),
-                get_root_tasks(_all_instantiatable(available.values())),
+                set(target_classes),
+                get_root_tasks(_all_instantiatable(index.all_classes())),
             )
         else:
             root_tasks = direct_instances
@@ -160,12 +160,13 @@ def graph(
     """
     if ctx.invoked_subcommand is not None:
         return
-    graph_task(
-        classnames=classnames,
-        task_filename=task_filename,
-        parameter_filename=parameter_filename,
-        params=params,
-        output_format=output_format,
-        with_params=with_params,
-        show_status=show_status,
-    )
+    with cli_error_boundary():
+        graph_task(
+            classnames=classnames,
+            task_filename=task_filename,
+            parameter_filename=parameter_filename,
+            params=params,
+            output_format=output_format,
+            with_params=with_params,
+            show_status=show_status,
+        )

@@ -13,6 +13,7 @@ from unittest import TestCase
 import b2luigi
 from b2luigi.cli.errors import CliUserError
 from b2luigi.cli.utils import (
+    TaskIndex,
     parse_classnames,
     parse_kv_params,
     split_kv_params,
@@ -189,6 +190,7 @@ class _ChildTask(b2luigi.Task):
 
 
 _AVAILABLE = {"_ParentTask": _ParentTask, "_ChildTask": _ChildTask}
+_INDEX = TaskIndex(manifest=_AVAILABLE, project={}, task_file="tasks.py")
 _PARAMS = [{"parent_param": 3}]  # child_param intentionally absent; wrapped as expand_parameters() output
 
 
@@ -197,40 +199,44 @@ class TestBuildTaskList(TestCase):
 
     def test_direct_path_when_params_sufficient(self) -> None:
         """Returns only the named target when its params are fully provided."""
-        task_list, unresolved = build_task_list(["_ParentTask"], _AVAILABLE, _PARAMS, direct_mode=False)
+        task_list, unresolved = build_task_list([_ParentTask], _INDEX, _PARAMS, direct_mode=False)
         self.assertEqual(len(task_list), 1)
         self.assertIsInstance(task_list[0], _ParentTask)
-        self.assertEqual(unresolved, set())
+        self.assertEqual(unresolved, [])
 
     def test_discovery_path_when_params_missing(self) -> None:
         """Falls back to tree traversal and returns only the named target, not all roots."""
-        task_list, unresolved = build_task_list(["_ChildTask"], _AVAILABLE, _PARAMS, direct_mode=False)
+        task_list, unresolved = build_task_list([_ChildTask], _INDEX, _PARAMS, direct_mode=False)
         self.assertEqual(len(task_list), 1)
         self.assertIsInstance(task_list[0], _ChildTask)
-        self.assertEqual(unresolved, set())
+        self.assertEqual(unresolved, [])
 
     def test_direct_mode_returns_unresolved_when_params_missing(self) -> None:
-        """In direct mode, returns unresolved names instead of falling back."""
-        task_list, unresolved = build_task_list(["_ChildTask"], _AVAILABLE, _PARAMS, direct_mode=True)
+        """In direct mode, returns unresolved classes instead of falling back."""
+        task_list, unresolved = build_task_list([_ChildTask], _INDEX, _PARAMS, direct_mode=True)
         self.assertEqual(task_list, [])
-        self.assertIn("_ChildTask", unresolved)
+        self.assertIn(_ChildTask, unresolved)
 
 
 class TestFindTasksInTree(TestCase):
     """Tests for the find_tasks_in_tree helper."""
 
     def test_returns_only_target_class_instances(self) -> None:
-        """Returns only instances matching target_names, not the roots themselves."""
+        """Returns only instances matching target_classes, not the roots themselves."""
         # _ParentTask(parent_param=3) requires _ChildTask(child_param=6)
         roots = [_ParentTask(parent_param=3)]
-        result = find_tasks_in_tree({"_ChildTask"}, roots)
+        result = find_tasks_in_tree({_ChildTask}, roots)
         self.assertEqual(len(result), 1)
         self.assertIsInstance(result[0], _ChildTask)
 
     def test_returns_empty_list_when_no_match(self) -> None:
-        """Returns [] when no task in the tree matches target_names."""
+        """Returns [] when no task in the tree matches target_classes."""
+
+        class _UnrelatedTask(b2luigi.Task):
+            pass
+
         roots = [_ParentTask(parent_param=3)]
-        result = find_tasks_in_tree({"NonExistent"}, roots)
+        result = find_tasks_in_tree({_UnrelatedTask}, roots)
         self.assertEqual(result, [])
 
 
@@ -344,7 +350,7 @@ class TestResolveTaskContext(TestCase):
 
         ctx = resolve_task_context(None, None, ["my_parameter=2"])
 
-        self.assertIn("CtxTask", ctx.available)
+        self.assertIn("CtxTask", ctx.index.manifest)
         self.assertEqual(ctx.merged_params["my_parameter"], 2)
         self.assertEqual(ctx.merged_params["other_parameter"], "a")
         self.assertEqual(ctx.param_dicts, [{"my_parameter": 2, "other_parameter": "a"}])

@@ -8,9 +8,9 @@ from b2luigi.cli.errors import CliUserError
 from b2luigi.cli.options import Params, ParamsFile, TaskFile, class_names_arg
 from b2luigi.cli.utils import (
     build_task_list,
+    cli_error_boundary,
     parse_classnames,
     resolve_task_context,
-    validate_classnames,
 )
 from b2luigi.core.settings import get_setting
 
@@ -34,7 +34,11 @@ def remove(
     ] = False,
     keep: Annotated[
         Optional[str],
-        typer.Option("--keep", help="Comma-separated task class names whose outputs should NOT be removed."),
+        typer.Option(
+            "--keep",
+            help="Comma-separated task class names whose outputs should NOT be removed. "
+            "Names are validated; dotted module.Class names are accepted.",
+        ),
     ] = None,
     params: Params = None,
     direct: Annotated[
@@ -71,48 +75,54 @@ def remove(
     .. note::
         Task names are passed as positional arguments. The ``-t``/``--task``
         option that existed in earlier versions has been removed.
+
+    .. note::
+        After resolution, ``--keep`` filtering in the runner matches by class
+        *name* — with ambiguous names it protects every same-named class,
+        which is the safe direction.
     """
-    ctx = resolve_task_context(task_filename, parameter_filename, params)
-    available, merged_params, param_dicts = ctx.available, ctx.merged_params, ctx.param_dicts
+    with cli_error_boundary():
+        ctx = resolve_task_context(task_filename, parameter_filename, params)
+        index, merged_params, param_dicts = ctx.index, ctx.merged_params, ctx.param_dicts
 
-    names = classnames
-    keep_tasks = parse_classnames(keep)
+        names = classnames
+        keep_names = parse_classnames(keep)
+        keep_classes = index.resolve_many(keep_names) if keep_names else None
 
-    if names is None:
-        target_names = list(available.keys())
-    else:
-        validate_classnames(names, available)
-        target_names = names
+        if names is None:
+            target_classes = index.all_classes()
+        else:
+            target_classes = index.resolve_many(names)
 
-    effective_direct = direct or bool(get_setting("direct_mode", default=False))
+        effective_direct = direct or bool(get_setting("direct_mode", default=False))
 
-    task_list, unresolved = build_task_list(target_names, available, param_dicts, effective_direct)
+        task_list, unresolved = build_task_list(target_classes, index, param_dicts, effective_direct)
 
-    if unresolved:
-        for name in sorted(unresolved):
-            cls = available[name]
-            filtered = {k: v for k, v in merged_params.items() if k in {n for n, _ in cls.get_params()}}
-            try:
-                cls(**filtered)
-            except luigi.parameter.MissingParameterException as e:
-                raise CliUserError(
-                    f"Cannot instantiate {name} directly — {e}\n"
-                    f"Add the missing parameter(s) with --param <key>=<value> or set in parameters.py."
-                ) from e
-        # Should be unreachable: build_task_list only populates unresolved when
-        # try_instantiate returned None, which means MissingParameterException will
-        # reproduce above. Guard against future exception hierarchy changes.
-        raise CliUserError(
-            f"Cannot instantiate task(s) {sorted(unresolved)!r} in direct mode. "
-            f"Add missing parameters with --param <key>=<value> or set in parameters.py."
-        )
+        if unresolved:
+            for cls in sorted(unresolved, key=index.qualified_name):
+                filtered = {k: v for k, v in merged_params.items() if k in {n for n, _ in cls.get_params()}}
+                try:
+                    cls(**filtered)
+                except luigi.parameter.MissingParameterException as e:
+                    raise CliUserError(
+                        f"Cannot instantiate {index.qualified_name(cls)} directly — {e}\n"
+                        f"Add the missing parameter(s) with --param <key>=<value> or set in parameters.py."
+                    ) from e
+            # Should be unreachable: build_task_list only populates unresolved when
+            # try_instantiate returned None, which means MissingParameterException will
+            # reproduce above. Guard against future exception hierarchy changes.
+            raise CliUserError(
+                f"Cannot instantiate task(s) {sorted(index.qualified_name(c) for c in unresolved)!r} in direct mode. "
+                f"Add missing parameters with --param <key>=<value> or set in parameters.py."
+            )
 
-    if with_requirements and names is not None:
-        runner.remove_requirement_outputs(task_list, auto_confirm=yes, keep_tasks=keep_tasks)
-    else:
-        runner.remove_outputs(
-            task_list,
-            target_tasks=target_names,
-            auto_confirm=yes,
-            keep_tasks=keep_tasks,
-        )
+        keep_tasks = [cls.__name__ for cls in keep_classes] if keep_classes else None
+        if with_requirements and names is not None:
+            runner.remove_requirement_outputs(task_list, auto_confirm=yes, keep_tasks=keep_tasks)
+        else:
+            runner.remove_outputs(
+                task_list,
+                target_tasks=[cls.__name__ for cls in target_classes],
+                auto_confirm=yes,
+                keep_tasks=keep_tasks,
+            )

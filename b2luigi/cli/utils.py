@@ -1,3 +1,4 @@
+from contextlib import contextmanager
 from dataclasses import dataclass
 import difflib
 import importlib.util
@@ -10,7 +11,7 @@ from typing import Any, Dict, Generator, List, Optional, Tuple, Type
 
 import luigi
 import b2luigi
-from b2luigi.cli.errors import CliUserError
+from b2luigi.cli.errors import CliUserError, _render_cli_error
 from b2luigi.core.settings import set_setting
 from b2luigi.core.utils import task_iterator, SYNTHETIC_TASK_MODULE
 from click import Context as ClickContext, Parameter as ClickParameter
@@ -27,6 +28,31 @@ def resolve_defaults(task_file: str | None, params_file: str | None) -> Defaults
     task = task_file or os.getenv("B2LUIGI_TASK_FILE") or "tasks.py"
     params = params_file or os.getenv("B2LUIGI_PARAMS_FILE") or "parameters.py"
     return Defaults(task_file=task, params_file=params)
+
+
+@contextmanager
+def cli_error_boundary() -> Generator[None, None, None]:
+    """Render a :class:`CliUserError` raised inside the block and exit with its code.
+
+    The console-script entry point (:func:`b2luigi.cli.main`) already catches
+    ``CliUserError`` around the whole ``app()`` call. But
+    :class:`typer.testing.CliRunner` invokes the Typer app directly, bypassing
+    ``main()`` entirely, so a ``CliUserError`` raised there would otherwise
+    surface as an uncaught exception (exit code 1, no rendered message)
+    instead of its intended exit code. Command callbacks that resolve task
+    names in-process (``show``, ``remove``, ``graph``) wrap their body in this
+    context manager so both the real CLI and in-process test invocation exit
+    identically.
+
+    :yields: Control to the wrapped block.
+    :raises SystemExit: With the error's ``exit_code``, after rendering it, if
+        a :class:`CliUserError` is raised inside the block.
+    """
+    try:
+        yield
+    except CliUserError as e:
+        _render_cli_error(str(e))
+        raise SystemExit(e.exit_code) from e
 
 
 def suggest(bad: str, candidates: List[str]) -> str | None:
@@ -424,8 +450,8 @@ def expand_parameters(config: dict[str, Any]) -> list[dict[str, Any]]:
 class TaskContext:
     """Everything the inspection commands need to address a set of tasks.
 
-    :param available: Task classes defined in the task file, keyed by class name.
-    :type available: Dict[str, Type[b2luigi.Task]]
+    :param index: The task index (manifest + project discovery + resolution).
+    :type index: TaskIndex
     :param merged_params: The ``parameters.py`` config with ``--param`` overrides
         applied on top, still unexpanded (generator objects intact).
     :type merged_params: Dict[str, Any]
@@ -434,7 +460,7 @@ class TaskContext:
     :type param_dicts: List[Dict[str, Any]]
     """
 
-    available: Dict[str, Type[b2luigi.Task]]
+    index: TaskIndex
     merged_params: Dict[str, Any]
     param_dicts: List[Dict[str, Any]]
 
@@ -472,10 +498,10 @@ def resolve_task_context(
     :rtype: TaskContext
     """
     d = resolve_defaults(task_filename, parameter_filename)
-    available = {cls.__name__: cls for cls in get_task_classes(d.task_file)}
+    index = build_task_index(d.task_file)
     merged_params = {**load_parameters(d.params_file), **parse_kv_params(params or [])}
     return TaskContext(
-        available=available,
+        index=index,
         merged_params=merged_params,
         param_dicts=expand_parameters(merged_params),
     )
@@ -527,11 +553,11 @@ def try_instantiate(cls: Type[b2luigi.Task], params: Dict[str, Any]) -> Optional
 
 
 def build_task_list(
-    target_names: list[str],
-    available: dict[str, Type[b2luigi.Task]],
+    target_classes: list[Type[b2luigi.Task]],
+    index: TaskIndex,
     param_dicts: list[dict[str, Any]],
     direct_mode: bool,
-) -> tuple[list[b2luigi.Task], set[str]]:
+) -> tuple[list[b2luigi.Task], list[Type[b2luigi.Task]]]:
     """Build the list of task instances for ``show`` and ``remove``.
 
     Selects between a direct instantiation path (fast, no graph traversal)
@@ -547,28 +573,30 @@ def build_task_list(
     - All named targets directly resolvable: returns only those instances
       (no traversal needed).
     - Any named target unresolvable in ``direct_mode``: returns an empty
-      list and the set of unresolved names for the caller to raise an error.
+      list and the classes that could not be directly instantiated, for the
+      caller to raise an error.
     - Any named target unresolvable without ``direct_mode``: falls back to
       all instantiatable roots so the caller can discover the target via
       graph traversal.
 
-    :param target_names: Task class names the caller wants to act on.
-    :type target_names: list[str]
-    :param available: Mapping of class name to class for all classes in tasks.py.
-    :type available: dict[str, Type[b2luigi.Task]]
+    :param target_classes: Task classes the caller wants to act on. Resolution
+        (bare/dotted name to class) has already happened at the app boundary.
+    :type target_classes: list[Type[b2luigi.Task]]
+    :param index: The task index for the current project.
+    :type index: TaskIndex
     :param param_dicts: Expanded parameter dicts from :func:`expand_parameters`.
     :type param_dicts: list[dict[str, Any]]
     :param direct_mode: If ``True``, never fall back to graph traversal.
     :type direct_mode: bool
     :returns: ``(task_list, unresolved)`` — task instances for the runner and
-        any target names that could not be directly instantiated.
-    :rtype: tuple[list[b2luigi.Task], set[str]]
+        any target classes that could not be directly instantiated.
+    :rtype: tuple[list[b2luigi.Task], list[Type[b2luigi.Task]]]
     """
 
     def _all_roots() -> list[b2luigi.Task]:
         seen: set[str] = set()
         result: list[b2luigi.Task] = []
-        for cls in available.values():
+        for cls in index.all_classes():
             for pd in param_dicts:
                 inst = try_instantiate(cls, pd)
                 if inst is not None and inst.task_id not in seen:
@@ -578,12 +606,8 @@ def build_task_list(
 
     direct_instances: list[b2luigi.Task] = []
     seen: set[str] = set()
-    unresolved: set[str] = set()
-    for name in target_names:
-        cls = available.get(name)
-        if cls is None:
-            unresolved.add(name)
-            continue
+    unresolved: list[Type[b2luigi.Task]] = []
+    for cls in target_classes:
         found_any = False
         for pd in param_dicts:
             inst = try_instantiate(cls, pd)
@@ -592,31 +616,30 @@ def build_task_list(
                 direct_instances.append(inst)
                 found_any = True
         if not found_any:
-            unresolved.add(name)
+            unresolved.append(cls)
 
     if not unresolved:
-        return direct_instances, set()
+        return direct_instances, []
 
     if direct_mode:
         return [], unresolved
 
-    return find_tasks_in_tree(set(target_names), _all_roots()), set()
+    return find_tasks_in_tree(set(target_classes), _all_roots()), []
 
 
 def find_tasks_in_tree(
-    target_names: set[str],
+    target_classes: set[type],
     root_tasks: list[b2luigi.Task],
 ) -> list[b2luigi.Task]:
-    """Walk the dependency tree rooted at ``root_tasks`` and return instances matching ``target_names``.
+    """Walk the dependency tree rooted at ``root_tasks`` and return instances of ``target_classes``.
 
-    Traverses downward through :func:`task_iterator` for each root task, collecting
-    instances whose class name is in ``target_names``. Deduplicates by ``task_id``.
+    Traverses downward through :func:`task_iterator` for each root task,
+    collecting instances whose exact class is in ``target_classes`` (identity,
+    not name — two same-named classes from different modules never conflate).
+    Deduplicates by ``task_id``.
 
-    When the result is empty the caller proceeds with an empty task list — ``show``
-    renders nothing and ``remove`` removes nothing (silent no-op).
-
-    :param target_names: Set of task class names to search for.
-    :type target_names: set[str]
+    :param target_classes: Set of task classes to search for.
+    :type target_classes: set[type]
     :param root_tasks: Root task instances to start traversal from.
     :type root_tasks: list[b2luigi.Task]
     :returns: Deduplicated list of matching task instances, or ``[]`` if none found.
@@ -626,7 +649,7 @@ def find_tasks_in_tree(
     result: list[b2luigi.Task] = []
     for root in root_tasks:
         for task in task_iterator(root):
-            if task.__class__.__name__ in target_names and task.task_id not in seen:
+            if type(task) in target_classes and task.task_id not in seen:
                 seen.add(task.task_id)
                 result.append(task)
     return result

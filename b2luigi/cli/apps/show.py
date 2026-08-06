@@ -8,11 +8,11 @@ from b2luigi.cli import runner
 from b2luigi.cli.errors import CliUserError
 from b2luigi.cli.options import Params, ParamsFile, TaskFile, class_names_arg
 from b2luigi.cli.utils import (
+    cli_error_boundary,
     find_tasks_in_tree,
     get_root_tasks,
     resolve_task_context,
     try_instantiate,
-    validate_classnames,
 )
 from b2luigi.core.settings import get_setting
 
@@ -75,7 +75,7 @@ def show_task(
     :type details: bool
     """
     ctx = resolve_task_context(task_filename, parameter_filename, params)
-    available, param_dicts = ctx.available, ctx.param_dicts
+    index, param_dicts = ctx.index, ctx.param_dicts
 
     effective_direct = direct or bool(get_setting("direct_mode", default=False))
     names = classnames
@@ -92,24 +92,24 @@ def show_task(
         return result
 
     if names is None:
-        runner.show_all_outputs(get_root_tasks(_all_instantiatable(available.values())), details=details)
+        runner.show_all_outputs(get_root_tasks(_all_instantiatable(index.all_classes())), details=details)
         return
 
-    validate_classnames(names, available)
+    target_classes = index.resolve_many(names)
 
     direct_instances: list[b2luigi.Task] = []
     seen_ids: set[str] = set()
-    unresolvable: list[str] = []
-    for name in names:
+    unresolvable: list[type[b2luigi.Task]] = []
+    for cls in target_classes:
         found_any = False
         for pd in param_dicts:
-            inst = try_instantiate(available[name], pd)
+            inst = try_instantiate(cls, pd)
             if inst is not None and inst.task_id not in seen_ids:
                 seen_ids.add(inst.task_id)
                 direct_instances.append(inst)
                 found_any = True
         if not found_any:
-            unresolvable.append(name)
+            unresolvable.append(cls)
 
     if not unresolvable:
         if with_requirements:
@@ -119,13 +119,13 @@ def show_task(
         return
 
     if effective_direct:
-        for name in unresolvable:
-            _raise_unresolvable_error(name, available[name], param_dicts[0])
+        for cls in unresolvable:
+            _raise_unresolvable_error(index.qualified_name(cls), cls, param_dicts[0])
         raise AssertionError(f"Expected CliUserError from _raise_unresolvable_error, got none for: {unresolvable!r}")
 
     found = find_tasks_in_tree(
-        set(names),
-        get_root_tasks(_all_instantiatable(available.values())),
+        set(target_classes),
+        get_root_tasks(_all_instantiatable(index.all_classes())),
     )
     if with_requirements:
         runner.show_all_outputs(found, show_required_by=True, details=details)
@@ -184,12 +184,13 @@ def show(
     """
     if ctx.invoked_subcommand is not None:
         return
-    show_task(
-        classnames=classnames,
-        task_filename=task_filename,
-        parameter_filename=parameter_filename,
-        params=params,
-        direct=direct,
-        with_requirements=with_requirements,
-        details=details,
-    )
+    with cli_error_boundary():
+        show_task(
+            classnames=classnames,
+            task_filename=task_filename,
+            parameter_filename=parameter_filename,
+            params=params,
+            direct=direct,
+            with_requirements=with_requirements,
+            details=details,
+        )
