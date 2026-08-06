@@ -64,7 +64,7 @@ You want to help developing ``b2luigi``? Great! Here are some first steps to hel
 
     .. code-block:: bash
 
-        flit install -s -deps=develop
+        flit install -s --deps develop
 
     Now you can start hacking and your changes will be immediately available to you.
 
