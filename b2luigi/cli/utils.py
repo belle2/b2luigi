@@ -12,7 +12,7 @@ import luigi
 import b2luigi
 from b2luigi.cli.errors import CliUserError
 from b2luigi.core.settings import set_setting
-from b2luigi.core.utils import task_iterator
+from b2luigi.core.utils import task_iterator, SYNTHETIC_TASK_MODULE
 from click import Context as ClickContext, Parameter as ClickParameter
 from click.shell_completion import CompletionItem
 
@@ -69,7 +69,7 @@ def import_from_file(filename: str, module_name: str) -> Any:
 
 
 def task_generator(task_file: str = "tasks.py") -> Generator[Tuple[str, Any], Any, None]:
-    tasks_module = import_from_file(task_file, "TaskClasses")
+    tasks_module = import_from_file(task_file, SYNTHETIC_TASK_MODULE)
     for name, obj in inspect.getmembers(tasks_module):
         yield name, obj
 
@@ -114,6 +114,237 @@ def get_task_classes(task_file: str = "tasks.py") -> list[Type[b2luigi.Task]]:
     if not task_classes:
         raise ValueError("No task classes found in the specified file.")
     return sorted(task_classes, key=lambda cls: cls.__name__)
+
+
+def _iter_task_subclasses(base: Type | None = None) -> Generator[Type, None, None]:
+    """Yield every :class:`b2luigi.Task` subclass known to the interpreter.
+
+    Walks ``__subclasses__`` recursively from *base* (default
+    :class:`b2luigi.Task`). May yield duplicates under multiple inheritance;
+    callers deduplicate by identity.
+
+    :param base: Class to start the walk from, or ``None`` for ``b2luigi.Task``.
+    :type base: Type | None
+    :returns: Generator of task classes.
+    :rtype: Generator[Type, None, None]
+    """
+    root = base or b2luigi.Task
+    for sub in root.__subclasses__():
+        yield sub
+        yield from _iter_task_subclasses(sub)
+
+
+def _project_task_classes(task_file: str) -> list[Type]:
+    """Collect loaded task classes defined under the task file's directory.
+
+    Importing the task file loads its whole import graph; this walks every
+    known :class:`b2luigi.Task` subclass and keeps the ones whose source file
+    lies under ``dirname(task_file)``. ``realpath`` is applied to BOTH sides
+    (macOS resolves ``/var`` to ``/private/var``) and the containment check
+    uses :func:`os.path.commonpath` so ``/proj-other`` never matches ``/proj``.
+
+    :param task_file: Path of the task file whose directory scopes the project.
+    :type task_file: str
+    :returns: Task classes defined under the project directory.
+    :rtype: list[Type]
+    """
+    root = os.path.realpath(os.path.dirname(os.path.abspath(task_file)))
+    result: list[Type] = []
+    seen: set[int] = set()
+    for cls in _iter_task_subclasses():
+        if id(cls) in seen:
+            continue
+        seen.add(id(cls))
+        if cls.__module__.partition(".")[0] in ("b2luigi", "luigi"):
+            continue
+        try:
+            source = os.path.realpath(inspect.getfile(cls))
+        except (TypeError, OSError):
+            continue
+        try:
+            if os.path.commonpath([root, source]) != root:
+                continue
+        except ValueError:
+            continue
+        # Verify the module is currently loaded and matches the source file
+        if cls.__module__ not in sys.modules:
+            continue
+        try:
+            mod_source = os.path.realpath(inspect.getfile(sys.modules[cls.__module__]))
+            if mod_source != source:
+                continue
+        except (TypeError, OSError):
+            continue
+        result.append(cls)
+    return result
+
+
+@dataclass(frozen=True)
+class TaskIndex:
+    """Membership and name resolution for every by-name CLI surface.
+
+    :param manifest: Classes in the task file's namespace, keyed by the name
+        they carry there (so an aliased import stays addressable by its alias).
+    :type manifest: Dict[str, Type[b2luigi.Task]]
+    :param project: Non-manifest classes discovered under the project
+        directory, grouped by bare class name (a name can have several
+        candidates from different modules).
+    :type project: Dict[str, Tuple[Type[b2luigi.Task], ...]]
+    :param task_file: The task file this index was built from.
+    :type task_file: str
+    """
+
+    manifest: Dict[str, Type[b2luigi.Task]]
+    project: Dict[str, Tuple[Type[b2luigi.Task], ...]]
+    task_file: str
+
+    def all_classes(self) -> list[Type[b2luigi.Task]]:
+        """Return the union of manifest and project classes, deterministically sorted.
+
+        :returns: Every addressable class exactly once.
+        :rtype: list[Type[b2luigi.Task]]
+        """
+        union = list(self.manifest.values())
+        manifest_ids = {id(cls) for cls in union}
+        for candidates in self.project.values():
+            union.extend(cls for cls in candidates if id(cls) not in manifest_ids)
+        return sorted(union, key=lambda cls: (cls.__name__, cls.__module__))
+
+    def qualified_name(self, cls: Type[b2luigi.Task]) -> str:
+        """Return the canonical user-facing name for *cls*.
+
+        Classes defined in the task file itself have the synthetic
+        ``TaskClasses`` module and are named bare; everything else is
+        ``module.ClassName``.
+
+        :param cls: The task class.
+        :type cls: Type[b2luigi.Task]
+        :returns: Bare or dotted name.
+        :rtype: str
+        """
+        if cls.__module__ == SYNTHETIC_TASK_MODULE:
+            return cls.__name__
+        return f"{cls.__module__}.{cls.__name__}"
+
+    def display_module(self, cls: Type[b2luigi.Task]) -> str:
+        """Return the module label shown in ``b2luigi tasks``.
+
+        :param cls: The task class.
+        :type cls: Type[b2luigi.Task]
+        :returns: ``cls.__module__``, or the task file's basename for classes
+            defined in the task file (the synthetic name never leaks).
+        :rtype: str
+        """
+        if cls.__module__ == SYNTHETIC_TASK_MODULE:
+            return os.path.basename(self.task_file)
+        return cls.__module__
+
+    def completion_names(self) -> list[str]:
+        """Return every name tab completion should offer.
+
+        Bare names for manifest classes and unique project classes; qualified
+        names for every candidate of an ambiguous (or manifest-shadowed) name.
+
+        :returns: Sorted completion candidates.
+        :rtype: list[str]
+        """
+        names: set[str] = set(self.manifest)
+        for name, candidates in self.project.items():
+            if name not in self.manifest and len(candidates) == 1:
+                names.add(name)
+            else:
+                names.update(self.qualified_name(cls) for cls in candidates)
+        return sorted(names)
+
+    def resolve(self, name: str, hint_cmd: str = "b2luigi tasks") -> Type[b2luigi.Task]:
+        """Resolve a bare or dotted task name to exactly one class.
+
+        Bare names: the manifest wins outright; otherwise a unique project
+        candidate resolves, several candidates raise an ambiguity error, and
+        none raises unknown-task. Dotted names match ``module.ClassName``
+        exactly across the union.
+
+        :param name: Bare (``DeepTask``) or dotted (``pkg.mod.DeepTask``) name.
+        :type name: str
+        :param hint_cmd: CLI command named in the unknown-task error.
+        :type hint_cmd: str
+        :returns: The resolved class.
+        :rtype: Type[b2luigi.Task]
+        :raises CliUserError: On unknown or ambiguous names.
+        """
+        if "." in name:
+            for cls in self.all_classes():
+                if f"{cls.__module__}.{cls.__name__}" == name:
+                    return cls
+        else:
+            if name in self.manifest:
+                return self.manifest[name]
+            candidates = self.project.get(name, ())
+            if len(candidates) == 1:
+                return candidates[0]
+            if len(candidates) > 1:
+                quals = ", ".join(sorted(self.qualified_name(cls) for cls in candidates))
+                raise CliUserError(f"Ambiguous task name '{name}'. Candidates: {quals}. Use the qualified name.")
+        suggestion = suggest(name, self.completion_names())
+        msg = f"Unknown task '{name}'."
+        if suggestion:
+            msg += f" Did you mean '{suggestion}'?"
+        msg += f" Use '{hint_cmd}' to see available tasks."
+        raise CliUserError(msg)
+
+    def resolve_many(self, names: list[str], hint_cmd: str = "b2luigi tasks") -> list[Type[b2luigi.Task]]:
+        """Resolve several names, deduplicating by class identity, order-preserving.
+
+        :param names: Bare or dotted task names.
+        :type names: list[str]
+        :param hint_cmd: CLI command named in unknown-task errors.
+        :type hint_cmd: str
+        :returns: The resolved classes, each exactly once.
+        :rtype: list[Type[b2luigi.Task]]
+        :raises CliUserError: On any unknown or ambiguous name.
+        """
+        resolved: list[Type[b2luigi.Task]] = []
+        seen: set[int] = set()
+        for name in names:
+            cls = self.resolve(name, hint_cmd=hint_cmd)
+            if id(cls) not in seen:
+                seen.add(id(cls))
+                resolved.append(cls)
+        return resolved
+
+
+def build_task_index(task_file: str = "tasks.py") -> TaskIndex:
+    """Import the task file and build the :class:`TaskIndex` for it.
+
+    :param task_file: The task file, relative to the current directory.
+    :type task_file: str
+    :returns: The populated index.
+    :rtype: TaskIndex
+    :raises CliUserError: If the task file is missing (via import).
+    """
+    manifest: Dict[str, Type[b2luigi.Task]] = {}
+    for name, obj in task_generator(task_file):
+        if is_from_task_classes(obj):
+            manifest[name] = obj
+    manifest_ids = {id(cls) for cls in manifest.values()}
+    grouped: Dict[str, list] = {}
+    for cls in _project_task_classes(task_file):
+        if id(cls) in manifest_ids:
+            continue
+        # Verify the class is from the currently loaded module, not a stale class
+        # from a previous test/import. If the module can't be accessed or the
+        # class isn't found in it, skip this stale instance.
+        try:
+            if cls.__module__ not in sys.modules:
+                continue
+            current_cls = getattr(sys.modules[cls.__module__], cls.__name__, None)
+            if current_cls is None or id(current_cls) != id(cls):
+                continue
+        except (AttributeError, KeyError):
+            continue
+        grouped.setdefault(cls.__name__, []).append(cls)
+    project = {name: tuple(sorted(candidates, key=lambda cls: cls.__module__)) for name, candidates in grouped.items()}
+    return TaskIndex(manifest=manifest, project=project, task_file=task_file)
 
 
 def load_parameters(filename: str = "parameters.py") -> Dict[str, Any]:
@@ -263,7 +494,7 @@ def load_task_class(class_name: str, filename: str = "tasks.py") -> Type[b2luigi
     :rtype: Type[b2luigi.Task]
     :raises AttributeError: If the name is absent or not a manifest task.
     """
-    tasks_module = import_from_file(filename, "TaskClasses")
+    tasks_module = import_from_file(filename, SYNTHETIC_TASK_MODULE)
     obj = getattr(tasks_module, class_name, None)
     if obj is None or not is_from_task_classes(obj):
         raise AttributeError(f"Class '{class_name}' not found in {filename}")

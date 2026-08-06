@@ -18,6 +18,12 @@ from b2luigi.core.settings import get_setting
 # Sentinel for detecting unset values in get_setting
 _UNSET = object()
 
+#: Module name assigned to the user's task file when the CLI imports it.
+#: Classes defined *in* the task file carry this as ``__module__``; classes
+#: imported *into* it keep their real module. The batch encoding
+#: (create_cmd_from_task) and the CLI task index both branch on it.
+SYNTHETIC_TASK_MODULE = "TaskClasses"
+
 
 def product_dict(**kwargs: Any) -> Iterator[Dict[str, Any]]:
     """
