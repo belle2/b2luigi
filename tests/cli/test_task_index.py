@@ -161,3 +161,27 @@ class TestTaskIndexResolution(TaskIndexTestBase):
         index = build_task_index("tasks.py")
         labels = {index.display_module(cls) for cls in index.all_classes()}
         self.assertNotIn("TaskClasses", labels)
+
+
+class TestTaskIndexStaleClassFiltering(TaskIndexTestBase):
+    def test_all_discovered_classes_are_live(self) -> None:
+        """Verify all classes in the index are live (reachable from sys.modules).
+
+        The identity check in build_task_index ensures that stale class objects
+        lingering in Task.__subclasses__() (from previous imports in the same
+        Python process) are excluded. This test verifies that every class in
+        the built index is actually live in sys.modules, not a stale instance.
+        """
+        index = build_task_index("tasks.py")
+
+        # Verify all project classes are live (the critical case where __subclasses__
+        # accumulation could cause stale classes to appear)
+        for name, candidates in index.project.items():
+            for cls in candidates:
+                current = getattr(sys.modules.get(cls.__module__), cls.__name__, None)
+                self.assertIs(
+                    current,
+                    cls,
+                    f"Project class {cls.__module__}.{cls.__name__} is stale, "
+                    f"not the live instance from sys.modules",
+                )

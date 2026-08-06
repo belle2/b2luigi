@@ -143,6 +143,15 @@ def _project_task_classes(task_file: str) -> list[Type]:
     (macOS resolves ``/var`` to ``/private/var``) and the containment check
     uses :func:`os.path.commonpath` so ``/proj-other`` never matches ``/proj``.
 
+    **Membership requirement:** Discovered classes must be currently reachable
+    as ``getattr(sys.modules[cls.__module__], cls.__name__)``. Stale class
+    objects left in Python's ``Task.__subclasses__()`` registry by previous
+    imports are filtered in :func:`build_task_index`, not here.
+
+    **Known limitation:** A class whose module-level binding name differs from
+    its ``__name__`` (e.g. a factory-created class bound under an alias) is not
+    discovered.
+
     :param task_file: Path of the task file whose directory scopes the project.
     :type task_file: str
     :returns: Task classes defined under the project directory.
@@ -165,15 +174,6 @@ def _project_task_classes(task_file: str) -> list[Type]:
             if os.path.commonpath([root, source]) != root:
                 continue
         except ValueError:
-            continue
-        # Verify the module is currently loaded and matches the source file
-        if cls.__module__ not in sys.modules:
-            continue
-        try:
-            mod_source = os.path.realpath(inspect.getfile(sys.modules[cls.__module__]))
-            if mod_source != source:
-                continue
-        except (TypeError, OSError):
             continue
         result.append(cls)
     return result
@@ -316,6 +316,11 @@ class TaskIndex:
 def build_task_index(task_file: str = "tasks.py") -> TaskIndex:
     """Import the task file and build the :class:`TaskIndex` for it.
 
+    Discovered project classes must be currently reachable as
+    ``getattr(sys.modules[cls.__module__], cls.__name__)``. Stale class
+    objects from previous imports are excluded via an identity check against
+    the live class in sys.modules.
+
     :param task_file: The task file, relative to the current directory.
     :type task_file: str
     :returns: The populated index.
@@ -331,16 +336,14 @@ def build_task_index(task_file: str = "tasks.py") -> TaskIndex:
     for cls in _project_task_classes(task_file):
         if id(cls) in manifest_ids:
             continue
-        # Verify the class is from the currently loaded module, not a stale class
-        # from a previous test/import. If the module can't be accessed or the
-        # class isn't found in it, skip this stale instance.
-        try:
-            if cls.__module__ not in sys.modules:
-                continue
-            current_cls = getattr(sys.modules[cls.__module__], cls.__name__, None)
-            if current_cls is None or id(current_cls) != id(cls):
-                continue
-        except (AttributeError, KeyError):
+        # When a module is re-imported (e.g., from a different tmpdir in tests),
+        # the old class objects linger in Task.__subclasses__() even though
+        # inspect.getfile(cls) reports the *current* source file. We must verify
+        # the class is the live instance in sys.modules, not a stale one.
+        if cls.__module__ not in sys.modules:
+            continue
+        current_cls = getattr(sys.modules[cls.__module__], cls.__name__, None)
+        if current_cls is None or id(current_cls) != id(cls):
             continue
         grouped.setdefault(cls.__name__, []).append(cls)
     project = {name: tuple(sorted(candidates, key=lambda cls: cls.__module__)) for name, candidates in grouped.items()}
