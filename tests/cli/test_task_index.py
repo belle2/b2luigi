@@ -164,24 +164,49 @@ class TestTaskIndexResolution(TaskIndexTestBase):
 
 
 class TestTaskIndexStaleClassFiltering(TaskIndexTestBase):
-    def test_all_discovered_classes_are_live(self) -> None:
-        """Verify all classes in the index are live (reachable from sys.modules).
+    def test_stale_classes_from_reimport_are_excluded(self) -> None:
+        """Verify the identity check filters stale class objects from __subclasses__().
 
-        The identity check in build_task_index ensures that stale class objects
-        lingering in Task.__subclasses__() (from previous imports in the same
-        Python process) are excluded. This test verifies that every class in
-        the built index is actually live in sys.modules, not a stale instance.
+        When a module is re-imported in the same Python process, old class objects
+        linger in Task.__subclasses__() even though new class objects are created.
+        This test manufactures that scenario and verifies stale classes are excluded.
         """
-        index = build_task_index("tasks.py")
+        import importlib.util
 
-        # Verify all project classes are live (the critical case where __subclasses__
-        # accumulation could cause stale classes to appear)
-        for name, candidates in index.project.items():
-            for cls in candidates:
-                current = getattr(sys.modules.get(cls.__module__), cls.__name__, None)
-                self.assertIs(
-                    current,
-                    cls,
-                    f"Project class {cls.__module__}.{cls.__name__} is stale, "
-                    f"not the live instance from sys.modules",
-                )
+        # Step 1: Build index and capture old class objects
+        index1 = build_task_index("tasks.py")
+        old_deep_task = next(c for c in index1.project["DeepTask"] if c.__module__ == "analysis_ti.deep")
+
+        # Step 2: Manually create a NEW class object with the same module/name
+        # by reloading the analysis_ti.deep module from disk
+        analysis_ti_deep_path = os.path.join(self.proj, "analysis_ti", "deep.py")
+        spec = importlib.util.spec_from_file_location("analysis_ti.deep", analysis_ti_deep_path)
+        new_module = importlib.util.module_from_spec(spec)
+        sys.modules["analysis_ti.deep"] = new_module
+        spec.loader.exec_module(new_module)
+
+        # Step 3: Verify we created a truly different class object
+        new_cls_obj = new_module.DeepTask
+        self.assertIsNot(
+            old_deep_task,
+            new_cls_obj,
+            "Staleness was not manufactured: old and new class objects are identical",
+        )
+
+        # Step 4: Build index again
+        # Now __subclasses__() contains BOTH old and new DeepTask objects:
+        # - old_deep_task (the one from index1, no longer in sys.modules)
+        # - new_cls_obj (the one currently in sys.modules[analysis_ti.deep])
+        index2 = build_task_index("tasks.py")
+
+        # Step 5: Verify the stale object is excluded
+        self.assertNotIn(
+            old_deep_task,
+            index2.project["DeepTask"],
+            "Stale class object from __subclasses__() was not filtered out",
+        )
+
+        # Step 6: Verify only the live class was included
+        live_deep_tasks = [c for c in index2.project["DeepTask"] if c.__module__ == "analysis_ti.deep"]
+        self.assertEqual(len(live_deep_tasks), 1, "Should have exactly 1 live analysis_ti.deep.DeepTask candidate")
+        self.assertIs(live_deep_tasks[0], new_cls_obj, "The live class should be the one in sys.modules")
