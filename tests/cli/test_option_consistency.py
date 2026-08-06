@@ -7,8 +7,10 @@
     ``batch-runner``'s ``--param`` — stays different.
 """
 
+from collections.abc import Iterator
 from unittest import TestCase
 
+import click
 import typer.main
 
 from b2luigi.cli import app
@@ -18,7 +20,7 @@ from b2luigi.cli import app
 EXCLUDED_FROM_PARAM_SHARING = "batch-runner"
 
 
-def _walk_commands(command, prefix=""):
+def _walk_commands(command: click.Command, prefix: str = "") -> Iterator[tuple[str, click.Command]]:
     """Yield ``(qualified_name, click_command)`` for a command and all its subcommands.
 
     :param command: The click command to walk.
@@ -31,7 +33,7 @@ def _walk_commands(command, prefix=""):
         yield from _walk_commands(sub, prefix=f"{qualified} ")
 
 
-def _declarations(flag: str):
+def _declarations(flag: str) -> dict[str, click.Parameter]:
     """Collect every declaration of ``flag`` across the whole command tree.
 
     :param flag: The long flag to look for, e.g. ``"--task-file"``.
