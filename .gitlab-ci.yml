@@ -35,7 +35,7 @@ default:
     - echo ${BASF2_RELEASE_VERSION}
     - b2venv ${BASF2_RELEASE_VERSION}
     - source venv/bin/activate
-    - pip install "flit<4"
+    - pip install flit "flit_core<4"
   interruptible: true  # All the jobs can be interrupted by newer pipelines
 
 pre_commit:
