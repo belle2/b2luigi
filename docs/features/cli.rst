@@ -61,9 +61,19 @@ configurations from two files in the working directory:
 via ``--param key=value``; ``parameters.py`` is only needed when using
 :class:`~b2luigi.cli.parameter_generator.ParameterGenerator` for multi-value sweeps.
 
-``tasks.py`` is a *manifest*, not a required home: a task class counts for the
-CLI when it is present in the file's namespace, whether it is defined there or
-imported from anywhere in your project.
+``tasks.py`` is the entry point of task discovery, not a boundary. Two tiers
+of task classes are addressable by name:
+
+* **Manifest tasks** — every ``b2luigi.Task`` subclass in ``tasks.py``'s
+  namespace, defined there or imported into it. Their bare class name always
+  resolves, and takes precedence over any other class with the same name.
+* **Project tasks** — every ``b2luigi.Task`` subclass that importing
+  ``tasks.py`` loads from a module *inside your project directory* (the
+  directory containing the task file). These are addressable by bare name
+  when unique, and by their qualified ``module.ClassName`` (e.g.
+  ``analysis.skim.SkimTask``) always. If two project modules define the same
+  class name, the bare name is rejected as ambiguous and the error lists the
+  qualified candidates.
 
 .. code-block:: python
 
@@ -72,9 +82,21 @@ imported from anywhere in your project.
     from analysis.reco import RecoTask
 
 Your task code stays where it lives; importing a class into ``tasks.py`` is
-what makes it addressable by ``b2luigi run``, ``tasks``, ``show``, ``graph``
-and ``remove``. Classes belonging to ``b2luigi`` or ``luigi`` themselves (e.g.
+what makes it addressable as a manifest task by ``b2luigi run``, ``tasks``,
+``show``, ``graph`` and ``remove``. Task classes reachable only transitively
+(for example a task that ``SkimTask.requires()`` depends on, in a module never
+imported into ``tasks.py``) are still project tasks, addressable by their
+qualified name. Classes belonging to ``b2luigi`` or ``luigi`` themselves (e.g.
 ``from b2luigi import Task``) are never treated as runnable tasks.
+
+Task classes from installed libraries (outside the project directory) are
+never addressable by name and never listed — they still appear in
+``b2luigi graph`` and full-tree ``b2luigi show`` output when they are part of
+the dependency graph. ``b2luigi tasks`` shows each task's module of origin.
+
+Batch submission encodes each task's module, so a project task that is a
+dependency of a submitted task executes correctly on the worker even if it
+was never imported into ``tasks.py``.
 
 You can override these paths with flags or environment variables:
 

@@ -120,6 +120,14 @@ Nothing else about your project needs to change:
   passes an ``int``); nothing needs to move into a config file unless you
   want it to (Step 4).
 
+Stricter ``remove --keep``
+~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+``b2luigi remove --keep`` now validates every name it is given, exactly like
+positional task names, and accepts qualified ``module.ClassName`` names. A
+mistyped ``--keep`` name previously matched nothing and removed the outputs
+it was meant to protect; it is now an error.
+
 Step 4 — optional: adopt ``parameters.py``
 ---------------------------------------------
 
