@@ -1,5 +1,6 @@
 import collections
 import os
+import pathlib
 import subprocess
 import sys
 from typing import Any
@@ -534,7 +535,12 @@ def _render_task_outputs(
                     # can never be misinterpreted or silently dropped.
                     location = Text(entry["file_name"])
                     if links and entry.get("is_local", False):
-                        location.stylize(Style(link=f"file://{entry['file_name']}"))
+                        # as_uri() percent-encodes the path (spaces, brackets, etc.) so the
+                        # link target is a valid file:// URI per RFC 3986/8089, without
+                        # altering the displayed text above. Safe only because file_name is
+                        # always absolute (get_task_outputs stores os.path.abspath(...)) —
+                        # as_uri() raises ValueError on a relative path.
+                        location.stylize(Style(link=pathlib.Path(entry["file_name"]).as_uri()))
                     row += [location, status]
                     table.add_row(*row)
 

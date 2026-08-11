@@ -337,10 +337,28 @@ def _long_path() -> str:
     return "results/" + "/".join(f"p{index}=v{index}" for index in range(25)) + "/out.root"
 
 
+def _count_row_rules(rendered: str) -> int:
+    """Count interior horizontal rule lines in the rendered panel.
+
+    ``box.HORIZONTALS`` alone (with ``show_lines=False``) already draws a rule
+    under the header, so a plain presence check cannot distinguish that from
+    also having ``show_lines=True`` (which additionally draws a rule between
+    every row). Counting lets callers assert on how many rules are present,
+    not merely whether any are.
+
+    :param rendered: Console output to scan.
+    :type rendered: str
+    :returns: Number of lines that are entirely a horizontal rule between
+        panel borders.
+    :rtype: int
+    """
+    body = [line for line in rendered.splitlines() if line.startswith("│")]
+    return sum(1 for line in body if set(line[1:-1].strip()) == {"─"})
+
+
 def _has_row_rules(rendered: str) -> bool:
     """True if the rendered panel contains interior horizontal rules."""
-    body = [line for line in rendered.splitlines() if line.startswith("│")]
-    return any(set(line[1:-1].strip()) == {"─"} for line in body)
+    return _count_row_rules(rendered) > 0
 
 
 class TestRenderTaskOutputsFolding(TestCase):
@@ -362,9 +380,18 @@ class TestRenderTaskOutputsFolding(TestCase):
         self.assertIn(path, flattened, "the folded path did not reconstruct to the original")
 
     def test_long_path_gets_row_rules(self) -> None:
-        """A wrapped panel draws rules so folded rows stay distinguishable."""
+        """A wrapped panel draws rules so folded rows stay distinguishable.
+
+        ``box.HORIZONTALS`` alone already draws 3 rules (top border, the rule
+        under the header, and the bottom border) even with ``show_lines=False``
+        — a bare presence check, or a loose ">= 2" count, cannot discriminate
+        that baseline from ``show_lines=True`` actually being applied. With two
+        rows, ``show_lines=True`` adds exactly one more rule (between the two
+        rows), so only a count of 4 or more proves both mutations
+        (``table.box`` and ``table.show_lines``) are in effect together.
+        """
         rendered = _render([_long_path(), _long_path()])
-        self.assertTrue(_has_row_rules(rendered))
+        self.assertGreaterEqual(_count_row_rules(rendered), 4)
 
     def test_short_path_keeps_the_compact_layout(self) -> None:
         """A panel with no wrapping renders exactly as before — no rules."""
@@ -473,6 +500,8 @@ class TestRenderTaskOutputsLinks(TestCase):
             [{"file_name": "/tmp/results/out.root", "exists": True, "parameters": {}, "is_local": True}]
         )
         self.assertIn("\x1b]8;", rendered)
+        # No special characters here, so the percent-encoded and raw forms coincide;
+        # the encoding itself is pinned separately by test_bracket_containing_path_does_not_crash.
         self.assertIn("file:///tmp/results/out.root", rendered)
 
     def test_remote_target_is_not_linked(self) -> None:
@@ -483,12 +512,17 @@ class TestRenderTaskOutputsLinks(TestCase):
         self.assertNotIn("\x1b]8;", rendered)
 
     def test_bracket_containing_path_does_not_crash(self) -> None:
-        """A path containing brackets (e.g. a serialized list parameter) must not
-        raise ``rich.errors.MarkupError`` and must still be linked correctly."""
+        """A path containing brackets and spaces (e.g. a serialized list parameter)
+        must not raise ``rich.errors.MarkupError``, must still be linked, and the
+        link target must be a valid, percent-encoded file:// URI rather than the
+        raw path (which would contain invalid characters per RFC 3986/8089)."""
         path = "/results/items=[1, 2, 3]/out.root"
         rendered = _render_links([{"file_name": path, "exists": True, "parameters": {}, "is_local": True}])
         self.assertIn("\x1b]8;", rendered)
-        self.assertIn(f"file://{path}", rendered)
+        # The displayed text stays the raw path...
+        self.assertIn(path, rendered)
+        # ...but the link target itself is percent-encoded.
+        self.assertIn("file:///results/items%3D%5B1%2C%202%2C%203%5D/out.root", rendered)
 
     def test_links_are_suppressed_under_paths_only(self) -> None:
         """Bare path output stays bare even when links are requested."""
