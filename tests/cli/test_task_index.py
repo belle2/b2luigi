@@ -15,6 +15,7 @@ from unittest import TestCase
 from typer.testing import CliRunner
 
 from b2luigi.cli import app
+from b2luigi.cli import process as _process_module
 from b2luigi.cli.errors import CliUserError
 from b2luigi.cli.utils import build_task_index
 
@@ -48,6 +49,13 @@ class TaskIndexTestBase(TestCase):
 
             class DeepTask(b2luigi.Task):
                 number = b2luigi.IntParameter(default=1)
+
+                def output(self):
+                    yield self.add_to_output("deep.txt")
+
+                def run(self):
+                    with open(self.get_output_file_name("deep.txt"), "w") as f:
+                        f.write("deep")
         """,
         )
         self._write(
@@ -61,6 +69,13 @@ class TaskIndexTestBase(TestCase):
 
                 def requires(self):
                     return DeepTask(number=self.number)
+
+                def output(self):
+                    yield self.add_to_output("skim.txt")
+
+                def run(self):
+                    with open(self.get_output_file_name("skim.txt"), "w") as f:
+                        f.write("skim")
         """,
         )
         self._write(
@@ -283,3 +298,61 @@ class TestTasksListingAndRun(TaskIndexTestBase):
 
         names = build_task_index("tasks.py").completion_names()
         self.assertIn("analysis_ti.deep.DeepTask", names)
+
+
+class TestBatchWorkerResolution(TaskIndexTestBase):
+    """The batch worker must resolve a module-qualified --classname through the index.
+
+    Closes the original bug: SkimTask requires DeepTask (imported from
+    analysis_ti.deep, not defined in tasks.py itself); under --batch, DeepTask
+    gets its own batch job whose command previously encoded only the bare
+    name "DeepTask", which the worker's plain getattr(tasks_module, ...)
+    could never find.
+    """
+
+    def setUp(self) -> None:
+        super().setUp()
+        with open(os.path.join(self.proj, "settings.json"), "w") as f:
+            f.write('{"result_dir": "results", "batch_system": "test"}\n')
+        self.runner = CliRunner()
+        # TestProcess.start_job spawns the worker as a REAL subprocess (not
+        # in-process), so it only inherits os.environ, not this process's
+        # sys.path. self.libdir (holding fakelib_ti, imported by the shared
+        # fixture's tasks.py) must be exposed via PYTHONPATH or the worker's
+        # own tasks.py import fails with ModuleNotFoundError.
+        self._old_pythonpath = os.environ.get("PYTHONPATH")
+        os.environ["PYTHONPATH"] = os.pathsep.join(filter(None, [self.libdir, self._old_pythonpath]))
+        # b2luigi.process() refuses a second in-process call for the lifetime
+        # of the interpreter (a real single-call guard against user scripts).
+        # CliRunner.invoke runs every command IN this same pytest process, and
+        # this class alone drives it through process() up to twice per test
+        # run (batch-runner, run --batch); other in-process CliRunner tests
+        # elsewhere in the suite would trip it too without this reset.
+        setattr(_process_module, "__has_run_already", False)
+
+    def tearDown(self) -> None:
+        setattr(_process_module, "__has_run_already", False)
+        if self._old_pythonpath is None:
+            os.environ.pop("PYTHONPATH", None)
+        else:
+            os.environ["PYTHONPATH"] = self._old_pythonpath
+        super().tearDown()
+
+    def test_batch_runner_resolves_dotted_classname(self) -> None:
+        result = self.runner.invoke(
+            app, ["batch-runner", "--classname", "analysis_ti.deep.DeepTask", "--param", "number=1"]
+        )
+        self.assertEqual(result.exit_code, 0, result.output)
+
+    def test_batch_runner_unknown_classname_is_clean_error(self) -> None:
+        result = self.runner.invoke(app, ["batch-runner", "--classname", "NoSuchTask"])
+        self.assertNotEqual(result.exit_code, 0)
+        self.assertIn("Unknown task", result.output)
+        self.assertNotIn("Traceback", result.output)
+
+    def test_run_batch_executes_transitive_dependency(self) -> None:
+        # The exact end-to-end reproduction of the original failure:
+        # SkimTask requires DeepTask; DeepTask must succeed as its own batch job.
+        result = self.runner.invoke(app, ["run", "SkimTask", "--batch"])
+        self.assertEqual(result.exit_code, 0, result.output)
+        self.assertNotIn("Failed task", result.output)

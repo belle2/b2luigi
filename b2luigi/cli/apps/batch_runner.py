@@ -4,7 +4,13 @@ import typer
 
 from b2luigi.cli.options import TaskFile
 from b2luigi.cli.runner import _build_fast_task
-from b2luigi.cli.utils import load_task_class, process_task_instance, resolve_defaults, split_kv_params
+from b2luigi.cli.utils import (
+    cli_error_boundary,
+    load_task_class,
+    process_task_instance,
+    resolve_defaults,
+    split_kv_params,
+)
 
 batch_runner_app = typer.Typer(
     name="batch-runner",
@@ -97,8 +103,9 @@ def batch_runner(
         )
         process_task_instance(FastTask(), batch_runner=True)
     elif classname is not None:
-        d = resolve_defaults(task_filename, None)
-        TaskClass = load_task_class(classname, d.task_file)
+        with cli_error_boundary():
+            d = resolve_defaults(task_filename, None)
+            TaskClass = load_task_class(classname, d.task_file)
         task_instance = TaskClass.from_str_params(split_kv_params(params or []))
         process_task_instance(task_instance, batch_runner=True)
     else:

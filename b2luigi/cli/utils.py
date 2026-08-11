@@ -1,6 +1,7 @@
 from contextlib import contextmanager
 from dataclasses import dataclass
 import difflib
+import importlib
 import importlib.util
 import inspect
 import itertools
@@ -486,26 +487,44 @@ def resolve_task_context(
 
 
 def load_task_class(class_name: str, filename: str = "tasks.py") -> Type[b2luigi.Task]:
-    """Load a single task class from the task file by name.
+    """Resolve a task class by bare or dotted name for execution.
 
-    Applies the same membership rule as task discovery
-    (:func:`is_from_task_classes`), so a name that resolves to something other
-    than a manifest task — e.g. ``Task`` after ``from b2luigi import Task`` —
-    is rejected rather than executed.
+    Used by the batch worker (``b2luigi batch-runner``) and
+    :func:`get_task_instance`. Resolution goes through the task index
+    (manifest + project discovery). A dotted name not found in the index —
+    possible only if its module was not loaded by importing the task file,
+    e.g. an import guarded by a condition — falls back to importing the
+    module directly; the task file's directory is already on ``sys.path``
+    from the index build.
 
-    :param class_name: Name of the task class in the task file's namespace.
+    :param class_name: Bare (``MyTask``) or dotted (``pkg.mod.MyTask``) name.
     :type class_name: str
     :param filename: The task file to load, relative to the current directory.
     :type filename: str
     :returns: The task class.
     :rtype: Type[b2luigi.Task]
-    :raises AttributeError: If the name is absent or not a manifest task.
+    :raises CliUserError: If the name is unknown, ambiguous, or resolves to
+        something that is not a b2luigi task class.
     """
-    tasks_module = import_from_file(filename, SYNTHETIC_TASK_MODULE)
-    obj = getattr(tasks_module, class_name, None)
-    if obj is None or not is_from_task_classes(obj):
-        raise AttributeError(f"Class '{class_name}' not found in {filename}")
-    return obj
+    index = build_task_index(filename)
+    try:
+        return index.resolve(class_name, hint_cmd="b2luigi tasks")
+    except CliUserError:
+        if "." not in class_name:
+            raise
+        module_name, _, bare_name = class_name.rpartition(".")
+        try:
+            module = importlib.import_module(module_name)
+        except ImportError as exc:
+            raise CliUserError(
+                f"Unknown task '{class_name}': module '{module_name}' could not be imported ({exc})."
+            ) from exc
+        obj = getattr(module, bare_name, None)
+        if obj is None:
+            raise CliUserError(f"Unknown task '{class_name}': '{bare_name}' not found in module '{module_name}'.")
+        if not is_from_task_classes(obj):
+            raise CliUserError(f"'{class_name}' is not a b2luigi task class.")
+        return obj
 
 
 def try_instantiate(cls: Type[b2luigi.Task], params: Dict[str, Any]) -> Optional[b2luigi.Task]:

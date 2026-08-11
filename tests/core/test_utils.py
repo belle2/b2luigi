@@ -6,8 +6,14 @@ from unittest.mock import MagicMock, patch
 import b2luigi
 import shlex
 from b2luigi.core import utils
-from b2luigi.core.utils import create_cmd_from_task
+from b2luigi.core.utils import create_cmd_from_task, SYNTHETIC_TASK_MODULE
 from ..helpers import B2LuigiTestCase
+
+
+class WireQualifiedTask(b2luigi.Task):
+    """Real, module-defined task class used to test module-qualified batch encoding."""
+
+    pass
 
 
 class ProductDictTestCase(TestCase):
@@ -554,10 +560,21 @@ class CreateApptainerCommandTestCase(TestCase):
 
 
 def _mock_task(family="MyTask", task_id="MyTask_0_abc123", str_params=None):
-    task = MagicMock()
-    task.get_task_family.return_value = family
+    """Build a mock task whose class carries the synthetic task-file module.
+
+    ``create_cmd_from_task`` reads ``type(task).__module__``/``__name__`` (not
+    ``get_task_family()``) to build the wire classname, and a plain
+    ``MagicMock``'s real ``type()`` cannot be spoofed via ``__class__``
+    assignment (only ``isinstance()`` checks are fooled that way). A tiny
+    real class with the synthetic module name reproduces the bare-name
+    encoding these tests exercise; ``get_task_family``/``to_str_params``
+    stay mocked since ``create_cmd_from_task`` still calls them.
+    """
+    task_cls = type(family, (), {"__module__": SYNTHETIC_TASK_MODULE})
+    task = task_cls()
+    task.get_task_family = MagicMock(return_value=family)
     task.task_id = task_id
-    task.to_str_params.return_value = str_params or {}
+    task.to_str_params = MagicMock(return_value=str_params or {})
     return task
 
 
@@ -827,6 +844,38 @@ class TestCreateCmdFromTaskQuoting(TestCase):
         mock_gs.side_effect = self._cli_settings()
         cmd = create_cmd_from_task(_mock_task(str_params={"alpha": "1"}))
         self.assertIn("alpha=1", cmd)
+
+
+class TestCreateCmdFromTaskWireEncoding(B2LuigiTestCase):
+    """create_cmd_from_task must encode the worker classname with module provenance.
+
+    Classes defined in the task file itself (synthetic ``TaskClasses`` module)
+    are sent bare; everything else (transitive imports, e.g. a task required
+    by another module the task file imports) is sent module-qualified so the
+    worker can resolve it through the task index instead of a plain
+    ``getattr`` on the task file's namespace.
+    """
+
+    def setUp(self):
+        super().setUp()
+        b2luigi.set_setting("__batch_runner_use_cli", True)
+
+    def tearDown(self):
+        b2luigi.clear_setting("__batch_runner_use_cli")
+        super().tearDown()
+
+    def test_transitive_class_is_encoded_module_qualified(self):
+        task = WireQualifiedTask()
+        cmd = create_cmd_from_task(task)
+        joined = " ".join(cmd)
+        self.assertIn(f"--classname {WireQualifiedTask.__module__}.WireQualifiedTask", joined)
+
+    def test_task_file_class_is_encoded_bare(self):
+        cls = type("WireBareTask", (b2luigi.Task,), {"__module__": SYNTHETIC_TASK_MODULE})
+        cmd = create_cmd_from_task(cls())
+        joined = " ".join(cmd)
+        self.assertIn("--classname WireBareTask", joined)
+        self.assertNotIn(f"{SYNTHETIC_TASK_MODULE}.WireBareTask", joined)
 
 
 def _make_apptainer_get_setting(overrides=None):

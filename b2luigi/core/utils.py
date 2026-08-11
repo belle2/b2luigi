@@ -653,6 +653,18 @@ def create_cmd_from_task(task):
         ``executable_prefix=["nice", "-n", "10"]``) that must not be quoted into a
         single token.
 
+        In CLI mode, the ``--classname`` token is module-qualified
+        (``pkg.mod.ClassName``) for classes not defined in the task file itself,
+        so the worker can reconstruct classes that are not attributes of the
+        task file's namespace (e.g. a task imported transitively by a module the
+        task file imports). Classes defined in the task file are still sent bare:
+        their synthetic module name is not importable, but the worker imports the
+        task file anyway and finds them there. As a side effect, tasks using
+        luigi's ``task_namespace`` — previously encoded as ``namespace.ClassName``
+        via ``get_task_family()``, which the worker's plain ``getattr`` could
+        never resolve — are now encoded by class provenance and resolve
+        correctly.
+
     Raises:
         ValueError: If ``task_cmd_additional_args``, ``executable_prefix``, or
             ``executable`` is a plain string rather than a list.
@@ -686,10 +698,15 @@ def create_cmd_from_task(task):
     cmd = prefix + executable
 
     if use_cli:
-        if executable_is_entrypoint:
-            cmd += ["batch-runner", "--classname", task.get_task_family()]
+        task_cls = type(task)
+        if task_cls.__module__ == SYNTHETIC_TASK_MODULE:
+            worker_classname = task_cls.__name__
         else:
-            cmd += ["-m", cli_module, "batch-runner", "--classname", task.get_task_family()]
+            worker_classname = f"{task_cls.__module__}.{task_cls.__name__}"
+        if executable_is_entrypoint:
+            cmd += ["batch-runner", "--classname", worker_classname]
+        else:
+            cmd += ["-m", cli_module, "batch-runner", "--classname", worker_classname]
         for param_name, param_value in task.to_str_params().items():
             cmd += ["--param", shlex.quote(f"{param_name}={param_value}")]
         task_file = get_setting("__batch_runner_task_file", default=False) or None

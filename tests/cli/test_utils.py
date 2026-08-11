@@ -257,7 +257,7 @@ class TestImportedTaskCollection(TestCase):
             "tasks.py",
             "from b2luigi import Task\n\nimport b2luigi\n\n\nclass LocalTask(b2luigi.Task):\n    pass\n",
         )
-        with self.assertRaises(AttributeError):
+        with self.assertRaises(CliUserError):
             load_task_class("Task", "tasks.py")
 
 
