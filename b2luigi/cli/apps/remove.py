@@ -24,7 +24,8 @@ remove_app = typer.Typer(
 @remove_app.callback(invoke_without_command=True)
 def remove(
     classnames: class_names_arg(
-        "Task class name(s) to remove. Omit to remove outputs for all tasks in tasks.py."
+        "Task class name(s) to remove. Omit to remove outputs for all project tasks "
+        "(everything b2luigi tasks lists, not just names in tasks.py)."
     ) = None,
     task_filename: TaskFile = None,
     parameter_filename: ParamsFile = None,
@@ -59,8 +60,10 @@ def remove(
 ) -> None:
     """Remove output files of the named task(s).
 
-    Without positional names removes outputs for all tasks in ``tasks.py``.
-    By default removes only the named tasks; pass ``--with-requirements`` to also remove their transitive requirements.
+    Without positional names removes outputs for every project task — not just those named
+    in ``tasks.py``, but every transitively-discovered task too (see
+    ``b2luigi tasks`` and the task-discovery docs). By default removes only the named tasks;
+    pass ``--with-requirements`` to also remove their transitive requirements.
 
     :param classnames: Task class name(s) to remove, or ``None`` to target all.
     :param task_filename: Path to the task definitions file.

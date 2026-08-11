@@ -181,6 +181,49 @@ class TestTaskIndexResolution(TaskIndexTestBase):
         self.assertNotIn("TaskClasses", labels)
 
 
+class TestSyntheticModuleNotAddressable(TestCase):
+    """A class defined directly in tasks.py is bare-addressable only.
+
+    Its ``__module__`` is the synthetic ``TaskClasses`` name, which
+    ``qualified_name``/``display_module`` deliberately never show a user.
+    ``resolve`` must not accept that synthetic name back as input either,
+    or it creates an undocumented dotted alias no one ever sees advertised.
+    """
+
+    def setUp(self) -> None:
+        self.proj = tempfile.mkdtemp()
+        self._old_cwd = os.getcwd()
+        self._module_names = ["TaskClasses"]
+        with open(os.path.join(self.proj, "tasks.py"), "w") as f:
+            f.write(
+                textwrap.dedent(
+                    """
+                    import b2luigi
+
+                    class LocalTask(b2luigi.Task):
+                        pass
+                    """
+                )
+            )
+        os.chdir(self.proj)
+
+    def tearDown(self) -> None:
+        os.chdir(self._old_cwd)
+        for name in self._module_names:
+            sys.modules.pop(name, None)
+        gc.collect()
+
+    def test_bare_name_of_task_file_class_resolves(self) -> None:
+        index = build_task_index("tasks.py")
+        self.assertEqual(index.resolve("LocalTask").__name__, "LocalTask")
+
+    def test_dotted_synthetic_module_name_is_rejected(self) -> None:
+        index = build_task_index("tasks.py")
+        with self.assertRaises(CliUserError) as ctx:
+            index.resolve("TaskClasses.LocalTask")
+        self.assertIn("Unknown task 'TaskClasses.LocalTask'", str(ctx.exception))
+
+
 class TestTaskIndexStaleClassFiltering(TaskIndexTestBase):
     def test_stale_classes_from_reimport_are_excluded(self) -> None:
         """Verify the identity check filters stale class objects from __subclasses__().

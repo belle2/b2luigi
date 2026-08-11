@@ -267,7 +267,10 @@ class TaskIndex:
         Bare names: the manifest wins outright; otherwise a unique project
         candidate resolves, several candidates raise an ambiguity error, and
         none raises unknown-task. Dotted names match ``module.ClassName``
-        exactly across the union.
+        exactly across the union, excluding classes defined in the task
+        file itself (their synthetic module is never a valid dotted prefix,
+        mirroring ``qualified_name``/``display_module``); such classes stay
+        addressable only by their bare name.
 
         :param name: Bare (``DeepTask``) or dotted (``pkg.mod.DeepTask``) name.
         :type name: str
@@ -279,6 +282,8 @@ class TaskIndex:
         """
         if "." in name:
             for cls in self.all_classes():
+                if cls.__module__ == SYNTHETIC_TASK_MODULE:
+                    continue
                 if f"{cls.__module__}.{cls.__name__}" == name:
                     return cls
         else:
