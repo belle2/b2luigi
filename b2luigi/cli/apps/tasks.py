@@ -12,10 +12,12 @@ from b2luigi.cli import runner
 from b2luigi.cli.errors import CliUserError
 from b2luigi.cli.options import TaskFile
 from b2luigi.cli.utils import (
+    Defaults,
+    TaskIndex,
+    build_task_index,
+    cli_error_boundary,
     complete_task_names,
-    get_task_classes,
     resolve_defaults,
-    validate_classnames,
 )
 
 tasks_app = typer.Typer(
@@ -24,21 +26,21 @@ tasks_app = typer.Typer(
 )
 
 
-def _load_task_classes(task_filename: Optional[str]):
-    """Load task classes from *task_filename*, raising :class:`CliUserError` if none are found.
+def _load_task_index(task_filename: Optional[str]) -> tuple[TaskIndex, Defaults]:
+    """Build the task index for *task_filename*, raising :class:`CliUserError` if it is empty.
 
     :param task_filename: Path to the task definitions file, or ``None`` for defaults.
     :type task_filename: Optional[str]
-    :returns: Tuple of (list of task classes, resolved defaults object).
+    :returns: Tuple of (task index, resolved defaults object).
     :raises CliUserError: If the file is missing or contains no ``b2luigi.Task`` subclasses.
     """
     d = resolve_defaults(task_filename, None)
-    try:
-        return get_task_classes(d.task_file), d
-    except ValueError:
+    index = build_task_index(d.task_file)
+    if not index.all_classes():
         raise CliUserError(
-            f"No b2luigi task classes found in '{d.task_file}'. " "Ensure your classes subclass b2luigi.Task."
+            f"No b2luigi task classes found in '{d.task_file}'. Ensure your classes subclass b2luigi.Task."
         )
+    return index, d
 
 
 def list_tasks(task_filename: Optional[str] = None) -> None:
@@ -48,8 +50,9 @@ def list_tasks(task_filename: Optional[str] = None) -> None:
     :type task_filename: Optional[str]
     :raises CliUserError: If the task file is missing or contains no task classes.
     """
-    tasks, _ = _load_task_classes(task_filename)
-    runner.render_task_list(tasks)
+    index, _ = _load_task_index(task_filename)
+    entries = [(cls, index.display_module(cls)) for cls in index.all_classes()]
+    runner.render_task_list(entries)
 
 
 def show_task_info(classname: Optional[str] = None, task_filename: Optional[str] = None) -> None:
@@ -62,13 +65,12 @@ def show_task_info(classname: Optional[str] = None, task_filename: Optional[str]
     :raises CliUserError: If the task file is missing, contains no task classes,
         or ``classname`` does not exist in the task file.
     """
-    tasks, _ = _load_task_classes(task_filename)
-    available = {cls.__name__: cls for cls in tasks}
+    index, _ = _load_task_index(task_filename)
     if classname is not None:
-        validate_classnames([classname], available, hint_cmd="b2luigi tasks info")
-        runner.render_task_help(available[classname])
+        cls = index.resolve(classname, hint_cmd="b2luigi tasks info")
+        runner.render_task_help(cls)
     else:
-        for cls in tasks:
+        for cls in index.all_classes():
             runner.render_task_help(cls)
 
 
@@ -86,7 +88,8 @@ def tasks(
     """
     if ctx.invoked_subcommand is not None:
         return
-    list_tasks(task_filename)
+    with cli_error_boundary():
+        list_tasks(task_filename)
 
 
 @tasks_app.command("info")
@@ -107,4 +110,5 @@ def task_info(
     :param task_filename: Path to the task definitions file.
     :type task_filename: Optional[str]
     """
-    show_task_info(classname, task_filename)
+    with cli_error_boundary():
+        show_task_info(classname, task_filename)

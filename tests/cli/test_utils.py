@@ -14,17 +14,16 @@ import b2luigi
 from b2luigi.cli.errors import CliUserError
 from b2luigi.cli.utils import (
     TaskIndex,
+    build_task_index,
     parse_classnames,
     parse_kv_params,
     split_kv_params,
-    validate_classnames,
     try_instantiate,
     build_task_list,
     find_tasks_in_tree,
-    get_task_classnames,
     load_parameters,
-    resolve_task_context,
     load_task_class,
+    resolve_task_context,
 )
 
 
@@ -95,39 +94,6 @@ class TestParseKvParams(TestCase):
     def test_parse_kv_params_with_whitespace(self) -> None:
         """Verify that parse_kv_params strips whitespace around key and value."""
         self.assertEqual(parse_kv_params(["  name  =  value  "]), {"name": "value"})
-
-
-class TestValidateClassnames(TestCase):
-    """Tests for the validate_classnames utility function."""
-
-    def test_validate_classnames_passes(self) -> None:
-        """Verify that validate_classnames accepts valid class names."""
-        available = {"Task1": None, "Task2": None, "Task3": None}
-        validate_classnames(["Task1", "Task2"], available)  # must not raise
-
-    def test_validate_classnames_raises_on_unknown(self) -> None:
-        """Verify that validate_classnames raises CliUserError for unknown names."""
-        available = {"Task1": None, "Task2": None}
-        with self.assertRaisesRegex(CliUserError, "Unknown task 'Nonexistent'"):
-            validate_classnames(["Nonexistent"], available)
-
-    def test_validate_classnames_suggestion(self) -> None:
-        """Verify that validate_classnames provides typo suggestions."""
-        available = {"MyTask": None, "OtherTask": None}
-        with self.assertRaisesRegex(CliUserError, "Did you mean 'MyTask'"):
-            validate_classnames(["MyTsk"], available)
-
-    def test_validate_classnames_no_suggestion_far_away(self) -> None:
-        """Verify that validate_classnames skips suggestion for very different names."""
-        available = {"TaskA": None, "TaskB": None}
-        with self.assertRaisesRegex(CliUserError, "Unknown task 'xyz'"):
-            validate_classnames(["xyz"], available)
-
-    def test_validate_classnames_custom_hint_cmd(self) -> None:
-        """Verify that validate_classnames uses custom hint command in error."""
-        available = {"Task1": None}
-        with self.assertRaisesRegex(CliUserError, "custom-command"):
-            validate_classnames(["Unknown"], available, hint_cmd="custom-command")
 
 
 class TestTryInstantiate(TestCase):
@@ -273,7 +239,8 @@ class TestImportedTaskCollection(TestCase):
             "tasks.py",
             "from analysis.skim import SkimTask\n\nimport b2luigi\n\n\nclass LocalTask(b2luigi.Task):\n    pass\n",
         )
-        self.assertEqual(get_task_classnames("tasks.py"), ["LocalTask", "SkimTask"])
+        index = build_task_index("tasks.py")
+        self.assertEqual({cls.__name__ for cls in index.all_classes()}, {"LocalTask", "SkimTask"})
 
     def test_b2luigi_internals_are_not_collected(self) -> None:
         """Importing b2luigi's own classes into tasks.py does not make them CLI tasks."""
@@ -281,7 +248,8 @@ class TestImportedTaskCollection(TestCase):
             "tasks.py",
             "from b2luigi import Task, WrapperTask\n\nimport b2luigi\n\n\nclass LocalTask(b2luigi.Task):\n    pass\n",
         )
-        self.assertEqual(get_task_classnames("tasks.py"), ["LocalTask"])
+        index = build_task_index("tasks.py")
+        self.assertEqual({cls.__name__ for cls in index.all_classes()}, {"LocalTask"})
 
     def test_load_task_class_rejects_non_task_names(self) -> None:
         """A namespace member that is not a manifest task cannot be loaded for execution."""

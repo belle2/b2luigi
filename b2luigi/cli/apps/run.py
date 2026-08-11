@@ -7,15 +7,14 @@ import b2luigi
 
 from b2luigi.cli.options import Params, ParamsFile, TaskFile
 from b2luigi.cli.utils import (
+    build_task_index,
+    cli_error_boundary,
     complete_task_names,
     expand_parameters,
-    get_task_classes,
     load_parameters,
-    load_task_class,
     parse_kv_params,
     process_task_instance,
     resolve_defaults,
-    validate_classnames,
 )
 
 run_app = typer.Typer(
@@ -58,13 +57,13 @@ def _make_wrapper_task(task_class: type, param_dicts: list[dict[str, Any]]) -> b
 
 
 def run_task(
-    class_name: str,
+    task_class: type[b2luigi.Task],
     task_filename: str = "tasks.py",
     parameters_file: str = "parameters.py",
     overrides: dict[str, Any] | None = None,
     **kwargs,
 ) -> None:
-    """Instantiate a task class by name and execute it via :func:`process_task_instance`.
+    """Instantiate a resolved task class and execute it via :func:`process_task_instance`.
 
     When the ``parameters.py`` config contains
     :class:`~b2luigi.cli.parameter_generator.ParameterGenerator` or
@@ -72,8 +71,8 @@ def run_task(
     the config is expanded into all combinations and a dynamic
     :class:`b2luigi.WrapperTask` is used to run them all.
 
-    :param class_name: The name of the task class to run.
-    :type class_name: str
+    :param task_class: The already-resolved task class to run.
+    :type task_class: type[b2luigi.Task]
     :param task_filename: Path to the Python file that defines the task classes.
     :type task_filename: str
     :param parameters_file: Path to the parameters file exposing a ``config`` dict.
@@ -86,7 +85,6 @@ def run_task(
     """
     from b2luigi.cli.errors import CliUserError
 
-    task_class = load_task_class(class_name, task_filename)
     config = load_parameters(parameters_file)
     if overrides:
         config.update(overrides)
@@ -96,7 +94,7 @@ def run_task(
     # currently unreachable — kept as a guard against future expansion changes.
     if not param_dicts:
         raise CliUserError(
-            f"Parameter expansion for '{class_name}' produced zero combinations. "
+            f"Parameter expansion for '{task_class.__name__}' produced zero combinations. "
             "Check your ParameterGenerator or ZippedParameterGenerator values."
         )
 
@@ -157,21 +155,22 @@ def run(
     :param scheduler_port: Port of a central Luigi scheduler.
     :param workers: Number of parallel luigi workers to use, or None to fall back to the 'workers' setting (default 1).
     """
-    d = resolve_defaults(task_filename, parameter_filename)
-    available = {cls.__name__: cls for cls in get_task_classes(d.task_file)}
-    validate_classnames([classname], available, hint_cmd="b2luigi tasks")
-    overrides = parse_kv_params(params or [])
-    extra_kwargs: dict[str, Any] = {}
-    if workers is not None:
-        extra_kwargs["workers"] = workers
-    run_task(
-        class_name=classname,
-        task_filename=d.task_file,
-        parameters_file=d.params_file,
-        overrides=overrides,
-        dry_run=dry_run,
-        batch=batch,
-        scheduler_host=scheduler_host,
-        scheduler_port=scheduler_port,
-        **extra_kwargs,
-    )
+    with cli_error_boundary():
+        d = resolve_defaults(task_filename, parameter_filename)
+        index = build_task_index(d.task_file)
+        task_class = index.resolve(classname, hint_cmd="b2luigi tasks")
+        overrides = parse_kv_params(params or [])
+        extra_kwargs: dict[str, Any] = {}
+        if workers is not None:
+            extra_kwargs["workers"] = workers
+        run_task(
+            task_class=task_class,
+            task_filename=d.task_file,
+            parameters_file=d.params_file,
+            overrides=overrides,
+            dry_run=dry_run,
+            batch=batch,
+            scheduler_host=scheduler_host,
+            scheduler_port=scheduler_port,
+            **extra_kwargs,
+        )

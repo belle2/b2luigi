@@ -247,3 +247,39 @@ class TestTransitiveAddressability(TaskIndexTestBase):
             app, ["remove", "SkimTask", "-y", "--with-requirements", "--keep", "analysis_ti.deep.DeepTask"]
         )
         self.assertEqual(result.exit_code, 0, result.output)
+
+
+class TestTasksListingAndRun(TaskIndexTestBase):
+    def setUp(self) -> None:
+        super().setUp()
+        with open(os.path.join(self.proj, "settings.json"), "w") as f:
+            f.write('{"result_dir": "results"}\n')
+        self.runner = CliRunner()
+
+    def test_tasks_lists_transitive_classes_with_module_column(self) -> None:
+        result = self.runner.invoke(app, ["tasks"])
+        self.assertEqual(result.exit_code, 0, result.output)
+        self.assertIn("SkimTask", result.output)
+        self.assertIn("analysis_ti.deep", result.output)
+        self.assertIn("caliba_ti.prep", result.output)
+        self.assertNotIn("TaskClasses", result.output)
+        self.assertNotIn("LibraryTask", result.output)
+
+    def test_tasks_info_accepts_dotted_name(self) -> None:
+        result = self.runner.invoke(app, ["tasks", "info", "analysis_ti.deep.DeepTask"])
+        self.assertEqual(result.exit_code, 0, result.output)
+
+    def test_run_accepts_dotted_transitive_name(self) -> None:
+        result = self.runner.invoke(app, ["run", "analysis_ti.deep.DeepTask", "--dry"])
+        self.assertEqual(result.exit_code, 0, result.output)
+
+    def test_run_bare_ambiguous_name_errors(self) -> None:
+        result = self.runner.invoke(app, ["run", "DeepTask", "--dry"])
+        self.assertEqual(result.exit_code, 2)
+        self.assertIn("Ambiguous", result.output)
+
+    def test_completion_offers_qualified_names(self) -> None:
+        from b2luigi.cli.utils import build_task_index
+
+        names = build_task_index("tasks.py").completion_names()
+        self.assertIn("analysis_ti.deep.DeepTask", names)

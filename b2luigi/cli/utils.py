@@ -120,28 +120,6 @@ def is_from_task_classes(obj: Any) -> bool:
     )
 
 
-def get_task_classnames(task_file: str = "tasks.py") -> list[str]:
-    task_names = []
-    for name, obj in task_generator(task_file):
-        if is_from_task_classes(obj):
-            task_names.append(name)
-
-    if not task_names:
-        task_names.append("NoTaskFound")
-    return sorted(task_names)
-
-
-def get_task_classes(task_file: str = "tasks.py") -> list[Type[b2luigi.Task]]:
-    task_classes = []
-    for _, obj in task_generator(task_file):
-        if is_from_task_classes(obj):
-            task_classes.append(obj)
-
-    if not task_classes:
-        raise ValueError("No task classes found in the specified file.")
-    return sorted(task_classes, key=lambda cls: cls.__name__)
-
-
 def _iter_task_subclasses(base: Type | None = None) -> Generator[Type, None, None]:
     """Yield every :class:`b2luigi.Task` subclass known to the interpreter.
 
@@ -722,36 +700,10 @@ def parse_classnames(raw: str | None) -> list[str] | None:
     return names if names else None
 
 
-def validate_classnames(
-    names: list[str],
-    available: dict[str, Any],
-    hint_cmd: str = "b2luigi tasks",
-) -> None:
-    """Raise :class:`CliUserError` for any name not present in ``available``.
-
-    :param names: Task class names to validate.
-    :type names: list[str]
-    :param available: Mapping of class name to class, from :func:`get_task_classes`.
-    :type available: dict[str, Any]
-    :param hint_cmd: The CLI command shown in the error message to help the user
-        discover available tasks.  Defaults to ``"b2luigi tasks"``.
-    :type hint_cmd: str
-    :raises CliUserError: If any name is unknown, with a typo suggestion when possible.
-    """
-    for name in names:
-        if name not in available:
-            suggestion = suggest(name, list(available))
-            msg = f"Unknown task '{name}'."
-            if suggestion:
-                msg += f" Did you mean '{suggestion}'?"
-            msg += f" Use '{hint_cmd}' to see available tasks."
-            raise CliUserError(msg)
-
-
 def complete_task_names(ctx: ClickContext, _param: ClickParameter, incomplete: str) -> list[CompletionItem]:
     """Shell completion callback that returns task class names matching *incomplete*.
 
-    Loaded from :func:`get_task_classnames` using the task file resolved from
+    Loaded from :func:`build_task_index` using the task file resolved from
     ``ctx.params["task_filename"]``, the ``B2LUIGI_TASK_FILE`` env var, or the
     default ``"tasks.py"``.  Any exception during discovery is silently ignored
     so that a missing or broken ``tasks.py`` never breaks tab completion.
@@ -768,11 +720,10 @@ def complete_task_names(ctx: ClickContext, _param: ClickParameter, incomplete: s
     """
     task_file = ctx.params.get("task_filename") or os.getenv("B2LUIGI_TASK_FILE", "tasks.py")
     try:
-        # get_task_classnames returns ["NoTaskFound"] when the file has no tasks; exclude it from completions
         return [
             CompletionItem(name)
-            for name in get_task_classnames(task_file)
-            if name.startswith(incomplete) and name != "NoTaskFound"
+            for name in build_task_index(task_file).completion_names()
+            if name.startswith(incomplete)
         ]
     except Exception:
         return []

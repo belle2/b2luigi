@@ -1000,25 +1000,26 @@ def remove_requirement_outputs(
     raise SystemExit(0)
 
 
-def render_task_list(tasks: list) -> None:
-    """Render a Rich table listing all available task classes and their one-line docstrings.
+def render_task_list(entries: list[tuple[type, str]]) -> None:
+    """Render a Rich table listing all available task classes.
 
     Wraps the table in a ``b2luigi``-branded panel and prints it to stdout.
 
-    :param tasks: Task class objects to display.
-    :type tasks: list
+    :param entries: ``(task class, module label)`` pairs to display.
+    :type entries: list[tuple[type, str]]
     """
     from rich.panel import Panel
     from rich.table import Table
 
     table = Table(title="Available Tasks", show_lines=False)
     table.add_column("Task", style="bold")
+    table.add_column("Module", style="dim")
     table.add_column("Description")
 
-    for cls in tasks:
+    for cls, module_label in entries:
         doc = (getattr(cls, "__doc__", "") or "").strip().splitlines()
         short = doc[0].strip() if doc else ""
-        table.add_row(cls.__name__, short)
+        table.add_row(cls.__name__, module_label, short)
 
     console.print(Panel.fit(table, title="b2luigi", border_style="cyan"))
 
