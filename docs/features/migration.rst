@@ -121,7 +121,7 @@ Nothing else about your project needs to change:
   want it to (Step 4).
 
 Stricter ``remove --keep``
-~~~~~~~~~~~~~~~~~~~~~~~~~~
+-----------------------------
 
 ``b2luigi remove --keep`` now validates every name it is given, exactly like
 positional task names, and accepts qualified ``module.ClassName`` names. A
