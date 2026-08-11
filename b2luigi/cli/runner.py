@@ -380,6 +380,10 @@ def get_task_outputs(task):
     """Return the same dict structure as :obj:`get_all_output_files_in_tree` but
     for a single task without traversing its dependency tree.
 
+    Each output-entry dict carries an ``is_local`` key alongside ``exists``,
+    ``parameters`` and ``file_name``, recording whether the underlying target
+    is a :class:`luigi.LocalTarget`.
+
     :param task: The task instance whose outputs should be collected.
     :returns: Mapping of output key to list of output-entry dicts.
     :rtype: collections.defaultdict
@@ -394,6 +398,12 @@ def get_task_outputs(task):
                 exists=target.exists(),
                 parameters=get_serialized_parameters(task),
                 file_name=os.path.abspath(file_names.pop()),
+                # Recorded here because the renderer only ever sees this dict — by
+                # then the target object is gone and file_name has been abspath'd,
+                # so remote-ness is unrecoverable. Positive check: anything that is
+                # not demonstrably a local file is treated as remote, so unknown
+                # target types default to "no link", the safe direction.
+                is_local=isinstance(target, luigi.LocalTarget),
             )
         )
     return result
@@ -436,6 +446,7 @@ def _render_task_outputs(
     required_by_map: dict[str, list[str]] | None = None,
     details: bool = False,
     paths_only: bool = False,
+    links: bool = False,
 ) -> None:
     """Render a list of (task, output_dict) pairs using Rich.
 
@@ -465,6 +476,12 @@ def _render_task_outputs(
         panel, status column, or styling, and return without rendering a table.
         Intended for shell substitution and piping. ``details`` is ignored.
     :type paths_only: bool
+    :param links: If ``True``, wrap local output paths in OSC 8 hyperlinks so
+        supporting terminals can open them. Remote targets are never linked, and
+        links are suppressed entirely under ``paths_only``. Note the link resolves
+        against the machine the terminal runs on, so it will not find the file when
+        viewing over SSH — which is why this is opt-in.
+    :type links: bool
     """
     if paths_only:
         # Deliberately plain print(), not console.print(): Rich would wrap long
@@ -509,7 +526,10 @@ def _render_task_outputs(
                         row.append(params_str)
                     if details:
                         row.append(key)
-                    row += [entry["file_name"], status]
+                    location = entry["file_name"]
+                    if links and entry.get("is_local", False):
+                        location = f"[link=file://{location}]{location}[/link]"
+                    row += [location, status]
                     table.add_row(*row)
 
         subtitle = None
@@ -650,7 +670,7 @@ def render_graph_dot(task_list: list, show_params: bool = False, show_status: bo
     print("}")
 
 
-def show_task_outputs(task_list: list, details: bool = False, paths_only: bool = False) -> None:
+def show_task_outputs(task_list: list, details: bool = False, paths_only: bool = False, links: bool = False) -> None:
     """Show output files for the given tasks only — no dependency-tree traversal.
 
     :param task_list: Task instances whose outputs should be displayed.
@@ -661,12 +681,24 @@ def show_task_outputs(task_list: list, details: bool = False, paths_only: bool =
     :param paths_only: If ``True``, print one bare output path per line instead
         of rendering a table. Suitable for piping.
     :type paths_only: bool
+    :param links: If ``True``, wrap local output paths in clickable terminal
+        hyperlinks. Ignored under ``paths_only``.
+    :type links: bool
     """
-    _render_task_outputs(((task, get_task_outputs(task)) for task in task_list), details=details, paths_only=paths_only)
+    _render_task_outputs(
+        ((task, get_task_outputs(task)) for task in task_list),
+        details=details,
+        paths_only=paths_only,
+        links=links,
+    )
 
 
 def show_all_outputs(
-    task_list: list, show_required_by: bool = False, details: bool = False, paths_only: bool = False
+    task_list: list,
+    show_required_by: bool = False,
+    details: bool = False,
+    paths_only: bool = False,
+    links: bool = False,
 ) -> None:
     """Show output files for all tasks in the dependency trees rooted at ``task_list``.
 
@@ -681,6 +713,9 @@ def show_all_outputs(
     :param paths_only: If ``True``, print one bare output path per line instead
         of rendering a table. Suitable for piping.
     :type paths_only: bool
+    :param links: If ``True``, wrap local output paths in clickable terminal
+        hyperlinks. Ignored under ``paths_only``.
+    :type links: bool
     """
     parent_map = _build_parent_map(task_list) if show_required_by else None
     seen = set()
@@ -691,7 +726,7 @@ def show_all_outputs(
                 continue
             seen.add(task.task_id)
             pairs.append((task, get_task_outputs(task)))
-    _render_task_outputs(pairs, required_by_map=parent_map, details=details, paths_only=paths_only)
+    _render_task_outputs(pairs, required_by_map=parent_map, details=details, paths_only=paths_only, links=links)
 
 
 def dry_run(task_list):

@@ -428,3 +428,84 @@ class TestRenderTaskOutputsPathsOnly(TestCase):
         to bare path output."""
         rendered = _render_paths(["results/a=1/out.root"], details=True)
         self.assertEqual(rendered.splitlines(), ["results/a=1/out.root"])
+
+
+def _render_links(entries: list[dict], width: int = 200) -> str:
+    """Render pre-built output entries with links enabled, on a console that
+    reports itself as a terminal so Rich actually emits OSC 8 sequences.
+
+    :param entries: Output-entry dicts, each with ``file_name``, ``exists`` and
+        ``is_local``.
+    :type entries: list[dict]
+    :param width: Console width, wide enough that nothing folds.
+    :type width: int
+    :returns: Everything the renderer wrote, including escape sequences.
+    :rtype: str
+    """
+    buffer = io.StringIO()
+    test_console = Console(file=buffer, width=width, force_terminal=True)
+    outputs = {f"key{index}": [entry] for index, entry in enumerate(entries)}
+    with patch.object(runner, "console", test_console):
+        runner._render_task_outputs([(_StubTask(), outputs)], links=True)
+    return buffer.getvalue()
+
+
+class TestRenderTaskOutputsLinks(TestCase):
+    """``--links`` emits OSC 8 hyperlinks, but only where they mean something."""
+
+    def test_local_target_is_linked(self) -> None:
+        """A local file gets a file:// hyperlink."""
+        rendered = _render_links(
+            [{"file_name": "/tmp/results/out.root", "exists": True, "parameters": {}, "is_local": True}]
+        )
+        self.assertIn("\x1b]8;", rendered)
+        self.assertIn("file:///tmp/results/out.root", rendered)
+
+    def test_remote_target_is_not_linked(self) -> None:
+        """A remote target gets no hyperlink — a file:// URL would be meaningless."""
+        rendered = _render_links(
+            [{"file_name": "/store/user/out.root", "exists": True, "parameters": {}, "is_local": False}]
+        )
+        self.assertNotIn("\x1b]8;", rendered)
+
+    def test_links_are_suppressed_under_paths_only(self) -> None:
+        """Bare path output stays bare even when links are requested."""
+        console_buffer = io.StringIO()
+        stdout_buffer = io.StringIO()
+        test_console = Console(file=console_buffer, width=200, force_terminal=True)
+        outputs = {"key0": [{"file_name": "/tmp/out.root", "exists": True, "parameters": {}, "is_local": True}]}
+        with patch.object(runner, "console", test_console):
+            with contextlib.redirect_stdout(stdout_buffer):
+                runner._render_task_outputs([(_StubTask(), outputs)], paths_only=True, links=True)
+
+        self.assertEqual(stdout_buffer.getvalue().splitlines(), ["/tmp/out.root"])
+        self.assertNotIn("\x1b]8;", stdout_buffer.getvalue())
+        # Nothing should reach the console at all in paths_only mode.
+        self.assertEqual(console_buffer.getvalue(), "")
+
+
+class TestGetTaskOutputsIsLocal(TestCase):
+    """``get_task_outputs`` must record whether each target is a local file.
+
+    Note: ``add_to_output`` resolves paths through the ``result_dir`` setting and
+    the current working directory. If this test proves sensitive to where it runs
+    (a path-resolution error, or leakage from another test in the same process),
+    give it a ``tempfile.mkdtemp()`` working directory in ``setUp`` with
+    ``os.chdir`` and restore the original directory in ``tearDown`` — do not
+    weaken the assertion to make it pass.
+    """
+
+    def test_local_target_is_marked_local(self) -> None:
+        """A b2luigi LocalTarget is reported as local."""
+        import b2luigi
+
+        class _LocalOutputTask(b2luigi.Task):
+            def output(self):
+                yield self.add_to_output("out.txt")
+
+        entries = runner.get_task_outputs(_LocalOutputTask())
+        flat = [entry for entry_list in entries.values() for entry in entry_list]
+        self.assertTrue(flat)
+        for entry in flat:
+            self.assertIn("is_local", entry)
+            self.assertTrue(entry["is_local"])
