@@ -496,6 +496,8 @@ def _render_task_outputs(
     from rich.table import Table
     from rich.panel import Panel
     from rich import box as rich_box
+    from rich.text import Text
+    from rich.style import Style
 
     groups: dict[str, list] = {}
     for task, outputs in task_output_pairs:
@@ -526,9 +528,13 @@ def _render_task_outputs(
                         row.append(params_str)
                     if details:
                         row.append(key)
-                    location = entry["file_name"]
+                    # Built as a Text object on every path, not just under --links: Text
+                    # is never markup-parsed, so a path segment that merely looks like
+                    # Rich markup (e.g. a serialized list parameter containing brackets)
+                    # can never be misinterpreted or silently dropped.
+                    location = Text(entry["file_name"])
                     if links and entry.get("is_local", False):
-                        location = f"[link=file://{location}]{location}[/link]"
+                        location.stylize(Style(link=f"file://{entry['file_name']}"))
                     row += [location, status]
                     table.add_row(*row)
 

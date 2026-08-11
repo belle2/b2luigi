@@ -372,6 +372,20 @@ class TestRenderTaskOutputsFolding(TestCase):
         self.assertNotIn("…", rendered)
         self.assertFalse(_has_row_rules(rendered))
 
+    def test_markup_like_path_segment_survives_rendering(self) -> None:
+        """A path containing a bracketed segment that looks like Rich markup must
+        not be silently swallowed, even outside ``--links``.
+
+        The ``Location`` cell used to be built as a plain markup string, so Rich
+        parsed ``[bold]`` as an (unbalanced) tag and dropped it rather than
+        raising — the same class of character-loss bug this whole feature exists
+        to eliminate.
+        """
+        path = "/results/style=[bold]/out.root"
+        rendered = _render([path])
+        flattened = re.sub(r"[\s│╭╮╰╯─✓✗]", "", rendered)
+        self.assertIn(path, flattened, "the bracketed segment was dropped instead of rendered literally")
+
 
 def _render_paths(file_names: list[str], width: int = 100, **kwargs) -> str:
     """Render output paths in ``paths_only`` mode and capture stdout.
@@ -467,6 +481,14 @@ class TestRenderTaskOutputsLinks(TestCase):
             [{"file_name": "/store/user/out.root", "exists": True, "parameters": {}, "is_local": False}]
         )
         self.assertNotIn("\x1b]8;", rendered)
+
+    def test_bracket_containing_path_does_not_crash(self) -> None:
+        """A path containing brackets (e.g. a serialized list parameter) must not
+        raise ``rich.errors.MarkupError`` and must still be linked correctly."""
+        path = "/results/items=[1, 2, 3]/out.root"
+        rendered = _render_links([{"file_name": path, "exists": True, "parameters": {}, "is_local": True}])
+        self.assertIn("\x1b]8;", rendered)
+        self.assertIn(f"file://{path}", rendered)
 
     def test_links_are_suppressed_under_paths_only(self) -> None:
         """Bare path output stays bare even when links are requested."""
