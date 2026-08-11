@@ -4,9 +4,17 @@
     listing, dependency tree display, parameter overrides, and error handling.
 """
 
+import io
 import os
 import pathlib
+import re
 import shutil
+from unittest import TestCase
+from unittest.mock import patch
+
+from rich.console import Console
+
+from b2luigi.cli import runner
 
 from .helpers import CLITestCase
 
@@ -283,3 +291,71 @@ class TestShowDetailsFlag(CLITestCase):
         returncode, stdout, stderr = self._run_cli("show", ["RootTask", "--with-requirements", "--details"])
         self.assertEqual(returncode, 0, f"Command failed with stderr: {stderr}")
         self.assertIn("Output", stdout)
+
+
+class _StubTask:
+    """Minimal stand-in for a task instance: the renderer only reads the class
+    name and ``task_id``."""
+
+    task_id = "_StubTask_abcdef"
+
+
+def _render(file_names: list[str], width: int = 100, **kwargs) -> str:
+    """Render the given output paths through ``_render_task_outputs``.
+
+    :param file_names: Output paths to place in a single task's output dict.
+    :type file_names: list[str]
+    :param width: Console width to render at, fixed so results are deterministic.
+    :type width: int
+    :returns: Everything the renderer wrote to the console.
+    :rtype: str
+    """
+    buffer = io.StringIO()
+    test_console = Console(file=buffer, width=width)
+    outputs = {
+        f"key{index}": [{"file_name": name, "exists": True, "parameters": {}}] for index, name in enumerate(file_names)
+    }
+    with patch.object(runner, "console", test_console):
+        runner._render_task_outputs([(_StubTask(), outputs)], **kwargs)
+    return buffer.getvalue()
+
+
+def _long_path() -> str:
+    """Build a 25-parameter output path, the case that motivated this feature."""
+    return "results/" + "/".join(f"p{index}=v{index}" for index in range(25)) + "/out.root"
+
+
+def _has_row_rules(rendered: str) -> bool:
+    """True if the rendered panel contains interior horizontal rules."""
+    body = [line for line in rendered.splitlines() if line.startswith("│")]
+    return any(set(line[1:-1].strip()) == {"─"} for line in body)
+
+
+class TestRenderTaskOutputsFolding(TestCase):
+    """The Location column must never discard characters of a path."""
+
+    def test_long_path_is_not_truncated(self) -> None:
+        """Every character of a 25-parameter path survives rendering.
+
+        Folding breaks the path at the column width, which can split a
+        ``pN=vN`` segment across two lines, so the assertion reconstructs the
+        cell by stripping panel borders, the status glyph and whitespace rather
+        than looking for individual segments.
+        """
+        path = _long_path()
+        rendered = _render([path])
+
+        self.assertNotIn("…", rendered, "path was ellipsized instead of folded")
+        flattened = re.sub(r"[\s│╭╮╰╯─✓✗]", "", rendered)
+        self.assertIn(path, flattened, "the folded path did not reconstruct to the original")
+
+    def test_long_path_gets_row_rules(self) -> None:
+        """A wrapped panel draws rules so folded rows stay distinguishable."""
+        rendered = _render([_long_path(), _long_path()])
+        self.assertTrue(_has_row_rules(rendered))
+
+    def test_short_path_keeps_the_compact_layout(self) -> None:
+        """A panel with no wrapping renders exactly as before — no rules."""
+        rendered = _render(["results/a=1/out.root"])
+        self.assertNotIn("…", rendered)
+        self.assertFalse(_has_row_rules(rendered))

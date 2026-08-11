@@ -442,6 +442,11 @@ def _render_task_outputs(
     task instance, e.g. via ``ParameterGenerator``) a leftmost ``Params``
     column distinguishing each instance's rows.
 
+    Long paths are folded rather than truncated: the ``Location`` column never
+    discards characters. When a panel's natural width exceeds the space available,
+    that panel gains horizontal rules between rows so folded rows stay readable;
+    panels whose paths all fit render exactly as they did before.
+
     :param task_output_pairs: Iterable of ``(task_instance, {key: [{"file_name": ..., "exists": ...}]})``.
     :type task_output_pairs: Iterable[tuple]
     :param required_by_map: Optional mapping of task_id to parent class names,
@@ -456,6 +461,7 @@ def _render_task_outputs(
     """
     from rich.table import Table
     from rich.panel import Panel
+    from rich import box as rich_box
 
     groups: dict[str, list] = {}
     for task, outputs in task_output_pairs:
@@ -470,7 +476,7 @@ def _render_task_outputs(
             table.add_column("Params", style="dim")
         if details:
             table.add_column("Output", style="dim")
-        table.add_column("Location")
+        table.add_column("Location", overflow="fold")
         table.add_column("", justify="center", no_wrap=True)
 
         for task, outputs in pairs:
@@ -498,6 +504,15 @@ def _render_task_outputs(
                         parents_seen.append(parent)
             if parents_seen:
                 subtitle = f"[dim]required by: {', '.join(parents_seen)}[/dim]"
+
+        # A folded path spans several lines, and without separators the rows of
+        # adjacent outputs run together. Ask Rich for the table's natural width and
+        # only turn rules on when it exceeds what the panel can offer (the console
+        # width less the panel's two borders and two padding columns). show_lines is
+        # a no-op under box=None, so the box style has to change with it.
+        if console.measure(table).maximum > console.width - 4:
+            table.box = rich_box.HORIZONTALS
+            table.show_lines = True
 
         console.print(Panel(table, title=f"[bold]{class_name}[/bold]", subtitle=subtitle, border_style="cyan"))
 
