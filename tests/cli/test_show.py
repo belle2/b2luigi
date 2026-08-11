@@ -4,6 +4,7 @@
     listing, dependency tree display, parameter overrides, and error handling.
 """
 
+import contextlib
 import io
 import os
 import pathlib
@@ -105,6 +106,17 @@ class TestShow(CLITestCase):
         # Must provide --param for required task parameters since parameters.py is missing
         returncode, stdout, stderr = self._run_cli("show", ["--param", "split=5"])
         self.assertEqual(returncode, 0, f"Command failed with stderr: {stderr}")
+
+    def test_show_paths_flag_prints_bare_paths(self) -> None:
+        """``b2luigi show LeafTask --paths`` prints paths and nothing else."""
+        returncode, stdout, stderr = self._run_cli("show", ["LeafTask", "--paths"])
+        self.assertEqual(returncode, 0, f"Command failed with stderr: {stderr}")
+        lines = [line for line in stdout.splitlines() if line.strip()]
+        self.assertTrue(lines, "no paths were printed")
+        for line in lines:
+            self.assertTrue(os.path.isabs(line), f"not an absolute path: {line!r}")
+        self.assertNotIn("Location", stdout)
+        self.assertNotIn("│", stdout)
 
 
 class TestShowMultiParam(CLITestCase):
@@ -359,3 +371,60 @@ class TestRenderTaskOutputsFolding(TestCase):
         rendered = _render(["results/a=1/out.root"])
         self.assertNotIn("…", rendered)
         self.assertFalse(_has_row_rules(rendered))
+
+
+def _render_paths(file_names: list[str], width: int = 100, **kwargs) -> str:
+    """Render output paths in ``paths_only`` mode and capture stdout.
+
+    ``paths_only`` deliberately bypasses the Rich console and writes with
+    ``print()``, so this helper captures stdout rather than a console buffer. The
+    console is still patched to a fixed width to prove nothing leaks through it.
+
+    :param file_names: Output paths to place in a single task's output dict.
+    :type file_names: list[str]
+    :param width: Console width for the patched console.
+    :type width: int
+    :returns: Everything written to stdout.
+    :rtype: str
+    """
+    console_buffer = io.StringIO()
+    stdout_buffer = io.StringIO()
+    test_console = Console(file=console_buffer, width=width)
+    outputs = {
+        f"key{index}": [{"file_name": name, "exists": True, "parameters": {}}] for index, name in enumerate(file_names)
+    }
+    with patch.object(runner, "console", test_console):
+        with contextlib.redirect_stdout(stdout_buffer):
+            runner._render_task_outputs([(_StubTask(), outputs)], paths_only=True, **kwargs)
+    return stdout_buffer.getvalue()
+
+
+class TestRenderTaskOutputsPathsOnly(TestCase):
+    """``--paths`` output must be bare enough to pipe and paste."""
+
+    def test_prints_one_bare_line_per_path(self) -> None:
+        """Each path is on its own line with no decoration."""
+        rendered = _render_paths(["results/a=1/out.root", "results/a=1/log.txt"])
+        self.assertEqual(
+            rendered.splitlines(),
+            ["results/a=1/out.root", "results/a=1/log.txt"],
+        )
+
+    def test_long_path_stays_on_one_line(self) -> None:
+        """A long path is never wrapped, even at a narrow width — wrapping would
+        break shell substitution and piping."""
+        path = _long_path()
+        rendered = _render_paths([path], width=40)
+        self.assertEqual(rendered.splitlines(), [path])
+
+    def test_no_panel_or_status_decoration(self) -> None:
+        """No box drawing, status glyphs, or headers leak into the output."""
+        rendered = _render_paths([_long_path()])
+        for decoration in ("│", "╭", "╰", "─", "✓", "✗", "Location"):
+            self.assertNotIn(decoration, rendered)
+
+    def test_details_is_ignored(self) -> None:
+        """``--details`` adds columns to the table view; it must not add anything
+        to bare path output."""
+        rendered = _render_paths(["results/a=1/out.root"], details=True)
+        self.assertEqual(rendered.splitlines(), ["results/a=1/out.root"])

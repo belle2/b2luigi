@@ -57,6 +57,7 @@ def show_task(
     direct: bool = False,
     with_requirements: bool = False,
     details: bool = False,
+    paths_only: bool = False,
 ) -> None:
     """Show output files of task(s).
 
@@ -73,6 +74,9 @@ def show_task(
     :param details: If ``True``, show the ``Output`` key-name column (and, for
         multi-instance tasks, the ``Params`` column). Hidden by default.
     :type details: bool
+    :param paths_only: If ``True``, print one bare output path per line instead
+        of rendering a table. Suitable for piping.
+    :type paths_only: bool
     """
     ctx = resolve_task_context(task_filename, parameter_filename, params)
     index, param_dicts = ctx.index, ctx.param_dicts
@@ -92,7 +96,9 @@ def show_task(
         return result
 
     if names is None:
-        runner.show_all_outputs(get_root_tasks(_all_instantiatable(index.all_classes())), details=details)
+        runner.show_all_outputs(
+            get_root_tasks(_all_instantiatable(index.all_classes())), details=details, paths_only=paths_only
+        )
         return
 
     target_classes = index.resolve_many(names)
@@ -113,9 +119,9 @@ def show_task(
 
     if not unresolvable:
         if with_requirements:
-            runner.show_all_outputs(direct_instances, show_required_by=True, details=details)
+            runner.show_all_outputs(direct_instances, show_required_by=True, details=details, paths_only=paths_only)
         else:
-            runner.show_task_outputs(direct_instances, details=details)
+            runner.show_task_outputs(direct_instances, details=details, paths_only=paths_only)
         return
 
     if effective_direct:
@@ -128,9 +134,9 @@ def show_task(
         get_root_tasks(_all_instantiatable(index.all_classes())),
     )
     if with_requirements:
-        runner.show_all_outputs(found, show_required_by=True, details=details)
+        runner.show_all_outputs(found, show_required_by=True, details=details, paths_only=paths_only)
     else:
-        runner.show_task_outputs(found, details=details)
+        runner.show_task_outputs(found, details=details, paths_only=paths_only)
 
 
 @show_app.callback(invoke_without_command=True)
@@ -165,6 +171,13 @@ def show(
             "combinations) the Params column. Both are hidden by default.",
         ),
     ] = False,
+    paths_only: Annotated[
+        bool,
+        typer.Option(
+            "--paths",
+            help="Print one bare output path per line, with no table or styling. Suitable for piping.",
+        ),
+    ] = False,
 ) -> None:
     """Show output files of task(s).
 
@@ -181,6 +194,9 @@ def show(
     :type with_requirements: bool
     :param details: If ``True``, show the Output key-name column and the Params column. Hidden by default.
     :type details: bool
+    :param paths_only: If ``True``, print one bare output path per line instead
+        of rendering a table. Suitable for piping.
+    :type paths_only: bool
     """
     if ctx.invoked_subcommand is not None:
         return
@@ -193,4 +209,5 @@ def show(
             direct=direct,
             with_requirements=with_requirements,
             details=details,
+            paths_only=paths_only,
         )

@@ -432,7 +432,10 @@ def _build_parent_map(root_tasks: list) -> dict[str, list[str]]:
 
 
 def _render_task_outputs(
-    task_output_pairs, required_by_map: dict[str, list[str]] | None = None, details: bool = False
+    task_output_pairs,
+    required_by_map: dict[str, list[str]] | None = None,
+    details: bool = False,
+    paths_only: bool = False,
 ) -> None:
     """Render a list of (task, output_dict) pairs using Rich.
 
@@ -458,7 +461,21 @@ def _render_task_outputs(
         multi-instance classes) the ``Params`` column. Both are hidden by
         default to keep the common case terse.
     :type details: bool
+    :param paths_only: If ``True``, print one bare output path per line with no
+        panel, status column, or styling, and return without rendering a table.
+        Intended for shell substitution and piping. ``details`` is ignored.
+    :type paths_only: bool
     """
+    if paths_only:
+        # Deliberately plain print(), not console.print(): Rich would wrap long
+        # paths, which breaks $(...) substitution and pipes. Same reasoning as
+        # graph --format dot.
+        for _, outputs in task_output_pairs:
+            for entries in outputs.values():
+                for entry in entries:
+                    print(entry["file_name"])
+        return
+
     from rich.table import Table
     from rich.panel import Panel
     from rich import box as rich_box
@@ -633,7 +650,7 @@ def render_graph_dot(task_list: list, show_params: bool = False, show_status: bo
     print("}")
 
 
-def show_task_outputs(task_list: list, details: bool = False) -> None:
+def show_task_outputs(task_list: list, details: bool = False, paths_only: bool = False) -> None:
     """Show output files for the given tasks only — no dependency-tree traversal.
 
     :param task_list: Task instances whose outputs should be displayed.
@@ -641,11 +658,16 @@ def show_task_outputs(task_list: list, details: bool = False) -> None:
     :param details: If ``True``, show the ``Output`` key-name column (and, for
         multi-instance classes, the ``Params`` column). Hidden by default.
     :type details: bool
+    :param paths_only: If ``True``, print one bare output path per line instead
+        of rendering a table. Suitable for piping.
+    :type paths_only: bool
     """
-    _render_task_outputs(((task, get_task_outputs(task)) for task in task_list), details=details)
+    _render_task_outputs(((task, get_task_outputs(task)) for task in task_list), details=details, paths_only=paths_only)
 
 
-def show_all_outputs(task_list: list, show_required_by: bool = False, details: bool = False) -> None:
+def show_all_outputs(
+    task_list: list, show_required_by: bool = False, details: bool = False, paths_only: bool = False
+) -> None:
     """Show output files for all tasks in the dependency trees rooted at ``task_list``.
 
     :param task_list: Root task instances; the full dependency tree is traversed.
@@ -656,6 +678,9 @@ def show_all_outputs(task_list: list, show_required_by: bool = False, details: b
     :param details: If ``True``, show the ``Output`` key-name column (and, for
         multi-instance classes, the ``Params`` column). Hidden by default.
     :type details: bool
+    :param paths_only: If ``True``, print one bare output path per line instead
+        of rendering a table. Suitable for piping.
+    :type paths_only: bool
     """
     parent_map = _build_parent_map(task_list) if show_required_by else None
     seen = set()
@@ -666,7 +691,7 @@ def show_all_outputs(task_list: list, show_required_by: bool = False, details: b
                 continue
             seen.add(task.task_id)
             pairs.append((task, get_task_outputs(task)))
-    _render_task_outputs(pairs, required_by_map=parent_map, details=details)
+    _render_task_outputs(pairs, required_by_map=parent_map, details=details, paths_only=paths_only)
 
 
 def dry_run(task_list):
