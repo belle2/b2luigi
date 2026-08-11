@@ -244,6 +244,35 @@ from the named task (showing all tasks it transitively depends on):
 Output is colour-coded: **green** means the file exists, **red** means it
 is missing.
 
+Long output paths are never truncated: the ``Location`` column folds across lines
+so every character stays on screen and can be selected or piped.
+
+For a bare listing suitable for shell substitution, use ``--paths``:
+
+.. code-block:: bash
+
+    b2luigi show MyTask --paths
+
+This prints one absolute output path per line with no table, styling, or status
+column, so it composes with other tools:
+
+.. code-block:: bash
+
+    ls -lh $(b2luigi show MyTask --paths)
+
+``--links`` additionally makes local paths clickable in terminals that support
+hyperlinks:
+
+.. code-block:: bash
+
+    b2luigi show MyTask --links
+
+Links are emitted only for local files, never for remote (XRootD or WebDAV)
+targets. Be aware that a link resolves against the machine your *terminal* runs
+on: when you run ``b2luigi show`` over SSH on a cluster, the link points at a path
+on your local machine and will not find the file. This is why ``--links`` is
+opt-in rather than the default.
+
 b2luigi graph
 -------------
 
