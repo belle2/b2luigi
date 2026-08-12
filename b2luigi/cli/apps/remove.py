@@ -8,14 +8,13 @@ from b2luigi.cli.errors import CliUserError
 from b2luigi.cli.options import Params, ParamsFile, TaskFile, class_names_arg
 from b2luigi.cli.utils import (
     build_task_list,
+    check_param_applicability,
     cli_error_boundary,
     parse_classnames,
-    partition_params,
     resolve_task_context,
-    unknown_param_error,
-    warn_ignored_params,
 )
 from b2luigi.core.settings import get_setting
+from b2luigi.core.utils import task_iterator
 
 remove_app = typer.Typer(
     name="remove",
@@ -100,17 +99,6 @@ def remove(
         else:
             target_classes = index.resolve_many(names)
 
-        accepted: set[str] = set()
-        for cls in target_classes:
-            accepted |= {name for name, _ in cls.get_params()}
-
-        _, dropped_config, dropped_override = partition_params(param_dicts[0], accepted, ctx.override_keys)
-        target_desc = ", ".join(index.qualified_name(cls) for cls in target_classes)
-        if dropped_override:
-            raise unknown_param_error(dropped_override, accepted, target_desc)
-        if dropped_config:
-            warn_ignored_params(dropped_config, target_desc)
-
         effective_direct = direct or bool(get_setting("direct_mode", default=False))
 
         task_list, unresolved = build_task_list(target_classes, index, param_dicts, effective_direct)
@@ -132,6 +120,25 @@ def remove(
                 f"Cannot instantiate task(s) {sorted(index.qualified_name(c) for c in unresolved)!r} in direct mode. "
                 f"Add missing parameters with --param <key>=<value> or set in parameters.py."
             )
+
+        # The considered set must cover everything this invocation will delete.
+        # Under --with-requirements that is the whole requirement tree, exactly
+        # as `show --with-requirements` considers it — otherwise a config key
+        # only a requirement declares would be reported as inapplicable here
+        # while `show` stays silent on the identical project.
+        considered = list(target_classes)
+        if with_requirements and names is not None:
+            for task in task_list:
+                for required in task_iterator(task):
+                    considered.append(type(required))
+        check_param_applicability(
+            param_dicts[0],
+            considered,
+            ctx.override_keys,
+            named=names is not None,
+            target=", ".join(index.qualified_name(cls) for cls in target_classes) if names is not None else "any task",
+            strict=True,
+        )
 
         keep_tasks = [cls.__name__ for cls in keep_classes] if keep_classes else None
         if with_requirements and names is not None:
