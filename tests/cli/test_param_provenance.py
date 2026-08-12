@@ -350,3 +350,39 @@ class TestShowWithRequirementsConsideredSet(CLITestCase):
 
         self.assertEqual(returncode, 0, f"expected exit 0, got {returncode}: {combined}")
         self.assertNotIn("ignoring parameters", combined.lower())
+
+
+class TestShowNamedConfigWarn(ProvenanceProjectTestCase):
+    """A named task warns (not errors) on a config key it does not declare."""
+
+    def test_named_task_warns_on_undeclared_config_key(self) -> None:
+        """TaskB doesn't declare `number`, which the shared config sets to 7."""
+        returncode, stdout, stderr = self._run_cli("show", ["TaskB"])
+        combined = stdout + stderr
+
+        self.assertEqual(returncode, 0, f"expected exit 0, got {returncode}: {combined}")
+        self.assertIn("ignoring parameters", combined.lower())
+        self.assertIn("number", combined)
+        self.assertIn("TaskB", combined)
+
+
+class TestGraphProvenance(ProvenanceProjectTestCase):
+    """graph's traversal is unconditional, unlike show's --with-requirements gate."""
+
+    def test_named_task_with_unknown_override_errors(self) -> None:
+        """Naming a task makes an inapplicable override unambiguous."""
+        returncode, stdout, stderr = self._run_cli("graph", ["TaskA", "--param", "numbr=99"])
+        combined = stdout + stderr
+
+        self.assertEqual(returncode, 2, f"expected exit 2, got {returncode}: {combined}")
+        self.assertIn("numbr", combined)
+        self.assertIn("number", combined)  # did-you-mean
+
+    def test_whole_tree_with_unknown_override_warns_and_renders(self) -> None:
+        """With no task named, an unmatched override is not fatal."""
+        returncode, stdout, stderr = self._run_cli("graph", ["--param", "numbr=99"])
+        combined = stdout + stderr
+
+        self.assertEqual(returncode, 0, f"expected exit 0, got {returncode}: {combined}")
+        self.assertIn("numbr", combined)
+        self.assertIn("TaskA", combined)  # still rendered

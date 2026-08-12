@@ -135,7 +135,7 @@ def warn_ignored_params(keys: list[str], target: str) -> None:
 
 def check_param_applicability(
     param_dict: dict[str, Any],
-    considered: list[Type[b2luigi.Task]],
+    considered: list[type[b2luigi.Task]],
     override_keys: frozenset[str],
     named: bool,
     target: str,
@@ -145,7 +145,7 @@ def check_param_applicability(
     :param param_dict: One expanded parameter combination.
     :type param_dict: dict[str, Any]
     :param considered: Every class the command will instantiate.
-    :type considered: list[Type[b2luigi.Task]]
+    :type considered: list[type[b2luigi.Task]]
     :param override_keys: Keys that came from ``--param``.
     :type override_keys: frozenset[str]
     :param named: Whether the user named a task, which makes an inapplicable
