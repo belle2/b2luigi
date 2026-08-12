@@ -24,6 +24,10 @@ from b2luigi.core.utils import (
 )
 
 console = Console()
+#: Diagnostics that must not pollute machine-readable stdout. ``show --paths``
+#: is designed to be piped and ``graph --format dot`` to be fed to Graphviz, so
+#: anything printed alongside them belongs on stderr.
+stderr_console = Console(stderr=True)
 
 
 def _build_fast_req_task(input_file: str) -> type:

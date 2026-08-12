@@ -17,6 +17,7 @@ from b2luigi.core.settings import set_setting
 from b2luigi.core.utils import task_iterator, SYNTHETIC_TASK_MODULE
 from click import Context as ClickContext, Parameter as ClickParameter
 from click.shell_completion import CompletionItem
+from rich.text import Text
 
 
 @dataclass(frozen=True)
@@ -121,16 +122,28 @@ def warn_ignored_params(keys: list[str], target: str) -> None:
     ``keys`` from a single expanded combination, and every combination shares the
     same key set.
 
-    :param keys: Dropped config parameter names, already sorted.
+    Written to **stderr**, never stdout: ``b2luigi show --paths`` and
+    ``b2luigi graph --format dot`` exist to be piped, and a warning on stdout
+    would corrupt them. The message is built as a :class:`rich.text.Text` object
+    rather than a markup string because *keys* is user-controlled — a key such
+    as ``[/foo]`` would otherwise raise ``MarkupError``, and ``[bold]`` would be
+    silently swallowed as a style tag.
+
+    :param keys: Dropped parameter names, already sorted.
     :type keys: list[str]
     :param target: What the parameters were aimed at, for the message.
     :type target: str
     :returns: Nothing.
     :rtype: None
     """
-    from b2luigi.cli.runner import console
+    from b2luigi.cli.runner import stderr_console
 
-    console.print(f"[yellow]Warning: ignoring parameters not declared by {target}: {', '.join(keys)}[/yellow]")
+    message = Text(style="yellow")
+    message.append("Warning: ignoring parameters not declared by ")
+    message.append(target)
+    message.append(": ")
+    message.append(", ".join(keys))
+    stderr_console.print(message)
 
 
 def check_param_applicability(
@@ -139,10 +152,21 @@ def check_param_applicability(
     override_keys: frozenset[str],
     named: bool,
     target: str,
-) -> None:
+    strict: bool = False,
+) -> set[str]:
     """Report parameters that no class in the considered set declares.
 
-    :param param_dict: One expanded parameter combination.
+    Strictness follows provenance. A ``--param`` override that applies to
+    nothing is fatal whenever the situation is unambiguous — either the user
+    named a task (*named*) or the command is destructive and refuses to guess
+    (*strict*). Otherwise it warns, because a whole-tree traversal legitimately
+    spans classes declaring different parameters. Inapplicable ``parameters.py``
+    keys are never fatal: they warn under the same condition, and are dropped
+    silently for a non-strict whole-tree traversal, which has nothing specific
+    to report.
+
+    :param param_dict: One expanded parameter combination. Must be
+        POST-expansion — see :func:`partition_params`.
     :type param_dict: dict[str, Any]
     :param considered: Every class the command will instantiate.
     :type considered: list[type[b2luigi.Task]]
@@ -153,22 +177,29 @@ def check_param_applicability(
     :type named: bool
     :param target: What to name in the message.
     :type target: str
-    :returns: Nothing.
-    :rtype: None
+    :param strict: Whether an inapplicable override is fatal even with no task
+        named. Set by commands that delete files, where silently ignoring an
+        override is the dangerous direction.
+    :type strict: bool
+    :returns: The parameter names declared across *considered*, so callers can
+        filter their own parameter dicts without re-deriving the set.
+    :rtype: set[str]
     :raises CliUserError: If a ``--param`` override applies to no considered
-        class and a task was named.
+        class and either *named* or *strict* is true.
     """
     accepted: set[str] = set()
     for cls in considered:
         accepted |= {name for name, _ in cls.get_params()}
 
+    fatal = named or strict
     _, dropped_config, dropped_override = partition_params(param_dict, accepted, override_keys)
     if dropped_override:
-        if named:
+        if fatal:
             raise unknown_param_error(dropped_override, accepted, target)
         warn_ignored_params(dropped_override, target)
-    if dropped_config and named:
+    if dropped_config and fatal:
         warn_ignored_params(dropped_config, target)
+    return accepted
 
 
 def import_from_file(filename: str, module_name: str) -> Any:
