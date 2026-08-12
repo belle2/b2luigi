@@ -241,15 +241,24 @@ of sharing a config:
 
    Error: TaskA has no parameter 'numbr'. Did you mean 'number'?
 
-``run`` and ``remove`` always name a task, so an inapplicable override is always
-an error there. ``show`` and ``graph`` error the same way when you name a task,
-and warn instead when you do not, because a whole-tree listing legitimately spans
-tasks that declare different parameters.
+``run`` always names a task, so an inapplicable override is always an error
+there. ``show`` and ``graph`` error the same way when you name a task, and warn
+instead when you do not, because a whole-tree listing legitimately spans tasks
+that declare different parameters.
 
-The warning above only fires when a task is named. With no task named, ``show``
-and ``graph`` drop inapplicable ``parameters.py`` keys silently — a whole-tree
-listing has nothing specific to warn about, since it legitimately spans tasks
-with different parameters.
+``remove`` is the deliberate exception to that rule: it errors on an
+inapplicable override **whether or not** you name a task. It deletes files, and
+quietly ignoring an override that was meant to narrow what gets deleted is the
+dangerous direction.
+
+The ``parameters.py`` warning above fires whenever a command errors on
+overrides — that is, for ``run``, for ``remove``, and for ``show``/``graph``
+with a task named. With no task named, ``show`` and ``graph`` drop inapplicable
+``parameters.py`` keys silently: a whole-tree listing has nothing specific to
+warn about, since it legitimately spans tasks with different parameters.
+
+Warnings are written to standard error, so ``show --paths`` and
+``graph --format dot`` stay pipeable.
 
 b2luigi show
 ------------
