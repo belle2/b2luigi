@@ -61,6 +61,78 @@ def suggest(bad: str, candidates: List[str]) -> str | None:
     return m[0] if m else None
 
 
+def partition_params(
+    params: dict[str, Any],
+    accepted: set[str],
+    override_keys: frozenset[str],
+) -> tuple[dict[str, Any], list[str], list[str]]:
+    """Split parameters into those a task accepts and those it does not.
+
+    ``params`` must be POST-expansion: its keys are real parameter names. Passing
+    a raw ``parameters.py`` config here would misclassify a
+    ``ZippedParameterGenerator`` sentinel key, whose real parameter names only
+    exist after :func:`expand_parameters` has run.
+
+    :param params: Expanded parameter dict for one combination.
+    :type params: dict[str, Any]
+    :param accepted: Parameter names declared across the considered task classes.
+    :type accepted: set[str]
+    :param override_keys: Keys that came from ``--param`` rather than the config
+        file. Determines which dropped bucket a key lands in.
+    :type override_keys: frozenset[str]
+    :returns: ``(kept, dropped_config, dropped_override)``; both dropped lists sorted.
+    :rtype: tuple[dict[str, Any], list[str], list[str]]
+    """
+    kept = {key: value for key, value in params.items() if key in accepted}
+    dropped = [key for key in params if key not in accepted]
+    dropped_override = sorted(key for key in dropped if key in override_keys)
+    dropped_config = sorted(key for key in dropped if key not in override_keys)
+    return kept, dropped_config, dropped_override
+
+
+def unknown_param_error(bad_keys: list[str], accepted: set[str], target: str) -> CliUserError:
+    """Build the error for ``--param`` keys that apply to nothing.
+
+    :param bad_keys: The offending parameter names, already sorted.
+    :type bad_keys: list[str]
+    :param accepted: Parameter names the considered task classes declare.
+    :type accepted: set[str]
+    :param target: What the parameters were aimed at, for the message.
+    :type target: str
+    :returns: The error to raise.
+    :rtype: CliUserError
+    """
+    names = ", ".join(f"'{key}'" for key in bad_keys)
+    plural = "parameters" if len(bad_keys) > 1 else "parameter"
+    message = f"{target} has no {plural} {names}."
+
+    hint = suggest(bad_keys[0], sorted(accepted)) if len(bad_keys) == 1 else None
+    if hint:
+        message += f" Did you mean '{hint}'?"
+    elif accepted:
+        message += f" Available parameters: {', '.join(sorted(accepted))}."
+    return CliUserError(message)
+
+
+def warn_ignored_params(keys: list[str], target: str) -> None:
+    """Warn once that config parameters were filtered out.
+
+    Emitted once per invocation, not once per task instance: the caller derives
+    ``keys`` from a single expanded combination, and every combination shares the
+    same key set.
+
+    :param keys: Dropped config parameter names, already sorted.
+    :type keys: list[str]
+    :param target: What the parameters were aimed at, for the message.
+    :type target: str
+    :returns: Nothing.
+    :rtype: None
+    """
+    from b2luigi.cli.runner import console
+
+    console.print(f"[yellow]Warning: ignoring parameters not declared by {target}: {', '.join(keys)}[/yellow]")
+
+
 def import_from_file(filename: str, module_name: str) -> Any:
     """Load a module from a file and ensure its directory is importable.
 
@@ -442,11 +514,16 @@ class TaskContext:
     :param param_dicts: ``merged_params`` expanded into one concrete dict per
         parameter combination.
     :type param_dicts: List[Dict[str, Any]]
+    :param override_keys: Names of parameters that came from ``--param`` rather
+        than the config file. Consumers need this to decide whether an
+        inapplicable key is a warning (config) or an error (override).
+    :type override_keys: frozenset[str]
     """
 
     index: TaskIndex
     merged_params: Dict[str, Any]
     param_dicts: List[Dict[str, Any]]
+    override_keys: frozenset[str]
 
 
 def resolve_task_context(
@@ -483,11 +560,13 @@ def resolve_task_context(
     """
     d = resolve_defaults(task_filename, parameter_filename)
     index = build_task_index(d.task_file)
-    merged_params = {**load_parameters(d.params_file), **parse_kv_params(params or [])}
+    overrides = parse_kv_params(params or [])
+    merged_params = {**load_parameters(d.params_file), **overrides}
     return TaskContext(
         index=index,
         merged_params=merged_params,
         param_dicts=expand_parameters(merged_params),
+        override_keys=frozenset(overrides),
     )
 
 
