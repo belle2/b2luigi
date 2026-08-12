@@ -13,8 +13,11 @@ from b2luigi.cli.utils import (
     expand_parameters,
     load_parameters,
     parse_kv_params,
+    partition_params,
     process_task_instance,
     resolve_defaults,
+    unknown_param_error,
+    warn_ignored_params,
 )
 
 run_app = typer.Typer(
@@ -97,6 +100,21 @@ def run_task(
             f"Parameter expansion for '{task_class.__name__}' produced zero combinations. "
             "Check your ParameterGenerator or ZippedParameterGenerator values."
         )
+
+    # Partition AFTER expansion: config keys are not parameter names — a
+    # ZippedParameterGenerator hides under a sentinel key whose real parameter
+    # names only exist once expanded. Derive the dropped set from ONE
+    # combination, since every combination shares a key set; that is what makes
+    # the warning fire once regardless of sweep size.
+    accepted = {name for name, _ in task_class.get_params()}
+    override_keys = frozenset(overrides or {})
+    _, dropped_config, dropped_override = partition_params(param_dicts[0], accepted, override_keys)
+
+    if dropped_override:
+        raise unknown_param_error(dropped_override, accepted, task_class.__name__)
+    if dropped_config:
+        warn_ignored_params(dropped_config, task_class.__name__)
+        param_dicts = [{k: v for k, v in pd.items() if k in accepted} for pd in param_dicts]
 
     if len(param_dicts) == 1:
         task_instance = task_class(**param_dicts[0])

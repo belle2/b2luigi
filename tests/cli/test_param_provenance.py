@@ -6,6 +6,7 @@
 """
 
 import io
+import os
 from unittest import TestCase
 from unittest.mock import patch
 
@@ -18,6 +19,8 @@ from b2luigi.cli.utils import (
     unknown_param_error,
     warn_ignored_params,
 )
+
+from .helpers import CLITestCase
 
 
 class TestPartitionParams(TestCase):
@@ -117,3 +120,145 @@ class TestTaskContextOverrideKeys(TestCase):
 
         self.assertEqual(ctx.override_keys, frozenset({"extra"}))
         self.assertIn("number", ctx.merged_params)
+
+
+class ProvenanceProjectTestCase(CLITestCase):
+    """A project where TaskA declares `number` and TaskB does not."""
+
+    def setUp(self) -> None:
+        super().setUp()
+        with open(os.path.join(self.tmp_dir, "tasks.py"), "w") as handle:
+            handle.write(
+                "import b2luigi\n"
+                "\n"
+                "\n"
+                "class TaskA(b2luigi.Task):\n"
+                "    number = b2luigi.IntParameter(default=1)\n"
+                "\n"
+                "    def output(self):\n"
+                "        yield self.add_to_output('a.txt')\n"
+                "\n"
+                "    def run(self):\n"
+                "        with open(self.get_output_file_name('a.txt'), 'w') as handle:\n"
+                "            handle.write('a')\n"
+                "\n"
+                "    def remove_output(self):\n"
+                "        self._remove_output()\n"
+                "\n"
+                "\n"
+                "class TaskB(b2luigi.Task):\n"
+                "    label = b2luigi.Parameter(default='plain')\n"
+                "\n"
+                "    def output(self):\n"
+                "        yield self.add_to_output('b.txt')\n"
+                "\n"
+                "    def run(self):\n"
+                "        with open(self.get_output_file_name('b.txt'), 'w') as handle:\n"
+                "            handle.write('b')\n"
+                "\n"
+                "    def remove_output(self):\n"
+                "        self._remove_output()\n"
+            )
+        with open(os.path.join(self.tmp_dir, "parameters.py"), "w") as handle:
+            handle.write("config = {'number': 7}\n")
+        with open(os.path.join(self.tmp_dir, "settings.json"), "w") as handle:
+            handle.write('{"result_dir": "results"}\n')
+
+
+class TestRunProvenance(ProvenanceProjectTestCase):
+    """run filters config keys with a warning and rejects unknown overrides."""
+
+    def test_config_key_not_declared_is_filtered_with_a_warning(self) -> None:
+        """Case 2: a shared parameters.py must work across differing tasks."""
+        returncode, stdout, stderr = self._run_cli("run", ["TaskB"])
+        combined = stdout + stderr
+
+        self.assertEqual(returncode, 0, f"run failed: {combined}")
+        self.assertIn("number", combined)
+        self.assertIn("TaskB", combined)
+        self.assertNotIn("UnknownParameterException", combined)
+        self.assertTrue(os.path.exists(os.path.join(self.tmp_dir, "results", "label=plain", "b.txt")))
+
+    def test_unknown_override_is_a_clean_error(self) -> None:
+        """Case 4: an explicit --param that applies to nothing is fatal."""
+        returncode, stdout, stderr = self._run_cli("run", ["TaskA", "--param", "numbr=99"])
+        combined = stdout + stderr
+
+        self.assertEqual(returncode, 2, f"expected exit 2, got {returncode}: {combined}")
+        self.assertIn("numbr", combined)
+        self.assertIn("number", combined)  # did-you-mean
+        self.assertNotIn("Traceback", combined)
+        self.assertNotIn("UnknownParameterException", combined)
+
+    def test_declared_override_still_applies(self) -> None:
+        """Control: a correctly spelled override reaches the task."""
+        returncode, stdout, stderr = self._run_cli("run", ["TaskA", "--param", "number=99"])
+        self.assertEqual(returncode, 0, f"run failed: {stdout + stderr}")
+        self.assertTrue(os.path.exists(os.path.join(self.tmp_dir, "results", "number=99", "a.txt")))
+
+
+class TestRunSweepInteraction(CLITestCase):
+    """The two constraints that a plausible implementation breaks."""
+
+    def setUp(self) -> None:
+        super().setUp()
+        with open(os.path.join(self.tmp_dir, "tasks.py"), "w") as handle:
+            handle.write(
+                "import b2luigi\n"
+                "\n"
+                "\n"
+                "class SweepTask(b2luigi.Task):\n"
+                "    number = b2luigi.IntParameter(default=1)\n"
+                "    label = b2luigi.Parameter(default='x')\n"
+                "\n"
+                "    def output(self):\n"
+                "        yield self.add_to_output('s.txt')\n"
+                "\n"
+                "    def run(self):\n"
+                "        with open(self.get_output_file_name('s.txt'), 'w') as handle:\n"
+                "            handle.write('s')\n"
+                "\n"
+                "    def remove_output(self):\n"
+                "        self._remove_output()\n"
+            )
+        with open(os.path.join(self.tmp_dir, "settings.json"), "w") as handle:
+            handle.write('{"result_dir": "results"}\n')
+
+    def test_zipped_generator_sweep_survives_filtering(self) -> None:
+        """The sentinel key must not be mistaken for a parameter name.
+
+        Filtering the raw config would drop the whole ZippedParameterGenerator
+        and produce ONE combination instead of two.
+        """
+        with open(os.path.join(self.tmp_dir, "parameters.py"), "w") as handle:
+            handle.write(
+                "import b2luigi\n"
+                "config = {'zipped': b2luigi.ZippedParameterGenerator("
+                "number=[1, 2], label=['a', 'b'])}\n"
+            )
+
+        returncode, stdout, stderr = self._run_cli("run", ["SweepTask"])
+        self.assertEqual(returncode, 0, f"run failed: {stdout + stderr}")
+
+        results = os.path.join(self.tmp_dir, "results")
+        self.assertTrue(os.path.exists(os.path.join(results, "number=1", "label=a", "s.txt")))
+        self.assertTrue(os.path.exists(os.path.join(results, "number=2", "label=b", "s.txt")))
+        self.assertNotIn("zipped", stdout + stderr)
+
+    def test_large_sweep_warns_exactly_once(self) -> None:
+        """The warning is per invocation, not per task instance."""
+        with open(os.path.join(self.tmp_dir, "parameters.py"), "w") as handle:
+            handle.write(
+                "import b2luigi\n"
+                "config = {\n"
+                "    'number': b2luigi.ParameterGenerator(list(range(50))),\n"
+                "    'stray': 1,\n"
+                "}\n"
+            )
+
+        returncode, stdout, stderr = self._run_cli("run", ["SweepTask"])
+        combined = stdout + stderr
+        self.assertEqual(returncode, 0, f"run failed: {combined}")
+
+        warnings = [line for line in combined.splitlines() if "ignoring parameters" in line.lower()]
+        self.assertEqual(len(warnings), 1, f"expected exactly one warning, got {len(warnings)}: {warnings}")
