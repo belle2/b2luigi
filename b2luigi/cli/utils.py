@@ -133,6 +133,44 @@ def warn_ignored_params(keys: list[str], target: str) -> None:
     console.print(f"[yellow]Warning: ignoring parameters not declared by {target}: {', '.join(keys)}[/yellow]")
 
 
+def check_param_applicability(
+    param_dict: dict[str, Any],
+    considered: list[Type[b2luigi.Task]],
+    override_keys: frozenset[str],
+    named: bool,
+    target: str,
+) -> None:
+    """Report parameters that no class in the considered set declares.
+
+    :param param_dict: One expanded parameter combination.
+    :type param_dict: dict[str, Any]
+    :param considered: Every class the command will instantiate.
+    :type considered: list[Type[b2luigi.Task]]
+    :param override_keys: Keys that came from ``--param``.
+    :type override_keys: frozenset[str]
+    :param named: Whether the user named a task, which makes an inapplicable
+        override unambiguous and therefore fatal.
+    :type named: bool
+    :param target: What to name in the message.
+    :type target: str
+    :returns: Nothing.
+    :rtype: None
+    :raises CliUserError: If a ``--param`` override applies to no considered
+        class and a task was named.
+    """
+    accepted: set[str] = set()
+    for cls in considered:
+        accepted |= {name for name, _ in cls.get_params()}
+
+    _, dropped_config, dropped_override = partition_params(param_dict, accepted, override_keys)
+    if dropped_override:
+        if named:
+            raise unknown_param_error(dropped_override, accepted, target)
+        warn_ignored_params(dropped_override, target)
+    if dropped_config and named:
+        warn_ignored_params(dropped_config, target)
+
+
 def import_from_file(filename: str, module_name: str) -> Any:
     """Load a module from a file and ensure its directory is importable.
 

@@ -279,3 +279,74 @@ class TestRemoveProvenance(ProvenanceProjectTestCase):
         self.assertEqual(returncode, 2, f"expected exit 2, got {returncode}: {combined}")
         self.assertIn("numbr", combined)
         self.assertTrue(os.path.exists(produced), "remove deleted the output despite erroring")
+
+
+class TestShowProvenance(ProvenanceProjectTestCase):
+    """Named show is strict; whole-tree show warns."""
+
+    def test_named_task_with_unknown_override_errors(self) -> None:
+        """Case 3: naming a task makes an inapplicable override unambiguous."""
+        returncode, stdout, stderr = self._run_cli("show", ["TaskA", "--param", "numbr=99"])
+        combined = stdout + stderr
+
+        self.assertEqual(returncode, 2, f"expected exit 2, got {returncode}: {combined}")
+        self.assertIn("numbr", combined)
+        self.assertIn("number", combined)
+
+    def test_whole_tree_with_unknown_override_warns_and_renders(self) -> None:
+        """With no task named, an unmatched override is not fatal."""
+        returncode, stdout, stderr = self._run_cli("show", ["--param", "numbr=99"])
+        combined = stdout + stderr
+
+        self.assertEqual(returncode, 0, f"expected exit 0, got {returncode}: {combined}")
+        self.assertIn("numbr", combined)
+        self.assertIn("TaskA", combined)  # still rendered
+
+    def test_whole_tree_with_matching_override_does_not_warn(self) -> None:
+        """A key some class accepts is not reported, even though others reject it."""
+        returncode, stdout, stderr = self._run_cli("show", ["--param", "number=99"])
+        combined = stdout + stderr
+
+        self.assertEqual(returncode, 0, f"expected exit 0, got {returncode}: {combined}")
+        self.assertNotIn("ignoring parameters", combined.lower())
+        self.assertNotIn("no task matched", combined.lower())
+
+
+class TestShowWithRequirementsConsideredSet(CLITestCase):
+    """A config key declared only by a requirement must not be reported."""
+
+    def setUp(self) -> None:
+        super().setUp()
+        with open(os.path.join(self.tmp_dir, "tasks.py"), "w") as handle:
+            handle.write(
+                "import b2luigi\n"
+                "\n"
+                "\n"
+                "class ChildTask(b2luigi.Task):\n"
+                "    depth = b2luigi.IntParameter(default=1)\n"
+                "\n"
+                "    def output(self):\n"
+                "        yield self.add_to_output('c.txt')\n"
+                "\n"
+                "\n"
+                "class ParentTask(b2luigi.Task):\n"
+                "    width = b2luigi.IntParameter(default=1)\n"
+                "\n"
+                "    def requires(self):\n"
+                "        yield ChildTask(depth=self.width)\n"
+                "\n"
+                "    def output(self):\n"
+                "        yield self.add_to_output('p.txt')\n"
+            )
+        with open(os.path.join(self.tmp_dir, "parameters.py"), "w") as handle:
+            handle.write("config = {'width': 2, 'depth': 3}\n")
+        with open(os.path.join(self.tmp_dir, "settings.json"), "w") as handle:
+            handle.write('{"result_dir": "results"}\n')
+
+    def test_requirement_only_key_is_not_reported(self) -> None:
+        """`depth` belongs to ChildTask, reached only via --with-requirements."""
+        returncode, stdout, stderr = self._run_cli("show", ["ParentTask", "--with-requirements"])
+        combined = stdout + stderr
+
+        self.assertEqual(returncode, 0, f"expected exit 0, got {returncode}: {combined}")
+        self.assertNotIn("ignoring parameters", combined.lower())

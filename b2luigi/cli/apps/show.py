@@ -8,6 +8,7 @@ from b2luigi.cli import runner
 from b2luigi.cli.errors import CliUserError
 from b2luigi.cli.options import Params, ParamsFile, TaskFile, class_names_arg
 from b2luigi.cli.utils import (
+    check_param_applicability,
     cli_error_boundary,
     find_tasks_in_tree,
     get_root_tasks,
@@ -15,6 +16,7 @@ from b2luigi.cli.utils import (
     try_instantiate,
 )
 from b2luigi.core.settings import get_setting
+from b2luigi.core.utils import task_iterator
 
 
 def _raise_unresolvable_error(
@@ -100,6 +102,9 @@ def show_task(
         return result
 
     if names is None:
+        check_param_applicability(
+            param_dicts[0], index.all_classes(), ctx.override_keys, named=False, target="any task"
+        )
         runner.show_all_outputs(
             get_root_tasks(_all_instantiatable(index.all_classes())),
             details=details,
@@ -123,6 +128,19 @@ def show_task(
                 found_any = True
         if not found_any:
             unresolvable.append(cls)
+
+    considered = list(target_classes)
+    if with_requirements:
+        for inst in direct_instances:
+            for task in task_iterator(inst):
+                considered.append(type(task))
+    check_param_applicability(
+        param_dicts[0],
+        considered,
+        ctx.override_keys,
+        named=True,
+        target=", ".join(index.qualified_name(c) for c in target_classes),
+    )
 
     if not unresolvable:
         if with_requirements:

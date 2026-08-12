@@ -13,12 +13,14 @@ import b2luigi
 from b2luigi.cli import runner
 from b2luigi.cli.options import Params, ParamsFile, TaskFile, class_names_arg
 from b2luigi.cli.utils import (
+    check_param_applicability,
     cli_error_boundary,
     find_tasks_in_tree,
     get_root_tasks,
     resolve_task_context,
     try_instantiate,
 )
+from b2luigi.core.utils import task_iterator
 
 
 graph_app = typer.Typer(
@@ -80,6 +82,9 @@ def graph_task(
     names = classnames
 
     if names is None:
+        check_param_applicability(
+            param_dicts[0], index.all_classes(), ctx.override_keys, named=False, target="any task"
+        )
         root_tasks = get_root_tasks(_all_instantiatable(index.all_classes()))
     else:
         target_classes = index.resolve_many(names)
@@ -96,6 +101,18 @@ def graph_task(
                     found_any = True
             if not found_any:
                 unresolvable.append(cls)
+
+        considered = list(target_classes)
+        for inst in direct_instances:
+            for task in task_iterator(inst):
+                considered.append(type(task))
+        check_param_applicability(
+            param_dicts[0],
+            considered,
+            ctx.override_keys,
+            named=True,
+            target=", ".join(index.qualified_name(c) for c in target_classes),
+        )
 
         if unresolvable:
             root_tasks = find_tasks_in_tree(
