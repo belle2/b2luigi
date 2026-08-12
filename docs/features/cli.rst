@@ -218,6 +218,34 @@ plain string.
     schedules one task whose ``my_parameter`` *is* the list ``[1, 2, 3]``, not
     three tasks.  To change the sweep itself, edit ``parameters.py``.
 
+Parameters that do not apply
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+``parameters.py`` is shared across every task in a project, so it may hold keys
+that a given task does not declare. Those keys are filtered out rather than
+treated as errors, and the affected command prints a single warning naming them:
+
+.. code-block:: text
+
+   Warning: ignoring parameters not declared by TaskB: number
+
+A ``--param`` override is different. It is aimed at one invocation, so an
+override that applies to no task is a mistake rather than a normal consequence
+of sharing a config:
+
+.. code-block:: bash
+
+   b2luigi run TaskA --param numbr=99
+
+.. code-block:: text
+
+   Error: TaskA has no parameter 'numbr'. Did you mean 'number'?
+
+``run`` and ``remove`` always name a task, so an inapplicable override is always
+an error there. ``show`` and ``graph`` error the same way when you name a task,
+and warn instead when you do not, because a whole-tree listing legitimately spans
+tasks that declare different parameters.
+
 b2luigi show
 ------------
 
