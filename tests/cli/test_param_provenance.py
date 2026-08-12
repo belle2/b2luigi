@@ -85,7 +85,7 @@ class TestWarnIgnoredParams(TestCase):
 
     def test_emits_one_line_naming_keys_and_target(self) -> None:
         buffer = io.StringIO()
-        with patch.object(runner, "console", Console(file=buffer, width=200)):
+        with patch.object(runner, "stderr_console", Console(file=buffer, width=200)):
             warn_ignored_params(["alpha", "beta"], "TaskB")
         output = buffer.getvalue()
 
@@ -93,6 +93,29 @@ class TestWarnIgnoredParams(TestCase):
         self.assertIn("TaskB", output)
         self.assertIn("alpha", output)
         self.assertIn("beta", output)
+
+    def test_writes_to_the_stderr_console_not_stdout(self) -> None:
+        """Machine-readable stdout (``show --paths``, ``graph --format dot``) must stay clean."""
+        stdout_buffer = io.StringIO()
+        stderr_buffer = io.StringIO()
+        with (
+            patch.object(runner, "console", Console(file=stdout_buffer, width=200)),
+            patch.object(runner, "stderr_console", Console(file=stderr_buffer, width=200)),
+        ):
+            warn_ignored_params(["alpha"], "TaskB")
+
+        self.assertEqual(stdout_buffer.getvalue(), "")
+        self.assertIn("alpha", stderr_buffer.getvalue())
+
+    def test_markup_like_keys_are_neither_fatal_nor_swallowed(self) -> None:
+        """Keys are user-controlled; a markup string would raise or delete them."""
+        buffer = io.StringIO()
+        with patch.object(runner, "stderr_console", Console(file=buffer, width=200)):
+            warn_ignored_params(["[/foo]", "[bold]"], "TaskB")
+        output = buffer.getvalue()
+
+        self.assertIn("[/foo]", output)
+        self.assertIn("[bold]", output)
 
 
 class TestTaskContextOverrideKeys(TestCase):
@@ -386,3 +409,158 @@ class TestGraphProvenance(ProvenanceProjectTestCase):
         self.assertEqual(returncode, 0, f"expected exit 0, got {returncode}: {combined}")
         self.assertIn("numbr", combined)
         self.assertIn("TaskA", combined)  # still rendered
+
+
+class RequirementProjectTestCase(CLITestCase):
+    """ParentTask declares `width`; its requirement ChildTask declares `depth`."""
+
+    def setUp(self) -> None:
+        super().setUp()
+        with open(os.path.join(self.tmp_dir, "tasks.py"), "w") as handle:
+            handle.write(
+                "import b2luigi\n"
+                "\n"
+                "\n"
+                "class ChildTask(b2luigi.Task):\n"
+                "    depth = b2luigi.IntParameter(default=1)\n"
+                "\n"
+                "    def output(self):\n"
+                "        yield self.add_to_output('c.txt')\n"
+                "\n"
+                "    def run(self):\n"
+                "        with open(self.get_output_file_name('c.txt'), 'w') as handle:\n"
+                "            handle.write('c')\n"
+                "\n"
+                "    def remove_output(self):\n"
+                "        self._remove_output()\n"
+                "\n"
+                "\n"
+                "class ParentTask(b2luigi.Task):\n"
+                "    width = b2luigi.IntParameter(default=1)\n"
+                "\n"
+                "    def requires(self):\n"
+                "        yield ChildTask(depth=self.width)\n"
+                "\n"
+                "    def output(self):\n"
+                "        yield self.add_to_output('p.txt')\n"
+                "\n"
+                "    def run(self):\n"
+                "        with open(self.get_output_file_name('p.txt'), 'w') as handle:\n"
+                "            handle.write('p')\n"
+                "\n"
+                "    def remove_output(self):\n"
+                "        self._remove_output()\n"
+            )
+        with open(os.path.join(self.tmp_dir, "parameters.py"), "w") as handle:
+            handle.write("config = {'width': 2, 'depth': 3}\n")
+        with open(os.path.join(self.tmp_dir, "settings.json"), "w") as handle:
+            handle.write('{"result_dir": "results"}\n')
+
+
+class TestRemoveWithRequirementsConsideredSet(RequirementProjectTestCase):
+    """`remove --with-requirements` deletes the tree, so it must consider the tree."""
+
+    def test_requirement_only_config_key_is_not_reported(self) -> None:
+        """`depth` belongs to ChildTask, which --with-requirements will delete."""
+        returncode, stdout, stderr = self._run_cli("remove", ["ParentTask", "--with-requirements", "-y"])
+        combined = stdout + stderr
+
+        self.assertEqual(returncode, 0, f"expected exit 0, got {returncode}: {combined}")
+        self.assertNotIn("ignoring parameters", combined.lower())
+
+    def test_requirement_only_override_is_accepted(self) -> None:
+        """A --param aimed at a requirement is applicable, since it is in scope."""
+        returncode, stdout, stderr = self._run_cli(
+            "remove", ["ParentTask", "--with-requirements", "--param", "depth=3", "-y"]
+        )
+        combined = stdout + stderr
+
+        self.assertEqual(returncode, 0, f"expected exit 0, got {returncode}: {combined}")
+        self.assertNotIn("has no parameter", combined)
+
+    def test_show_and_remove_agree_on_the_same_project(self) -> None:
+        """The divergence that motivated the fix: both must be silent here."""
+        show_rc, show_out, show_err = self._run_cli("show", ["ParentTask", "--with-requirements"])
+        remove_rc, remove_out, remove_err = self._run_cli("remove", ["ParentTask", "--with-requirements", "-y"])
+
+        self.assertEqual(show_rc, 0, show_out + show_err)
+        self.assertEqual(remove_rc, 0, remove_out + remove_err)
+        self.assertNotIn("ignoring parameters", (show_out + show_err).lower())
+        self.assertNotIn("ignoring parameters", (remove_out + remove_err).lower())
+
+    def test_an_override_no_task_in_the_tree_declares_still_errors(self) -> None:
+        """Control: broadening the considered set must not disable strictness."""
+        returncode, stdout, stderr = self._run_cli(
+            "remove", ["ParentTask", "--with-requirements", "--param", "numbr=99", "-y"]
+        )
+        combined = stdout + stderr
+
+        self.assertEqual(returncode, 2, f"expected exit 2, got {returncode}: {combined}")
+        self.assertIn("numbr", combined)
+
+
+class TestRemoveWithoutNamesProvenance(ProvenanceProjectTestCase):
+    """`remove` with no names still errors, but must name its target readably."""
+
+    def test_unknown_override_errors_and_removes_nothing(self) -> None:
+        returncode, stdout, stderr = self._run_cli("run", ["TaskA"])
+        self.assertEqual(returncode, 0, f"setup run failed: {stdout + stderr}")
+        produced = os.path.join(self.tmp_dir, "results", "number=7", "a.txt")
+        self.assertTrue(os.path.exists(produced), "setup did not produce the output")
+
+        returncode, stdout, stderr = self._run_cli("remove", ["--param", "bogus=1", "-y"])
+        combined = stdout + stderr
+
+        self.assertEqual(returncode, 2, f"expected exit 2, got {returncode}: {combined}")
+        self.assertIn("bogus", combined)
+        self.assertTrue(os.path.exists(produced), "remove deleted the output despite erroring")
+
+    def test_target_is_named_any_task_not_every_class(self) -> None:
+        """Enumerating every project class is unbounded and reads as a broken sentence."""
+        returncode, stdout, stderr = self._run_cli("remove", ["--param", "bogus=1", "-y"])
+        combined = stdout + stderr
+
+        self.assertEqual(returncode, 2, f"expected exit 2, got {returncode}: {combined}")
+        self.assertIn("any task", combined)
+        self.assertNotIn("TaskA, TaskB", combined)
+
+
+class TestWarningStreamSeparation(ProvenanceProjectTestCase):
+    """Warnings must never reach the machine-readable stdout of --paths / --format dot."""
+
+    def test_show_paths_stdout_is_only_paths(self) -> None:
+        returncode, stdout, stderr = self._run_cli("show", ["TaskB", "--paths"], extra_env={"COLUMNS": "200"})
+
+        self.assertEqual(returncode, 0, f"expected exit 0: {stdout + stderr}")
+        self.assertIn("ignoring parameters", stderr.lower())
+        self.assertNotIn("ignoring parameters", stdout.lower())
+        for line in stdout.splitlines():
+            if line.strip():
+                self.assertTrue(os.path.isabs(line.strip()), f"non-path line on stdout: {line!r}")
+
+    def test_graph_dot_stdout_is_valid_dot(self) -> None:
+        returncode, stdout, stderr = self._run_cli("graph", ["TaskB", "--format", "dot"], extra_env={"COLUMNS": "200"})
+
+        self.assertEqual(returncode, 0, f"expected exit 0: {stdout + stderr}")
+        self.assertIn("ignoring parameters", stderr.lower())
+        self.assertNotIn("ignoring parameters", stdout.lower())
+        self.assertTrue(stdout.lstrip().startswith("digraph"), f"stdout does not start with digraph: {stdout[:80]!r}")
+
+
+class TestMarkupLikeOverrideKey(ProvenanceProjectTestCase):
+    """A --param key is arbitrary text and must survive the never-fatal warn branch."""
+
+    def test_closing_tag_key_does_not_crash(self) -> None:
+        returncode, stdout, stderr = self._run_cli("show", ["--param", "[/foo]=1"], extra_env={"COLUMNS": "200"})
+        combined = stdout + stderr
+
+        self.assertEqual(returncode, 0, f"expected exit 0, got {returncode}: {combined}")
+        self.assertNotIn("MarkupError", combined)
+        self.assertNotIn("Traceback", combined)
+        self.assertIn("[/foo]", stderr)
+
+    def test_style_tag_key_is_not_swallowed(self) -> None:
+        returncode, stdout, stderr = self._run_cli("show", ["--param", "[bold]=1"], extra_env={"COLUMNS": "200"})
+
+        self.assertEqual(returncode, 0, f"expected exit 0: {stdout + stderr}")
+        self.assertIn("[bold]", stderr)
