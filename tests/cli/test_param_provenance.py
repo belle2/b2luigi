@@ -262,3 +262,20 @@ class TestRunSweepInteraction(CLITestCase):
 
         warnings = [line for line in combined.splitlines() if "ignoring parameters" in line.lower()]
         self.assertEqual(len(warnings), 1, f"expected exactly one warning, got {len(warnings)}: {warnings}")
+
+
+class TestRemoveProvenance(ProvenanceProjectTestCase):
+    """remove is as strict as run, because it deletes files."""
+
+    def test_unknown_override_removes_nothing(self) -> None:
+        returncode, stdout, stderr = self._run_cli("run", ["TaskA"])
+        self.assertEqual(returncode, 0, f"setup run failed: {stdout + stderr}")
+        produced = os.path.join(self.tmp_dir, "results", "number=7", "a.txt")
+        self.assertTrue(os.path.exists(produced), "setup did not produce the output")
+
+        returncode, stdout, stderr = self._run_cli("remove", ["TaskA", "--param", "numbr=99", "-y"])
+        combined = stdout + stderr
+
+        self.assertEqual(returncode, 2, f"expected exit 2, got {returncode}: {combined}")
+        self.assertIn("numbr", combined)
+        self.assertTrue(os.path.exists(produced), "remove deleted the output despite erroring")

@@ -10,7 +10,10 @@ from b2luigi.cli.utils import (
     build_task_list,
     cli_error_boundary,
     parse_classnames,
+    partition_params,
     resolve_task_context,
+    unknown_param_error,
+    warn_ignored_params,
 )
 from b2luigi.core.settings import get_setting
 
@@ -96,6 +99,17 @@ def remove(
             target_classes = index.all_classes()
         else:
             target_classes = index.resolve_many(names)
+
+        accepted: set[str] = set()
+        for cls in target_classes:
+            accepted |= {name for name, _ in cls.get_params()}
+
+        _, dropped_config, dropped_override = partition_params(param_dicts[0], accepted, ctx.override_keys)
+        target_desc = ", ".join(index.qualified_name(cls) for cls in target_classes)
+        if dropped_override:
+            raise unknown_param_error(dropped_override, accepted, target_desc)
+        if dropped_config:
+            warn_ignored_params(dropped_config, target_desc)
 
         effective_direct = direct or bool(get_setting("direct_mode", default=False))
 
