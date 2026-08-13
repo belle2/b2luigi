@@ -3,6 +3,15 @@
 :Description: Exercises :func:`b2luigi.cli.runner.render_graph_summary` directly with
     locally-built task classes, so the counting, dedup and display-name rules can be
     tested without a project fixture on disk.
+
+.. note::
+    Classes built here via ``type()`` persist in luigi's task registry for the life of
+    the pytest process, and their ``__module__`` (``"summary_fixtures"``, ``"mod_one"``,
+    ``"mod_two"``) is deliberately not a real importable module. This is safe for
+    project-task discovery: ``b2luigi/cli/utils.py:315-318`` catches the ``TypeError``
+    that ``inspect.getfile(cls)`` raises for such a class, and
+    ``b2luigi/cli/utils.py:494`` independently skips any class whose ``__module__``
+    isn't in ``sys.modules``.
 """
 
 import os
