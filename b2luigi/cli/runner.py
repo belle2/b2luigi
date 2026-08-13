@@ -1,6 +1,7 @@
 import collections
 import os
 import pathlib
+import shlex
 import subprocess
 import sys
 from typing import Any
@@ -115,6 +116,12 @@ def _build_fast_task(
     ``--force``/``--extra-arg``/``--literal-path`` flags.  :func:`b2luigi.core.utils.create_cmd_from_task`
     appends these to the batch worker command so that ``batch-runner`` can reconstruct
     the task without importing it.
+
+    Every b2luigi-generated value in that list is ``shlex.quote``d, because
+    :func:`b2luigi.core.utils.create_cmd_from_task` appends the list verbatim and
+    :func:`b2luigi.core.executable.create_executable_wrapper` then flattens the whole
+    command into a shell script with ``" ".join(...)`` — an unquoted value containing
+    a space would be re-split before reaching the worker.
     """
     exec_script = os.path.abspath(exec_script)
     abs_output = os.path.abspath(output)
@@ -140,14 +147,14 @@ def _build_fast_task(
         "batch_system": "auto" if batch else "local",
         "run": _run,
         "task_cmd_additional_args": (
-            ["--script", exec_script, "--output-file", output]
-            + (["--input-file", input_file] if input_file is not None else [])
+            ["--script", shlex.quote(exec_script), "--output-file", shlex.quote(output)]
+            + (["--input-file", shlex.quote(input_file)] if input_file is not None else [])
             + (["--force"] if force else [])
             # Always explicit (never omitted): the worker's own default must never
             # decide this, or a submission-side flip would silently change where
             # the batch job writes its output.
             + (["--literal-path"] if literal_path else ["--no-literal-path"])
-            + [arg for e in extra_args for arg in ("--extra-arg", e)]
+            + [arg for e in extra_args for arg in ("--extra-arg", shlex.quote(e))]
         ),
     }
 

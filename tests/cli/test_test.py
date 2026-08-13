@@ -2,6 +2,7 @@
 
 import os
 import pathlib
+import shlex
 import shutil
 import tempfile
 from unittest import TestCase
@@ -212,6 +213,43 @@ class TestFastTaskCmdGeneration(TestCase):
         FastTask = _build_fast_task("script.py", "out.txt", None, False, False, [], literal_path=False)
         self.assertIn("--no-literal-path", FastTask.task_cmd_additional_args)
         self.assertNotIn("--literal-path", FastTask.task_cmd_additional_args)
+
+
+class TestFastTaskCmdQuoting(TestCase):
+    """The generated batch tokens must survive the wrapper's shell-join round trip.
+
+    ``create_executable_wrapper`` flattens ``create_cmd_from_task``'s output with
+    ``" ".join(...)`` into a shell script, so any generated token containing a
+    space is re-split by the shell on the worker unless it is quoted here.
+    """
+
+    def _round_trip(self, FastTask) -> list[str]:
+        """Encode the task, flatten it exactly as the wrapper does, and re-tokenise."""
+        with with_new_settings():
+            set_setting("__batch_runner_use_cli", True)
+            cmd = create_cmd_from_task(FastTask())
+        return shlex.split(" ".join(cmd))
+
+    def test_script_path_with_space_survives_the_join(self) -> None:
+        """A script path containing a space reaches the worker as one token."""
+        FastTask = _build_fast_task("my script.py", "out.txt", None, False, True, [])
+        rebuilt = self._round_trip(FastTask)
+        idx = rebuilt.index("--script")
+        self.assertEqual(rebuilt[idx + 1], os.path.abspath("my script.py"))
+
+    def test_extra_arg_with_space_survives_the_join(self) -> None:
+        """An extra arg containing a space reaches the worker as one token."""
+        FastTask = _build_fast_task("script.py", "out.txt", None, False, True, ["--label", "two words"])
+        rebuilt = self._round_trip(FastTask)
+        values = [rebuilt[i + 1] for i, a in enumerate(rebuilt) if a == "--extra-arg"]
+        self.assertIn("two words", values)
+
+    def test_output_and_input_keys_with_spaces_survive_the_join(self) -> None:
+        """Output and input filename keys containing spaces reach the worker intact."""
+        FastTask = _build_fast_task("script.py", "my out.txt", "my in.txt", False, True, [])
+        rebuilt = self._round_trip(FastTask)
+        self.assertEqual(rebuilt[rebuilt.index("--output-file") + 1], "my out.txt")
+        self.assertEqual(rebuilt[rebuilt.index("--input-file") + 1], "my in.txt")
 
 
 class TestTestBatchArmsCliModeSubmission(TestCase):
