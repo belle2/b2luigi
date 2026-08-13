@@ -4,6 +4,8 @@
     graph rendering, task scoping, and error handling.
 """
 
+import os
+
 from .helpers import CLITestCase
 
 
@@ -95,3 +97,83 @@ class TestGraphOptions(CLITestCase):
         # Exactly 2 edges whose target is SharedChild
         edge_to_child = [line for line in stdout.splitlines() if "SharedChild" in line and "->" in line]
         self.assertEqual(len(edge_to_child), 2, f"Expected exactly 2 edges to SharedChild, got: {edge_to_child}")
+
+
+class TestGraphSummary(CLITestCase):
+    """Integration tests for graph --summary."""
+
+    def setUp(self) -> None:
+        super().setUp()
+        self._setup_project_files()
+
+    def _touch(self, filename: str) -> None:
+        """Create *filename* in the project directory so its target exists."""
+        with open(os.path.join(self.tmp_dir, filename), "w") as f:
+            f.write("x")
+
+    def test_summary_counts_per_class(self) -> None:
+        """With one of two outputs present, each class reports its own count."""
+        self._touch("leaf_1.txt")
+        returncode, stdout, stderr = self._run_cli("graph", ["--summary"])
+        self.assertEqual(returncode, 0, f"Command failed with stderr: {stderr}")
+        self.assertIn("LeafTask", stdout)
+        self.assertIn("RootTask", stdout)
+        self.assertIn("1/2", stdout)
+        self.assertIn("50%", stdout)
+
+    def test_summary_replaces_the_tree(self) -> None:
+        """--summary prints no tree; the tree's branch glyphs must be absent."""
+        returncode, stdout, stderr = self._run_cli("graph", ["--summary"])
+        self.assertEqual(returncode, 0, f"Command failed with stderr: {stderr}")
+        for glyph in ("└──", "├──"):
+            self.assertNotIn(glyph, stdout)
+
+    def test_summary_goes_to_stdout(self) -> None:
+        """The summary is the command's primary output and belongs on stdout.
+
+        Asserted against stdout alone, never `stdout + stderr` — the combined idiom
+        passes either way and would not catch a stream regression.
+        """
+        returncode, stdout, stderr = self._run_cli("graph", ["--summary"])
+        self.assertEqual(returncode, 0)
+        self.assertIn("Task Graph Summary", stdout)
+        self.assertNotIn("Task Graph Summary", stderr)
+
+    def test_summary_scoped_to_one_task(self) -> None:
+        """graph LeafTask --summary counts only that subtree."""
+        returncode, stdout, stderr = self._run_cli("graph", ["LeafTask", "--summary"])
+        self.assertEqual(returncode, 0, f"Command failed with stderr: {stderr}")
+        self.assertIn("LeafTask", stdout)
+        self.assertNotIn("RootTask", stdout)
+
+    def test_summary_shared_child_counted_once(self) -> None:
+        """The shared child contributes one instance, not one per parent."""
+        self._setup_shared_child_files()
+        returncode, stdout, stderr = self._run_cli("graph", ["--summary"])
+        self.assertEqual(returncode, 0, f"Command failed with stderr: {stderr}")
+        self.assertIn("SharedChild", stdout)
+        self.assertIn("0/3", stdout)
+        self.assertNotIn("0/4", stdout)
+
+    def test_summary_with_status_is_accepted(self) -> None:
+        """--status is redundant with --summary, not contradictory, so it is accepted."""
+        returncode, stdout, stderr = self._run_cli("graph", ["--summary", "--status"])
+        self.assertEqual(returncode, 0, f"Command failed with stderr: {stderr}")
+        self.assertIn("Task Graph Summary", stdout)
+
+    def test_summary_with_format_dot_is_an_error(self) -> None:
+        """--summary and --format dot cannot both apply; the error names both."""
+        returncode, stdout, stderr = self._run_cli("graph", ["--summary", "--format", "dot"])
+        self.assertEqual(returncode, 2)
+        combined = stdout + stderr
+        self.assertIn("--summary", combined)
+        self.assertIn("--format dot", combined)
+        self.assertNotIn("digraph", combined)
+
+    def test_summary_with_params_is_an_error(self) -> None:
+        """--summary and --params cannot both apply; the error names both."""
+        returncode, stdout, stderr = self._run_cli("graph", ["--summary", "--params"])
+        self.assertEqual(returncode, 2)
+        combined = stdout + stderr
+        self.assertIn("--summary", combined)
+        self.assertIn("--params", combined)

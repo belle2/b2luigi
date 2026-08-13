@@ -11,6 +11,7 @@ import typer
 
 import b2luigi
 from b2luigi.cli import runner
+from b2luigi.cli.errors import CliUserError
 from b2luigi.cli.options import Params, ParamsFile, TaskFile, class_names_arg
 from b2luigi.cli.utils import (
     check_param_applicability,
@@ -38,6 +39,7 @@ def graph_task(
     output_format: str = "tree",
     with_params: bool = False,
     show_status: bool = False,
+    summary: bool = False,
 ) -> None:
     """Render the task dependency graph in the requested format.
 
@@ -64,7 +66,19 @@ def graph_task(
     :param show_status: If ``True``, check and display output completion status
         on each node.
     :type show_status: bool
+    :param summary: If ``True``, render per-class completion counts instead of the
+        dependency tree. Cannot be combined with ``output_format="dot"`` or
+        ``with_params=True``.
+    :type summary: bool
     """
+    if summary and output_format == "dot":
+        raise CliUserError("--summary cannot be combined with --format dot: a summary is not a graph serialization.")
+    if summary and with_params:
+        raise CliUserError(
+            "--summary cannot be combined with --params: parameter values are per-instance, "
+            "and the summary reports per-class counts."
+        )
+
     ctx = resolve_task_context(task_filename, parameter_filename, params)
     index, param_dicts = ctx.index, ctx.param_dicts
 
@@ -122,7 +136,9 @@ def graph_task(
         else:
             root_tasks = direct_instances
 
-    if output_format == "dot":
+    if summary:
+        runner.render_graph_summary(root_tasks)
+    elif output_format == "dot":
         runner.render_graph_dot(root_tasks, show_params=with_params, show_status=show_status)
     else:
         runner.render_graph_tree(root_tasks, show_params=with_params, show_status=show_status)
@@ -150,6 +166,16 @@ def graph(
         bool,
         typer.Option("--status", "-s", help="Check and display output completion status on each node."),
     ] = False,
+    summary: Annotated[
+        bool,
+        typer.Option(
+            "--summary",
+            help=(
+                "Print per-class completion counts instead of the dependency tree. "
+                "Cannot be combined with --format dot or --params."
+            ),
+        ),
+    ] = False,
 ) -> None:
     """Render the task dependency graph.
 
@@ -166,6 +192,8 @@ def graph(
     :param with_params: If ``True``, include parameter values on each node.
     :param show_status: If ``True``, display output completion status on each
         node.
+    :param summary: If ``True``, print per-class completion counts instead of the
+        dependency tree.
     :type ctx: typer.Context
     :type classnames: list[str] | None
     :type task_filename: str | None
@@ -174,6 +202,7 @@ def graph(
     :type output_format: str
     :type with_params: bool
     :type show_status: bool
+    :type summary: bool
     """
     if ctx.invoked_subcommand is not None:
         return
@@ -186,4 +215,5 @@ def graph(
             output_format=output_format,
             with_params=with_params,
             show_status=show_status,
+            summary=summary,
         )

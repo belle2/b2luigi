@@ -337,6 +337,36 @@ to show a completion indicator (✓ / ✗) for every task:
 
     b2luigi graph --params --status
 
+Use ``--summary`` to replace the tree with per-class completion counts. On a
+parameter sweep the tree is hundreds of nodes of a handful of classes; the
+summary answers "how far along am I, and which stage is stuck" in a few lines:
+
+.. code-block:: text
+
+    $ b2luigi graph --summary
+    Task Graph Summary
+      GenerateNumberTask   10/10   complete
+      SquareTask            7/10   incomplete
+      SummaryTask           0/1    incomplete
+      ─────────────────────────────────────
+      total                17/21   (81%)
+
+Counts are task instances. A task counts as complete when all of its outputs
+exist — the same rule ``--status`` uses for its ✓ marker — and tasks declaring
+no outputs (wrapper tasks) are excluded entirely. A dependency shared by
+several parents is counted once.
+
+``--summary`` cannot be combined with ``--format dot`` (a summary is not a
+graph serialization) or with ``--params`` (parameter values are per-instance);
+either combination is an error. ``--status`` is accepted but redundant, since
+the summary always checks output existence.
+
+.. note::
+
+   The summary checks every output of every task in the graph. Against remote
+   targets that is one network round-trip per output, so a large sweep on
+   remote storage will take a while.
+
 Export to `Graphviz <https://graphviz.org/>`_ DOT format and pipe it to
 ``dot`` to produce an image:
 
