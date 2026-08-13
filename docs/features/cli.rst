@@ -395,9 +395,10 @@ invoked as ``basf2 steer.py``:
     b2luigi test -s steering_file.py -o output_file.root --executable basf2
 
 The value is split on shell rules, so multi-token commands work:
-``--executable "apptainer exec image.sif basf2"``. When ``--executable`` is
-given, ``--`` is inserted before any extra arguments so that the script's own
-arguments are passed through to it rather than consumed by the wrapper::
+``--executable "apptainer exec image.sif basf2"``. Whenever ``--executable``
+is given — even to name a plain Python interpreter — ``--`` is inserted
+before any extra arguments so that the script's own arguments are passed
+through to it rather than consumed by the wrapper::
 
     basf2 steering_file.py -o output_file.root -- --my-script-flag
 

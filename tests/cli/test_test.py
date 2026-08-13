@@ -11,6 +11,7 @@ from unittest import TestCase, mock
 
 import b2luigi
 
+from b2luigi.cli.errors import CliUserError
 from b2luigi.cli.runner import _build_fast_task, _build_fast_req_task, test_task
 from b2luigi.core.executable import create_executable_wrapper
 from b2luigi.core.settings import get_setting, set_setting, with_new_settings
@@ -31,7 +32,12 @@ class TestTestNormalMode(CLITestCase):
 
     def setUp(self) -> None:
         super().setUp()
-        for fixture in ("cli_test_script.py", "cli_test_script_failing.py", "cli_test_script_silent.py"):
+        for fixture in (
+            "cli_test_script.py",
+            "cli_test_script_failing.py",
+            "cli_test_script_silent.py",
+            "cli_test_script_failing_after_output.py",
+        ):
             shutil.copy(os.path.join(FIXTURE_DIR, fixture), os.path.join(self.tmp_dir, fixture))
 
     def test_normal_run_succeeds(self) -> None:
@@ -43,6 +49,20 @@ class TestTestNormalMode(CLITestCase):
         """Script that exits non-zero should make the CLI exit non-zero."""
         rc, stdout, stderr = self._run_cli("test", ["-s", "cli_test_script_failing.py", "-o", "result.txt"])
         self.assertNotEqual(rc, 0)
+
+    def test_nonzero_exit_with_output_written_still_fails(self) -> None:
+        """A script that writes its output and THEN exits non-zero must still fail the CLI.
+
+        This is the case the returncode guard exists for specifically: the missing-output
+        guard cannot catch it, since the output is present. Mirrors a basf2 steering file
+        that errors after RootOutput has already flushed to disk (the motivating case for
+        --executable).
+        """
+        rc, stdout, stderr = self._run_cli(
+            "test", ["-s", "cli_test_script_failing_after_output.py", "-o", "result.txt"]
+        )
+        self.assertNotEqual(rc, 0)
+        self.assertTrue(os.path.exists(os.path.join(self.tmp_dir, "result.txt")))
 
     def test_missing_output_detected(self) -> None:
         """Script that exits 0 without writing output should make the CLI exit non-zero."""
@@ -225,7 +245,7 @@ class TestFastTaskCmdQuoting(TestCase):
     space is re-split by the shell on the worker unless it is quoted here.
     """
 
-    def _round_trip(self, FastTask) -> list[str]:
+    def _round_trip(self, FastTask: type) -> list[str]:
         """Encode the task, flatten it exactly as the wrapper does, and re-tokenise."""
         with with_new_settings():
             set_setting("__batch_runner_use_cli", True)
@@ -359,6 +379,25 @@ class TestFastTaskExecutable(TestCase):
         """
         FastTask = _build_fast_task("script.py", "out.txt", None, False, True, [])
         self.assertNotIn("--executable", FastTask.task_cmd_additional_args)
+
+
+class TestFastTaskExecutableValidation(TestCase):
+    """Unit tests for _build_fast_task's --executable validation (unparsable/blank values)."""
+
+    def test_unparsable_executable_raises_cli_user_error(self) -> None:
+        """A shlex.split ValueError is surfaced as a CliUserError, not a raw traceback."""
+        with self.assertRaises(CliUserError):
+            _build_fast_task("script.py", "out.txt", None, False, False, [], executable="basf2 'oops")
+
+    def test_whitespace_only_executable_raises_cli_user_error(self) -> None:
+        """An executable that is whitespace-only splits to zero tokens and must be rejected."""
+        with self.assertRaises(CliUserError):
+            _build_fast_task("script.py", "out.txt", None, False, False, [], executable="   ")
+
+    def test_empty_string_executable_raises_cli_user_error(self) -> None:
+        """An empty-string executable must be rejected rather than silently falling back to sys.executable."""
+        with self.assertRaises(CliUserError):
+            _build_fast_task("script.py", "out.txt", None, False, False, [], executable="")
 
 
 class TestTestBatchArmsCliModeSubmission(TestCase):

@@ -14,6 +14,7 @@ from rich.console import Console
 from rich.prompt import Confirm
 
 from b2luigi.batch.workers import SendJobWorkerSchedulerFactory
+from b2luigi.cli.errors import CliUserError
 from b2luigi.cli.utils import parse_kv_params
 from b2luigi.core.settings import get_setting, set_setting
 from b2luigi.core.utils import (
@@ -125,9 +126,9 @@ def _build_fast_task(
 
     The generated class also carries a ``task_cmd_additional_args`` class attribute
     encoding all constructor arguments as ``--script``/``--output-file``/``--input-file``/
-    ``--force``/``--extra-arg``/``--literal-path`` flags.  :func:`b2luigi.core.utils.create_cmd_from_task`
-    appends these to the batch worker command so that ``batch-runner`` can reconstruct
-    the task without importing it.
+    ``--force``/``--extra-arg``/``--literal-path``/``--executable`` flags.
+    :func:`b2luigi.core.utils.create_cmd_from_task` appends these to the batch worker
+    command so that ``batch-runner`` can reconstruct the task without importing it.
 
     Every b2luigi-generated value in that list is ``shlex.quote``d, because
     :func:`b2luigi.core.utils.create_cmd_from_task` appends the list verbatim and
@@ -137,7 +138,15 @@ def _build_fast_task(
     """
     exec_script = os.path.abspath(exec_script)
     abs_output = os.path.abspath(output)
-    exe_tokens = shlex.split(executable) if executable else [sys.executable]
+    if executable is not None:
+        try:
+            exe_tokens = shlex.split(executable)
+        except ValueError as error:
+            raise CliUserError(f"--executable {executable!r} could not be parsed: {error}")
+        if not exe_tokens:
+            raise CliUserError(f"--executable {executable!r} is blank once split; give at least one token")
+    else:
+        exe_tokens = [sys.executable]
 
     def _run(self):
         # force=True declares no output(), so fall back to _get_output_file_target's
