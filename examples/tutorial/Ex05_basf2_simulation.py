@@ -32,7 +32,7 @@ a ``run`` method but in
 :meth:`create_path <b2luigi.basf2_helper.tasks.Basf2PathTask.create_path>`.
 The :meth:`create_path <b2luigi.basf2_helper.tasks.Basf2PathTask.create_path>` method needs
 to return the ``basf2`` path that is created in the steering file.
- Furthermore, the ``Progress`` module is automatically added and, if
+Furthermore, the ``Progress`` module is automatically added and, if
 ``calculate_statistics`` is True, ``basf2`` statistics are printed after the path
 is processed. Note that ``calculate_statistics`` is False by default; set it to
 True to enable statistics output.
