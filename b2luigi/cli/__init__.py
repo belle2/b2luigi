@@ -130,11 +130,6 @@ def self_update() -> None:
         console.print(f"[green]b2luigi updated: {old} → {new}[/green]")
 
 
-# Module-level Click command instance for the Sphinx docs directive.
-# Placed after all @app.command() decorators so it captures all registered commands.
-_click_app = typer.main.get_command(app)
-
-
 def main() -> None:
     """Entry point for the ``b2luigi`` CLI binary.
 
