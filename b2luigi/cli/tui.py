@@ -7,6 +7,7 @@ Requires the 'tui' optional dependency: pip install b2luigi[tui]
 import logging
 import threading
 
+from rich.markup import escape
 from rich.table import Table
 from rich.text import Text
 from textual import work
@@ -444,7 +445,7 @@ class ProgressApp(App):
             fold = "▼" if group.expanded else "▶"
             sel = "▸" if selected else " "
             header = Text.from_markup(
-                f"{sel}{fold} [{'reverse bold' if selected else 'bold'}]{group_name:<22}[/]"
+                f"{sel}{fold} [{'reverse bold' if selected else 'bold'}]{escape(group_name):<22}[/]"
                 f" [{''.join(bar_parts)}] {done}/{total} {status_str}"
             )
             table.add_row(header)
@@ -462,7 +463,7 @@ class ProgressApp(App):
                     style = "reverse bold" if inst_selected else "dim"
                     table.add_row(
                         Text.from_markup(
-                            f"{prefix}[{style}]{inst.params_str:<28}[/] [{color}]{icon}[/] [bold]{inst.status}[/]"
+                            f"{prefix}[{style}]{escape(inst.params_str):<28}[/] [{color}]{icon}[/] [bold]{inst.status}[/]"
                         )
                     )
 
@@ -470,7 +471,7 @@ class ProgressApp(App):
             table.add_row(Text.from_markup("[bold green]━━━ b2luigi terminated ━━━[/]"))
 
         if self._warning:
-            table.add_row(Text.from_markup(f"[bold yellow]⚠ {self._warning}[/]"))
+            table.add_row(Text.from_markup(f"[bold yellow]⚠ {escape(self._warning)}[/]"))
 
         return table
 
