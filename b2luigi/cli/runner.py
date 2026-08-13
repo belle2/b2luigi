@@ -744,8 +744,15 @@ def render_graph_summary(task_list: list) -> None:
     Instances are deduped on ``(type(task), task.task_id)`` rather than ``task_id``
     alone. luigi derives ``task_id`` from the task family — the class *name* — plus a
     parameter hash, with no module component, so two same-named classes from different
-    modules with equal parameters share a ``task_id``; keying on it alone would drop
-    one of them from the counts entirely.
+    modules with equal parameters share a ``task_id``. The tuple key protects the
+    counts against this collision *across separate roots* in ``task_list``, where each
+    root gets its own call to :func:`task_iterator`. It cannot protect a collision
+    *within* a single root's tree: :func:`task_iterator` dedups its own walk on bare
+    ``task_id`` (see ``b2luigi/core/utils.py``'s ``already_seen_tasks``), so if two
+    same-named colliding classes both appear as dependencies of one root, the second
+    is dropped before this function ever sees it. That is a pre-existing limitation of
+    :func:`task_iterator` shared by every consumer of this traversal, not something
+    this renderer can fix locally.
 
     Rows display ``cls.__name__``, falling back to ``module.Class`` for every class
     sharing a ``__name__`` with another class in the same graph.
@@ -789,7 +796,7 @@ def render_graph_summary(task_list: list) -> None:
         return cls.__name__
 
     table = Table(title="Task Graph Summary", box=rich_box.HORIZONTALS, title_justify="left")
-    table.add_column("Task")
+    table.add_column("Task", overflow="fold")
     table.add_column("Complete", justify="right")
     table.add_column("Status")
 

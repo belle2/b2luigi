@@ -345,11 +345,20 @@ summary answers "how far along am I, and which stage is stuck" in a few lines:
 
     $ b2luigi graph --summary
     Task Graph Summary
-      GenerateNumberTask   10/10   complete
-      SquareTask            7/10   incomplete
-      SummaryTask           0/1    incomplete
-      ─────────────────────────────────────
-      total                17/21   (81%)
+     ────────────────────────────────────────────
+      Task                 Complete   Status
+     ────────────────────────────────────────────
+      SummaryTask               0/1   incomplete
+      SquareTask               7/10   incomplete
+      GenerateNumberTask      10/10   complete
+     ────────────────────────────────────────────
+      total                   17/21   (80%)
+     ────────────────────────────────────────────
+
+Rows are printed in first-seen traversal order, roots first — here
+``SummaryTask`` requires ``SquareTask``, which requires
+``GenerateNumberTask``. The percentage is a floored integer (``17 * 100 // 21``
+is ``80``, never rounded up).
 
 Counts are task instances. A task counts as complete when all of its outputs
 exist — the same rule ``--status`` uses for its ✓ marker — and tasks declaring

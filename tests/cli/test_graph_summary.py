@@ -15,6 +15,7 @@
 """
 
 import os
+import re
 import shutil
 import tempfile
 from unittest import TestCase
@@ -97,9 +98,8 @@ class TestSummaryCounts(SummaryRenderTestCase):
         Leaf = _make_task_class("Leaf", "leaf.txt")
         self._touch("leaf.txt")
         rendered = self._render([Leaf()])
-        self.assertIn("Leaf", rendered)
-        self.assertIn("1/1", rendered)
-        self.assertIn("complete", rendered)
+        self.assertRegex(rendered, r"Leaf\s+1/1\s+complete")
+        self.assertNotIn("incomplete", rendered)
 
     def test_incomplete_when_output_missing(self) -> None:
         """A class with a missing output reports incomplete."""
@@ -192,3 +192,36 @@ class TestSummaryDisplayNames(SummaryRenderTestCase):
         self.assertIn("mod_one.Collide", rendered)
         self.assertIn("mod_two.Collide", rendered)
         self.assertIn("1/2", rendered)
+
+    def test_colliding_long_names_stay_distinguishable_at_narrow_width(self) -> None:
+        """Long qualified names remain distinguishable when the console is narrow.
+
+        ``overflow="ellipsis"`` (Rich's column default) would truncate both names to
+        the same prefix at a narrow width, silently destroying the disambiguation the
+        qualified-name fallback exists to provide. The column must use
+        ``overflow="fold"`` instead, which wraps rather than truncates. Folding
+        inserts a real line break mid-string, so this test strips whitespace and
+        box-drawing characters from the rendered output before asserting containment,
+        rather than asserting on a contiguous substring.
+        """
+        runner.console = Console(force_terminal=False, width=40, record=True)
+        module_one = "a_very_long_module_name_that_does_not_fit_one"
+        module_two = "a_very_long_module_name_that_does_not_fit_two"
+        First = _make_task_class("CollideLongName", "first.txt", module=module_one)
+        Second = _make_task_class("CollideLongName", "second.txt", module=module_two)
+        first, second = First(), Second()
+        self.assertEqual(first.task_id, second.task_id, "precondition: luigi collides these task_ids")
+        self._touch("first.txt")
+        rendered = self._render([first, second])
+        # Strip the OTHER columns' content first (they share the row's first physical
+        # line with the folded Task column, so a blind whitespace strip would splice
+        # "1/1"/"complete" into the middle of the name). None of these tokens can
+        # appear inside our fixture's class/module names.
+        without_other_columns = re.sub(
+            r"Task Graph Summary|Complete|Status|incomplete|complete|\d+/\d+|\(\d+%\)|total",
+            "",
+            rendered,
+        )
+        stripped = re.sub(r"[\s│╭╮╰╯─✓✗┏┓┗┛┃━]", "", without_other_columns)
+        self.assertIn(f"{module_one}.CollideLongName", stripped)
+        self.assertIn(f"{module_two}.CollideLongName", stripped)
