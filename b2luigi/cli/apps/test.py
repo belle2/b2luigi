@@ -64,6 +64,20 @@ def test(
             ),
         ),
     ] = True,
+    executable: Annotated[
+        str | None,
+        typer.Option(
+            "--executable",
+            help=(
+                "Command used to run the script, split on shell rules "
+                "(e.g. 'basf2', 'apptainer exec img.sif basf2'). Defaults to the current "
+                "Python interpreter. Needed for basf2 steering files, whose -o/-i are handled "
+                "by the basf2 wrapper rather than by the script. When set, -- is inserted before "
+                "any extra arguments so the script's own args are not consumed by the wrapper. "
+                "Unrelated to the 'executable' setting, which launches the b2luigi batch worker."
+            ),
+        ),
+    ] = None,
     extra_args: Annotated[
         list[str] | None,
         typer.Argument(help="Extra arguments forwarded verbatim to the script subprocess."),
@@ -80,6 +94,7 @@ def test(
     :param setting: List of key=value overrides applied via set_setting() before the run.
     :param literal_path: When True (the default), -o writes to the literal path given,
         bypassing result_dir nesting; --no-literal-path restores the nesting.
+    :param executable: Command used to run the script; defaults to the current interpreter.
     :param extra_args: Extra arguments forwarded verbatim to the script subprocess.
     """
     test_task(
@@ -92,4 +107,5 @@ def test(
         env_script=env_script,
         settings=setting or [],
         literal_path=literal_path,
+        executable=executable,
     )

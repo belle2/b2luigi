@@ -206,6 +206,7 @@ def test_task(
     env_script: str | None = None,
     settings: list[str] | None = None,
     literal_path: bool = True,
+    executable: str | None = None,
 ) -> None:
     """Run a one-off b2luigi task that executes *exec_script* as a subprocess.
 
@@ -253,13 +254,17 @@ def test_task(
     :type settings: list[str] | None
     :param literal_path: Forwarded to :func:`_build_fast_task`. See there for details.
     :type literal_path: bool
+    :param executable: Forwarded to :func:`_build_fast_task`. See there for details.
+    :type executable: str | None
     :raises SystemExit: With exit code 1 when any task in the build fails.
     """
     for key, value in parse_kv_params(settings or []).items():
         set_setting(key, value)
 
     set_setting("__batch_runner_use_cli", True)
-    FastTask = _build_fast_task(exec_script, output, input_file, force, batch, extra_args, env_script, literal_path)
+    FastTask = _build_fast_task(
+        exec_script, output, input_file, force, batch, extra_args, env_script, literal_path, executable
+    )
     if input_file is not None:
         FastReqTask = _build_fast_req_task(input_file)
         FastTask = b2luigi.requires(FastReqTask)(FastTask)

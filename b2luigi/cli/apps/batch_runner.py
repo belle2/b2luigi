@@ -60,6 +60,16 @@ def batch_runner(
             "always sends one of the two flags explicitly; this default is never relied on.",
         ),
     ] = True,
+    executable: Annotated[
+        Optional[str],
+        typer.Option(
+            "--executable",
+            help=(
+                "Command used to run the script (test mode). Sent by the submission host only "
+                "when it was given explicitly; otherwise the worker uses its own interpreter."
+            ),
+        ),
+    ] = None,
     extra_arg: Annotated[
         Optional[List[str]],
         typer.Option(
@@ -87,6 +97,7 @@ def batch_runner(
     :param input_file: Optional input filename key (test mode).
     :param force: When ``True``, omit ``output()`` so the task always runs (test mode).
     :param literal_path: When True, -o writes to the literal path given (test mode).
+    :param executable: Command used to run the script (test mode); defaults to the worker's own interpreter.
     :param extra_arg: Extra CLI arguments forwarded verbatim to the script subprocess (test mode).
     """
     if script is not None:
@@ -100,6 +111,7 @@ def batch_runner(
             batch=False,  # worker node always runs locally; must never re-batch
             extra_args=extra_arg or [],
             literal_path=literal_path,
+            executable=executable,
         )
         process_task_instance(FastTask(), batch_runner=True)
     elif classname is not None:

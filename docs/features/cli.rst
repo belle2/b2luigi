@@ -384,6 +384,29 @@ Wrap an arbitrary script as a b2luigi task for local debugging:
 The ``-s`` flag specifies the script to run; ``-o`` names the output file
 the task is expected to produce.
 
+By default the script runs under the current Python interpreter. Use
+``--executable`` to run it under something else — most importantly ``basf2``,
+whose ``-o``/``-i`` options are provided by the ``basf2`` wrapper binary rather
+than by the steering file, and therefore only take effect when the script is
+invoked as ``basf2 steer.py``:
+
+.. code-block:: bash
+
+    b2luigi test -s steering_file.py -o output_file.root --executable basf2
+
+The value is split on shell rules, so multi-token commands work:
+``--executable "apptainer exec image.sif basf2"``. When ``--executable`` is
+given, ``--`` is inserted before any extra arguments so that the script's own
+arguments are passed through to it rather than consumed by the wrapper::
+
+    basf2 steering_file.py -o output_file.root -- --my-script-flag
+
+.. note::
+
+   ``--executable`` is not the ``executable`` :doc:`setting <settings>`.
+   The flag chooses what runs *your script*; the setting chooses what launches the
+   *b2luigi batch worker* on the cluster. Both can appear in one ``--batch`` run.
+
 When submitting to a real batch system via ``--batch``, use ``--env-script``
 to source an environment setup script before the job runs (only takes effect
 combined with ``--batch``; a no-op otherwise):

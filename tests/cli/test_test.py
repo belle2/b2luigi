@@ -660,3 +660,46 @@ class TestTestLiteralPathFlag(CLITestCase):
         )
         self.assertEqual(rc, 0, stderr)
         self.assertTrue(os.path.exists(os.path.join(self.tmp_dir, "custom_out", "result.txt")))
+
+
+class TestTestExecutableFlag(CLITestCase):
+    """End-to-end tests for --executable through the real CLI binary."""
+
+    def setUp(self) -> None:
+        super().setUp()
+        shutil.copy(
+            os.path.join(FIXTURE_DIR, "cli_test_script.py"),
+            os.path.join(self.tmp_dir, "cli_test_script.py"),
+        )
+
+    def test_executable_runs_the_script(self) -> None:
+        """--executable with the current interpreter behaves like the default path."""
+        rc, stdout, stderr = self._run_cli(
+            "test", ["-s", "cli_test_script.py", "-o", "result.txt", "--executable", sys.executable]
+        )
+        self.assertEqual(rc, 0, stderr)
+        self.assertTrue(os.path.exists(os.path.join(self.tmp_dir, "result.txt")))
+
+    def test_missing_executable_fails_loudly(self) -> None:
+        """A non-existent executable makes the run fail rather than silently succeed."""
+        rc, stdout, stderr = self._run_cli(
+            "test", ["-s", "cli_test_script.py", "-o", "result.txt", "--executable", "definitely-not-a-real-binary"]
+        )
+        self.assertNotEqual(rc, 0)
+
+    def test_batch_runner_accepts_executable(self) -> None:
+        """The worker-side reconstruction accepts and uses --executable (batch round trip)."""
+        rc, stdout, stderr = self._run_cli(
+            "batch-runner",
+            [
+                "--script",
+                os.path.join(self.tmp_dir, "cli_test_script.py"),
+                "--output-file",
+                "result.txt",
+                "--literal-path",
+                "--executable",
+                sys.executable,
+            ],
+        )
+        self.assertEqual(rc, 0, stderr)
+        self.assertTrue(os.path.exists(os.path.join(self.tmp_dir, "result.txt")))
