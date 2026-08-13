@@ -4,8 +4,10 @@ import os
 import pathlib
 import shlex
 import shutil
+import subprocess
+import sys
 import tempfile
-from unittest import TestCase
+from unittest import TestCase, mock
 
 import b2luigi
 
@@ -250,6 +252,113 @@ class TestFastTaskCmdQuoting(TestCase):
         rebuilt = self._round_trip(FastTask)
         self.assertEqual(rebuilt[rebuilt.index("--output-file") + 1], "my out.txt")
         self.assertEqual(rebuilt[rebuilt.index("--input-file") + 1], "my in.txt")
+
+
+class TestFastTaskExecutable(TestCase):
+    """Unit tests for the --executable swap and the resulting argv layout."""
+
+    def setUp(self) -> None:
+        self.tmp_dir = tempfile.mkdtemp()
+        self._old_cwd = os.getcwd()
+        os.chdir(self.tmp_dir)
+
+    def tearDown(self) -> None:
+        os.chdir(self._old_cwd)
+        shutil.rmtree(self.tmp_dir)
+
+    def _capture_cmd(self, FastTask) -> list[str]:
+        """Run the task with subprocess.run patched out and return the argv it built.
+
+        The fake writes the output file so ``_run``'s post-run existence check passes;
+        no real interpreter is ever launched.
+        """
+        captured: dict[str, list[str]] = {}
+
+        def fake_run(cmd, *args, **kwargs):
+            captured["cmd"] = list(cmd)
+            out = pathlib.Path(cmd[cmd.index("-o") + 1])
+            out.parent.mkdir(parents=True, exist_ok=True)
+            out.write_text("done")
+            return subprocess.CompletedProcess(cmd, 0)
+
+        with mock.patch("b2luigi.cli.runner.subprocess.run", fake_run):
+            FastTask().run()
+        return captured["cmd"]
+
+    def test_default_uses_sys_executable(self) -> None:
+        """With no executable given, the current interpreter runs the script."""
+        FastTask = _build_fast_task("script.py", "out.txt", None, False, False, [])
+        cmd = self._capture_cmd(FastTask)
+        self.assertEqual(cmd[0], sys.executable)
+        self.assertEqual(cmd[1], os.path.abspath("script.py"))
+
+    def test_output_flag_precedes_extra_args(self) -> None:
+        """-o is emitted before the user's extra args, for the default executable too."""
+        FastTask = _build_fast_task("script.py", "out.txt", None, False, False, ["--lr", "0.01"])
+        cmd = self._capture_cmd(FastTask)
+        self.assertLess(cmd.index("-o"), cmd.index("--lr"))
+
+    def test_no_separator_for_default_executable(self) -> None:
+        """No -- is inserted when the executable was not overridden."""
+        FastTask = _build_fast_task("script.py", "out.txt", None, False, False, ["--lr", "0.01"])
+        self.assertNotIn("--", self._capture_cmd(FastTask))
+
+    def test_executable_replaces_the_interpreter(self) -> None:
+        """A given executable becomes the leading token instead of sys.executable."""
+        FastTask = _build_fast_task("script.py", "out.txt", None, False, False, [], executable="basf2")
+        cmd = self._capture_cmd(FastTask)
+        self.assertEqual(cmd[0], "basf2")
+        self.assertEqual(cmd[1], os.path.abspath("script.py"))
+
+    def test_multi_token_executable_is_shlex_split(self) -> None:
+        """A multi-token executable string is split on shell rules."""
+        FastTask = _build_fast_task(
+            "script.py", "out.txt", None, False, False, [], executable="apptainer exec img.sif basf2"
+        )
+        cmd = self._capture_cmd(FastTask)
+        self.assertEqual(cmd[:4], ["apptainer", "exec", "img.sif", "basf2"])
+
+    def test_separator_precedes_extra_args_when_executable_given(self) -> None:
+        """-- separates b2luigi's flags from the script's own args under a custom executable."""
+        FastTask = _build_fast_task("script.py", "out.txt", None, False, False, ["--lr", "0.01"], executable="basf2")
+        cmd = self._capture_cmd(FastTask)
+        self.assertEqual(cmd.count("--"), 1)
+        self.assertEqual(cmd[cmd.index("--") + 1 :], ["--lr", "0.01"])
+
+    def test_no_trailing_separator_without_extra_args(self) -> None:
+        """A lone -- is never appended when there are no extra args."""
+        FastTask = _build_fast_task("script.py", "out.txt", None, False, False, [], executable="basf2")
+        self.assertNotIn("--", self._capture_cmd(FastTask))
+
+    def test_input_flag_precedes_the_separator(self) -> None:
+        """-i belongs to b2luigi's half of the command, before --."""
+        pathlib.Path("in.txt").write_text("x")
+        FastTask = _build_fast_task("script.py", "out.txt", "in.txt", False, False, ["--lr"], executable="basf2")
+        FastReqTask = _build_fast_req_task("in.txt")
+        FastTask = b2luigi.requires(FastReqTask)(FastTask)
+        cmd = self._capture_cmd(FastTask)
+        self.assertLess(cmd.index("-i"), cmd.index("--"))
+
+    def test_executable_encoded_for_the_worker_when_given(self) -> None:
+        """--executable is forwarded to the batch worker, quoted for the wrapper's shell join."""
+        FastTask = _build_fast_task(
+            "script.py", "out.txt", None, False, True, [], executable="apptainer exec img.sif basf2"
+        )
+        with with_new_settings():
+            set_setting("__batch_runner_use_cli", True)
+            rebuilt = shlex.split(" ".join(create_cmd_from_task(FastTask())))
+        self.assertEqual(rebuilt[rebuilt.index("--executable") + 1], "apptainer exec img.sif basf2")
+
+    def test_executable_absent_from_encoding_when_not_given(self) -> None:
+        """The unset default must NOT be encoded.
+
+        Unlike --literal-path (a policy both hosts must agree on), the executable is an
+        environment-dependent path. Emitting the resolved default would bake the submission
+        host's sys.executable into the worker command — the container-universe failure that
+        executable_is_entrypoint exists to fix. The worker must fall back to its own.
+        """
+        FastTask = _build_fast_task("script.py", "out.txt", None, False, True, [])
+        self.assertNotIn("--executable", FastTask.task_cmd_additional_args)
 
 
 class TestTestBatchArmsCliModeSubmission(TestCase):

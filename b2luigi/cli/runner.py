@@ -67,13 +67,15 @@ def _build_fast_task(
     extra_args: list[str],
     env_script: str | None = None,
     literal_path: bool = True,
+    executable: str | None = None,
 ) -> type:
     """Build the main task class that runs *exec_script* as a subprocess.
 
-    The script is invoked as ``python <exec_script> [extra_args] -o <output_path>``
-    where *output_path* is the full b2luigi-resolved path (under ``result_dir``,
-    unless *literal_path* is ``True``). When *input_file* is set, ``-i <input_path>``
-    is appended (always the literal path, exactly as *input_file* was given).
+    The script is invoked as ``<executable> <exec_script> -o <output_path> [-i <input_path>]
+    [-- extra_args]`` where *output_path* is the full b2luigi-resolved path (under
+    ``result_dir``, unless *literal_path* is ``True``) and *executable* defaults to the
+    current interpreter. The ``--`` separator appears only when *executable* is set and
+    there is at least one extra argument.
 
     When *force* is ``False`` the class declares ``output()``, so Luigi skips
     the task when the output already exists.  When *force* is ``True`` no
@@ -108,6 +110,16 @@ def _build_fast_task(
         ``result_dir`` nesting entirely. ``False`` restores the nesting. No-op
         when *force* is ``True`` (no ``output()`` is declared either way).
     :type literal_path: bool
+    :param executable: Optional command used to execute *exec_script*, split with
+        :func:`shlex.split` so multi-token values (``"apptainer exec img.sif basf2"``)
+        work. Defaults to the current interpreter (:data:`sys.executable`). Needed for
+        basf2 steering files, whose ``-o``/``-i`` are provided by the ``basf2`` wrapper
+        binary rather than by the script, and therefore only take effect when the script
+        is run as ``basf2 steer.py`` rather than ``python3 steer.py``. When set, ``--`` is
+        inserted before *extra_args* so the script's own arguments are not consumed by the
+        wrapper. Unrelated to the ``executable`` **setting**, which is the command that
+        launches the b2luigi batch worker itself.
+    :type executable: str | None
     :returns: A dynamically created ``b2luigi.Task`` subclass.
     :rtype: type
 
@@ -125,6 +137,7 @@ def _build_fast_task(
     """
     exec_script = os.path.abspath(exec_script)
     abs_output = os.path.abspath(output)
+    exe_tokens = shlex.split(executable) if executable else [sys.executable]
 
     def _run(self):
         # force=True declares no output(), so fall back to _get_output_file_target's
@@ -134,9 +147,13 @@ def _build_fast_task(
             output_path = abs_output
         else:
             output_path = self._get_output_file_target(output).path
-        cmd = [sys.executable, exec_script] + extra_args + ["-o", output_path]
+        cmd = exe_tokens + [exec_script, "-o", output_path]
         if input_file is not None:
             cmd += ["-i", self.get_input_file_name(input_file)]
+        if extra_args:
+            # A custom executable (e.g. basf2) consumes -o/-i itself, so the script's
+            # own arguments must be separated from it. Never emit a lone trailing --.
+            cmd += (["--"] if executable else []) + extra_args
         result = subprocess.run(cmd)
         if result.returncode != 0:
             raise RuntimeError(f"Script '{exec_script}' exited with code {result.returncode}")
@@ -155,6 +172,11 @@ def _build_fast_task(
             # the batch job writes its output.
             + (["--literal-path"] if literal_path else ["--no-literal-path"])
             + [arg for e in extra_args for arg in ("--extra-arg", shlex.quote(e))]
+            # Emitted only when explicitly given. Unlike --literal-path, this is an
+            # environment-dependent path: encoding the resolved default would bake the
+            # submission host's sys.executable into the worker command, which does not
+            # resolve inside a different container image. Unset means "use the worker's own".
+            + (["--executable", shlex.quote(executable)] if executable else [])
         ),
     }
 
