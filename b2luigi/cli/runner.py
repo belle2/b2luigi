@@ -729,6 +729,87 @@ def render_graph_dot(task_list: list, show_params: bool = False, show_status: bo
     print("}")
 
 
+def render_graph_summary(task_list: list) -> None:
+    """Render per-class completion counts for the task graph.
+
+    Walks the same graph :func:`render_graph_tree` walks and prints one row per task
+    class — ``<name>  <complete>/<total>  <verdict>`` — followed by a rule and a total
+    row carrying the floored integer percentage. Counts are task **instances**, and a
+    class's verdict is ``complete`` only when every one of its instances is complete.
+
+    A task counts as complete when every one of its outputs exists, identical to the
+    rule :func:`render_graph_tree` uses for its ✓ marker. Tasks declaring no outputs
+    are excluded entirely, matching the tree, which gives them no marker.
+
+    Instances are deduped on ``(type(task), task.task_id)`` rather than ``task_id``
+    alone. luigi derives ``task_id`` from the task family — the class *name* — plus a
+    parameter hash, with no module component, so two same-named classes from different
+    modules with equal parameters share a ``task_id``; keying on it alone would drop
+    one of them from the counts entirely.
+
+    Rows display ``cls.__name__``, falling back to ``module.Class`` for every class
+    sharing a ``__name__`` with another class in the same graph.
+
+    :param task_list: Root task instances to summarise.
+    :type task_list: list
+    """
+    import luigi.task
+    from rich import box as rich_box
+    from rich.table import Table
+    from rich.text import Text
+
+    seen: set[tuple[type, str]] = set()
+    counts: dict[type, list[int]] = {}
+
+    for root in task_list:
+        for task in task_iterator(root):
+            key = (type(task), task.task_id)
+            if key in seen:
+                continue
+            seen.add(key)
+            outputs = luigi.task.flatten(task.output())
+            if not outputs:
+                continue
+            entry = counts.setdefault(type(task), [0, 0])
+            entry[1] += 1
+            if all(target.exists() for target in outputs):
+                entry[0] += 1
+
+    if not counts:
+        console.print("No tasks with outputs to summarise.")
+        return
+
+    name_uses: dict[str, int] = {}
+    for cls in counts:
+        name_uses[cls.__name__] = name_uses.get(cls.__name__, 0) + 1
+
+    def _display_name(cls: type) -> str:
+        if name_uses[cls.__name__] > 1:
+            return f"{cls.__module__}.{cls.__name__}"
+        return cls.__name__
+
+    table = Table(title="Task Graph Summary", box=rich_box.HORIZONTALS, title_justify="left")
+    table.add_column("Task")
+    table.add_column("Complete", justify="right")
+    table.add_column("Status")
+
+    total_complete = 0
+    total_tasks = 0
+    for cls, (complete, total) in counts.items():
+        total_complete += complete
+        total_tasks += total
+        table.add_row(
+            Text(_display_name(cls)),
+            f"{complete}/{total}",
+            "complete" if complete == total else "incomplete",
+        )
+
+    percentage = total_complete * 100 // total_tasks
+    table.add_section()
+    table.add_row(Text("total"), f"{total_complete}/{total_tasks}", f"({percentage}%)")
+    console.print(table)
+
+
 def show_task_outputs(task_list: list, details: bool = False, paths_only: bool = False, links: bool = False) -> None:
     """Show output files for the given tasks only — no dependency-tree traversal.
 
