@@ -148,6 +148,6 @@ def build(*args, **kwargs):
         "Some of the functionalities of b2luigi will not work as expected: please consider "
         "using `b2luigi.process`.",
         UserWarning,
-        stacklevel=2
+        stacklevel=2,
     )
     return luigi.build(*args, **kwargs)
