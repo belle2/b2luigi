@@ -2,8 +2,9 @@ from typing import Annotated, List, Optional
 
 import typer
 
+import b2luigi
 from b2luigi.cli.options import TaskFile
-from b2luigi.cli.runner import _build_fast_task
+from b2luigi.cli.runner import _build_fast_req_task, _build_fast_task
 from b2luigi.cli.utils import (
     cli_error_boundary,
     load_task_class,
@@ -113,6 +114,12 @@ def batch_runner(
             literal_path=literal_path,
             executable=executable,
         )
+        if input_file is not None:
+            # Same wiring test_task applies on the submission host. FastReqTask is an
+            # ExternalTask, so this never re-runs anything on the worker — it only
+            # populates self.input() so get_input_file_name(input_file) can resolve.
+            # Without it the worker raises KeyError on the input file name.
+            FastTask = b2luigi.requires(_build_fast_req_task(input_file))(FastTask)
         process_task_instance(FastTask(), batch_runner=True)
     elif classname is not None:
         with cli_error_boundary():

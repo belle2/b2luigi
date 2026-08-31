@@ -701,6 +701,52 @@ class TestTestLiteralPathFlag(CLITestCase):
         self.assertTrue(os.path.exists(os.path.join(self.tmp_dir, "custom_out", "result.txt")))
 
 
+class TestBatchRunnerInputFile(CLITestCase):
+    """The worker-side reconstruction must wire up the -i prerequisite task.
+
+    ``test_task`` wraps ``FastTask`` with ``b2luigi.requires(FastReqTask)`` when
+    ``-i`` is given; the ``batch-runner`` path built the task without it, so
+    ``self.input()`` was empty on the worker and ``get_input_file_name`` raised
+    ``KeyError: '<input file>'``. That made ``b2luigi test -i ... --batch`` fail on
+    every real batch system while passing locally, because only the worker takes
+    this path.
+    """
+
+    def setUp(self) -> None:
+        super().setUp()
+        shutil.copy(
+            os.path.join(FIXTURE_DIR, "cli_test_script_reading_input.py"),
+            os.path.join(self.tmp_dir, "cli_test_script_reading_input.py"),
+        )
+        with open(os.path.join(self.tmp_dir, "input.txt"), "w") as input_file:
+            input_file.write("seed content")
+
+    def test_batch_runner_resolves_the_input_file(self) -> None:
+        """batch-runner --input-file resolves the path and hands it to the script.
+
+        The script reads the input and copies it into its output, so a passing run
+        proves the worker resolved a real, readable path — not merely that the
+        command exited 0.
+        """
+        rc, stdout, stderr = self._run_cli(
+            "batch-runner",
+            [
+                "--script",
+                os.path.join(self.tmp_dir, "cli_test_script_reading_input.py"),
+                "--output-file",
+                "result.txt",
+                "--input-file",
+                "input.txt",
+                "--literal-path",
+            ],
+        )
+        self.assertEqual(rc, 0, stdout + stderr)
+        output_path = os.path.join(self.tmp_dir, "result.txt")
+        self.assertTrue(os.path.exists(output_path))
+        with open(output_path) as output_file:
+            self.assertEqual(output_file.read(), "input was: seed content")
+
+
 class TestTestExecutableFlag(CLITestCase):
     """End-to-end tests for --executable through the real CLI binary."""
 
