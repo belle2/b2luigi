@@ -720,11 +720,18 @@ class TestTestExecutableFlag(CLITestCase):
         self.assertTrue(os.path.exists(os.path.join(self.tmp_dir, "result.txt")))
 
     def test_missing_executable_fails_loudly(self) -> None:
-        """A non-existent executable makes the run fail rather than silently succeed."""
+        """A non-existent executable makes the run fail rather than silently succeed.
+
+        A bare non-zero exit code does not discriminate here: a bug that silently
+        no-opped the whole task would produce one too. So this also pins that the
+        failure names the missing binary, and that no output file was produced.
+        """
         rc, stdout, stderr = self._run_cli(
             "test", ["-s", "cli_test_script.py", "-o", "result.txt", "--executable", "definitely-not-a-real-binary"]
         )
         self.assertNotEqual(rc, 0)
+        self.assertIn("definitely-not-a-real-binary", stdout + stderr)
+        self.assertFalse(os.path.exists(os.path.join(self.tmp_dir, "result.txt")))
 
     def test_batch_runner_accepts_executable(self) -> None:
         """The worker-side reconstruction accepts and uses --executable (batch round trip)."""

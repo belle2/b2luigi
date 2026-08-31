@@ -423,6 +423,16 @@ Wrap an arbitrary script as a b2luigi task for local debugging:
 The ``-s`` flag specifies the script to run; ``-o`` names the output file
 the task is expected to produce.
 
+Any extra arguments are forwarded verbatim to the script, and the generated
+command is ``<interpreter> <script> -o <output> [-i <input>] [extra args]``.
+
+.. note::
+
+   The extra arguments are appended **after** ``-o``/``-i``. Earlier versions
+   placed them before, so a script that reads its arguments positionally out of
+   ``sys.argv`` rather than through :mod:`argparse` may need adjusting. This
+   applies whether or not ``--executable`` is used.
+
 By default the script runs under the current Python interpreter. Use
 ``--executable`` to run it under something else — most importantly ``basf2``,
 whose ``-o``/``-i`` options are provided by the ``basf2`` wrapper binary rather
