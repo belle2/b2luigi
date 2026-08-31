@@ -747,6 +747,39 @@ class TestBatchRunnerInputFile(CLITestCase):
             self.assertEqual(output_file.read(), "input was: seed content")
 
 
+class TestTestInputInSubdirectory(CLITestCase):
+    """``-i`` must accept a path, not only a bare filename in the current directory.
+
+    ``self.input()`` is keyed by ``os.path.basename`` (``flatten_to_file_paths`` in
+    ``core/utils.py``), but ``FastTask._run`` looked the key up by the raw ``-i``
+    value. That matched only while the value happened to be a bare filename, so
+    ``b2luigi test -i data/input.txt`` failed with ``KeyError: 'data/input.txt'``.
+    """
+
+    def setUp(self) -> None:
+        super().setUp()
+        shutil.copy(
+            os.path.join(FIXTURE_DIR, "cli_test_script_reading_input.py"),
+            os.path.join(self.tmp_dir, "cli_test_script_reading_input.py"),
+        )
+        os.mkdir(os.path.join(self.tmp_dir, "data"))
+        with open(os.path.join(self.tmp_dir, "data", "input.txt"), "w") as input_file:
+            input_file.write("seed content")
+
+    def test_input_file_in_a_subdirectory_is_resolved(self) -> None:
+        """A -i path with a directory component reaches the script as a readable file."""
+        rc, stdout, stderr = self._run_cli(
+            "test",
+            ["-s", "cli_test_script_reading_input.py", "-o", "result.txt", "-i", os.path.join("data", "input.txt")],
+        )
+
+        self.assertEqual(rc, 0, stdout + stderr)
+        output_path = os.path.join(self.tmp_dir, "result.txt")
+        self.assertTrue(os.path.exists(output_path), stdout + stderr)
+        with open(output_path) as output_file:
+            self.assertEqual(output_file.read(), "input was: seed content")
+
+
 class TestTestExecutableFlag(CLITestCase):
     """End-to-end tests for --executable through the real CLI binary."""
 

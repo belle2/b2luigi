@@ -89,8 +89,9 @@ def _build_fast_task(
     :param output: Output filename key (passed to :meth:`add_to_output`, unless
         *literal_path* is ``True``).
     :type output: str
-    :param input_file: Optional input filename key; if set, the full resolved
-        path is forwarded to the script as ``-i``.
+    :param input_file: Optional input file; if set, the full resolved path is
+        forwarded to the script as ``-i``. May carry a directory component —
+        ``self.input()`` is keyed by basename, so the lookup uses the basename.
     :type input_file: str | None
     :param force: When ``True``, omit ``output()`` so the task always runs.
     :type force: bool
@@ -158,7 +159,9 @@ def _build_fast_task(
             output_path = self._get_output_file_target(output).path
         cmd = exe_tokens + [exec_script, "-o", output_path]
         if input_file is not None:
-            cmd += ["-i", self.get_input_file_name(input_file)]
+            # self.input() is keyed by the target's basename (flatten_to_file_paths),
+            # so a -i carrying any directory component must be looked up by basename.
+            cmd += ["-i", self.get_input_file_name(os.path.basename(input_file))]
         if extra_args:
             # A custom executable (e.g. basf2) consumes -o/-i itself, so the script's
             # own arguments must be separated from it. Never emit a lone trailing --.
