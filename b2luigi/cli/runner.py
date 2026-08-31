@@ -127,7 +127,11 @@ def _build_fast_task(
 
     The generated class also carries a ``task_cmd_additional_args`` class attribute
     encoding all constructor arguments as ``--script``/``--output-file``/``--input-file``/
-    ``--force``/``--extra-arg``/``--literal-path``/``--executable`` flags.
+    ``--force``/``--extra-arg``/``--literal-path``/``--executable`` flags. ``--script``,
+    ``--input-file`` and (under *literal_path*) ``--output-file`` are encoded as absolute
+    paths, resolved against the submission host's working directory: the worker rebuilds
+    the task with this same function after its wrapper has already changed into
+    ``working_dir``, which need not be the directory the job was submitted from.
     :func:`b2luigi.core.utils.create_cmd_from_task` appends these to the batch worker
     command so that ``batch-runner`` can reconstruct the task without importing it.
 
@@ -176,8 +180,15 @@ def _build_fast_task(
         "batch_system": "auto" if batch else "local",
         "run": _run,
         "task_cmd_additional_args": (
-            ["--script", shlex.quote(exec_script), "--output-file", shlex.quote(output)]
-            + (["--input-file", shlex.quote(input_file)] if input_file is not None else [])
+            # -o and -i are resolved against the SUBMISSION host's cwd, exactly like
+            # --script above: the worker rebuilds the task with this same function, and
+            # its wrapper has already done 'cd <working_dir>', which need not be the
+            # directory the job was submitted from. Under --no-literal-path, output is a
+            # filename key for add_to_output rather than a path, and an absolute one
+            # would collapse os.path.join(result_dir, output) onto itself, discarding
+            # the result_dir nesting — so it is forwarded unchanged in that case.
+            ["--script", shlex.quote(exec_script), "--output-file", shlex.quote(abs_output if literal_path else output)]
+            + (["--input-file", shlex.quote(os.path.abspath(input_file))] if input_file is not None else [])
             + (["--force"] if force else [])
             # Always explicit (never omitted): the worker's own default must never
             # decide this, or a submission-side flip would silently change where

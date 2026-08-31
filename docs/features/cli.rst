@@ -433,6 +433,12 @@ command is ``<interpreter> <script> -o <output> [-i <input>] [extra args]``.
    ``sys.argv`` rather than through :mod:`argparse` may need adjusting. This
    applies whether or not ``--executable`` is used.
 
+Relative ``-s``/``-o``/``-i`` paths are resolved against the directory you invoke
+``b2luigi test`` from, and may carry directory components (``-i data/input.txt``).
+Under ``--batch`` they are resolved on the submission host before being sent to the
+worker, so the job reads and writes the same files regardless of the ``working_dir``
+its wrapper changes into.
+
 By default the script runs under the current Python interpreter. Use
 ``--executable`` to run it under something else — most importantly ``basf2``,
 whose ``-o``/``-i`` options are provided by the ``basf2`` wrapper binary rather

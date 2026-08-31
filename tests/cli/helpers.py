@@ -78,6 +78,7 @@ class CLITestCase(TestCase):
         args: list[str] | None = None,
         extra_env: dict[str, str] | None = None,
         exclude_env: set[str] | None = None,
+        cwd: str | None = None,
     ) -> tuple[int, str, str]:
         """Run ``b2luigi <subcmd>`` and return ``(returncode, stdout, stderr)``.
 
@@ -90,6 +91,11 @@ class CLITestCase(TestCase):
         :param exclude_env: Environment variable names to strip from the
             subprocess environment (useful for testing ``(unset)`` fallbacks).
         :type exclude_env: set[str] | None
+        :param cwd: Directory to run the command in. Defaults to the temporary
+            working directory. Pass a different path to emulate a batch worker,
+            whose wrapper ``cd``s to ``working_dir`` rather than to the directory
+            the job was submitted from.
+        :type cwd: str | None
         :returns: Tuple of (return code, stdout, stderr).
         :rtype: tuple[int, str, str]
         """
@@ -99,5 +105,5 @@ class CLITestCase(TestCase):
         env["NO_COLOR"] = "1"
         if extra_env:
             env.update(extra_env)
-        result = subprocess.run(cmd, cwd=self.tmp_dir, capture_output=True, text=True, env=env)
+        result = subprocess.run(cmd, cwd=cwd or self.tmp_dir, capture_output=True, text=True, env=env)
         return result.returncode, result.stdout, result.stderr

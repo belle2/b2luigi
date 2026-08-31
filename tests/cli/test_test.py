@@ -173,7 +173,13 @@ class TestFastTaskCmdGeneration(TestCase):
         FastTask = _build_fast_task("script.py", "out.txt", None, False, False, [])
         self.assertEqual(
             FastTask.task_cmd_additional_args,
-            ["--script", os.path.abspath("script.py"), "--output-file", "out.txt", "--literal-path"],
+            [
+                "--script",
+                os.path.abspath("script.py"),
+                "--output-file",
+                os.path.abspath("out.txt"),
+                "--literal-path",
+            ],
         )
 
     def test_input_file_included(self) -> None:
@@ -182,7 +188,7 @@ class TestFastTaskCmdGeneration(TestCase):
         args = FastTask.task_cmd_additional_args
         self.assertIn("--input-file", args)
         idx = args.index("--input-file")
-        self.assertEqual(args[idx + 1], "in.txt")
+        self.assertEqual(args[idx + 1], os.path.abspath("in.txt"))
 
     def test_force_flag_included_when_true(self) -> None:
         """--force is appended when force=True."""
@@ -270,8 +276,8 @@ class TestFastTaskCmdQuoting(TestCase):
         """Output and input filename keys containing spaces reach the worker intact."""
         FastTask = _build_fast_task("script.py", "my out.txt", "my in.txt", False, True, [])
         rebuilt = self._round_trip(FastTask)
-        self.assertEqual(rebuilt[rebuilt.index("--output-file") + 1], "my out.txt")
-        self.assertEqual(rebuilt[rebuilt.index("--input-file") + 1], "my in.txt")
+        self.assertEqual(rebuilt[rebuilt.index("--output-file") + 1], os.path.abspath("my out.txt"))
+        self.assertEqual(rebuilt[rebuilt.index("--input-file") + 1], os.path.abspath("my in.txt"))
 
 
 class TestFastTaskExecutable(TestCase):
@@ -434,7 +440,7 @@ class TestTestBatchArmsCliModeSubmission(TestCase):
             self.assertEqual(cmd[script_idx + 1], os.path.abspath("cli_test_script.py"))
             self.assertIn("--output-file", cmd)
             output_idx = cmd.index("--output-file")
-            self.assertEqual(cmd[output_idx + 1], "result.txt")
+            self.assertEqual(cmd[output_idx + 1], os.path.abspath("result.txt"))
 
 
 class TestTestTaskSettingsAndEnvScript(TestCase):
@@ -778,6 +784,111 @@ class TestTestInputInSubdirectory(CLITestCase):
         self.assertTrue(os.path.exists(output_path), stdout + stderr)
         with open(output_path) as output_file:
             self.assertEqual(output_file.read(), "input was: seed content")
+
+
+class TestFastTaskWorkerPathResolution(CLITestCase):
+    """The encoded -o/-i must resolve to the same files the submission host declared.
+
+    ``_build_fast_task`` resolves ``exec_script`` to an absolute path before encoding
+    it, but encoded ``output``/``input_file`` verbatim. The worker rebuilds the task
+    with the very same function, so its ``os.path.abspath`` ran against the wrapper's
+    ``cd <working_dir>`` instead of the directory the job was submitted from. With
+    ``-i`` that failed loudly (``FileNotFoundError``); with only ``-o`` the job exited
+    0 and wrote the output to the wrong directory, so the scheduler reported success
+    while luigi never saw the target appear.
+    """
+
+    def setUp(self) -> None:
+        super().setUp()
+        # On macOS the temp dir is reached through the /var -> /private/var symlink,
+        # which os.getcwd() (and therefore os.path.abspath) resolves but mkdtemp does
+        # not report. Pin the resolved form so the encoded paths can be compared.
+        self.tmp_dir = os.path.realpath(self.tmp_dir)
+        shutil.copy(
+            os.path.join(FIXTURE_DIR, "cli_test_script_reading_input.py"),
+            os.path.join(self.tmp_dir, "cli_test_script_reading_input.py"),
+        )
+        with open(os.path.join(self.tmp_dir, "input.txt"), "w") as input_file:
+            input_file.write("seed content")
+        self.worker_dir = os.path.join(self.tmp_dir, "worker_working_dir")
+        os.mkdir(self.worker_dir)
+
+    def _encode_from_tmp_dir(self, **kwargs) -> list[str]:
+        """Build FastTask with the tmp dir as cwd and return its decoded worker args."""
+        previous_dir = os.getcwd()
+        os.chdir(self.tmp_dir)
+        try:
+            FastTask = _build_fast_task(**kwargs)
+        finally:
+            os.chdir(previous_dir)
+        return shlex.split(" ".join(FastTask.task_cmd_additional_args))
+
+    def test_output_file_encoded_absolute_under_literal_path(self) -> None:
+        """A relative -o is resolved against the submission cwd, like --script already is."""
+        args = self._encode_from_tmp_dir(
+            exec_script="script.py",
+            output="out.txt",
+            input_file=None,
+            force=False,
+            batch=True,
+            extra_args=[],
+        )
+        self.assertEqual(args[args.index("--output-file") + 1], os.path.join(self.tmp_dir, "out.txt"))
+
+    def test_input_file_encoded_absolute(self) -> None:
+        """A relative -i is resolved against the submission cwd."""
+        args = self._encode_from_tmp_dir(
+            exec_script="script.py",
+            output="out.txt",
+            input_file="in.txt",
+            force=False,
+            batch=True,
+            extra_args=[],
+        )
+        self.assertEqual(args[args.index("--input-file") + 1], os.path.join(self.tmp_dir, "in.txt"))
+
+    def test_output_file_left_alone_without_literal_path(self) -> None:
+        """Without --literal-path, -o is a filename key for add_to_output, not a path.
+
+        ``os.path.join(result_dir, "/abs/out.txt")`` collapses to ``/abs/out.txt``, so
+        absolutizing here would silently discard the ``result_dir`` nesting the flag
+        exists to provide.
+        """
+        args = self._encode_from_tmp_dir(
+            exec_script="script.py",
+            output="out.txt",
+            input_file=None,
+            force=False,
+            batch=True,
+            extra_args=[],
+            literal_path=False,
+        )
+        self.assertEqual(args[args.index("--output-file") + 1], "out.txt")
+
+    def test_worker_in_a_different_directory_uses_the_submission_paths(self) -> None:
+        """End-to-end: the worker resolves -o/-i where the job was submitted from.
+
+        The command is the one the wrapper would run, executed from a directory that
+        is not the submission directory. The script copies its input into its output,
+        so passing proves both paths resolved to the real files rather than merely
+        that the command exited 0.
+        """
+        args = self._encode_from_tmp_dir(
+            exec_script="cli_test_script_reading_input.py",
+            output="result.txt",
+            input_file="input.txt",
+            force=False,
+            batch=True,
+            extra_args=[],
+        )
+        rc, stdout, stderr = self._run_cli("batch-runner", args, cwd=self.worker_dir)
+
+        self.assertEqual(rc, 0, stdout + stderr)
+        submitted_output = os.path.join(self.tmp_dir, "result.txt")
+        self.assertTrue(os.path.exists(submitted_output), stdout + stderr)
+        with open(submitted_output) as output_file:
+            self.assertEqual(output_file.read(), "input was: seed content")
+        self.assertFalse(os.path.exists(os.path.join(self.worker_dir, "result.txt")))
 
 
 class TestTestExecutableFlag(CLITestCase):
