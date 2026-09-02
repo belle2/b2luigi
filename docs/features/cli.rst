@@ -463,7 +463,10 @@ Relative ``-s``/``-o``/``-i`` paths are resolved against the directory you invok
 ``b2luigi test`` from, and may carry directory components (``-i data/input.txt``).
 Under ``--batch`` they are resolved on the submission host before being sent to the
 worker, so the job reads and writes the same files regardless of the ``working_dir``
-its wrapper changes into.
+its wrapper changes into. This is deliberate, and differs from ``b2luigi run``, whose
+task file is sent relative to the project directory so that it resolves against a
+relocated copy of the project. ``b2luigi test`` runs a single script rather than a
+project, so it has nothing to relocate.
 
 By default the script runs under the current Python interpreter. Use
 ``--executable`` to run it under something else — most importantly ``basf2``,

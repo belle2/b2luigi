@@ -91,6 +91,22 @@ In case your script is accessible from a different location on the worker than o
 to specify where the job should run.
 Your script needs to be in this folder and every relative path (e.g. for results or log files) will be evaluated from there.
 
+.. note::
+
+    When submitting through the ``b2luigi`` command line interface, the task file is sent to the worker
+    **relative to your project directory** (the directory you run ``b2luigi`` from), not as an absolute path.
+    That is what lets a relocating ``working_dir`` work: the worker changes into ``working_dir`` and finds
+    the task file at the same position inside the copy of the project living there.
+
+    Two common deployments depend on this: staging the project into a scratch directory on the node
+    (where the submission host's paths do not exist at all), and running jobs from a production checkout
+    while you develop in another (where an absolute path would silently send the worker back to your
+    development copy).
+
+    Consequently, the task file must live inside the directory you invoke ``b2luigi`` from. Running
+    ``b2luigi run --task-file /somewhere/else/tasks.py`` with a batch system is rejected, because the
+    worker would have no way to locate that file after changing into ``working_dir``.
+
 Drawbacks of the batch mode
 ---------------------------
 
