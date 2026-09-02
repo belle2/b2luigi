@@ -753,6 +753,36 @@ class TestBatchRunnerInputFile(CLITestCase):
             self.assertEqual(output_file.read(), "input was: seed content")
 
 
+class TestBatchSystemFlag(CLITestCase):
+    """End-to-end tests for `test --batch-system`."""
+
+    def setUp(self) -> None:
+        super().setUp()
+        shutil.copy(
+            os.path.join(FIXTURE_DIR, "cli_test_script.py"),
+            os.path.join(self.tmp_dir, "cli_test_script.py"),
+        )
+
+    def test_batch_system_local_implies_batch_and_runs(self) -> None:
+        """--batch-system implies --batch and is honoured instead of PATH probing."""
+        rc, stdout, stderr = self._run_cli(
+            "test", ["-s", "cli_test_script.py", "-o", "result.txt", "--batch-system", "local"]
+        )
+
+        self.assertEqual(rc, 0, stdout + stderr)
+        self.assertTrue(os.path.exists(os.path.join(self.tmp_dir, "result.txt")), stdout + stderr)
+
+    def test_unknown_batch_system_is_rejected(self) -> None:
+        """A typo fails loudly and names the nearest valid system."""
+        rc, stdout, stderr = self._run_cli(
+            "test", ["-s", "cli_test_script.py", "-o", "result.txt", "--batch-system", "slrum"]
+        )
+
+        self.assertNotEqual(rc, 0)
+        self.assertIn("slurm", stdout + stderr)
+        self.assertFalse(os.path.exists(os.path.join(self.tmp_dir, "result.txt")))
+
+
 class TestBatchSystemSelection(TestCase):
     """`--batch` must not stop the user choosing a batch system.
 
@@ -777,6 +807,17 @@ class TestBatchSystemSelection(TestCase):
             self.assertNotIn("batch_system", FastTask.__dict__)
             self.assertEqual(get_setting("batch_system", default="auto", task=FastTask()), "htcondor")
 
+    def test_local_run_ignores_an_explicit_batch_system(self) -> None:
+        """Without --batch the task must stay local, whatever the settings say.
+
+        Guard, not a change: a plain ``b2luigi test`` must never submit anywhere
+        because a settings file happens to name a scheduler.
+        """
+        with with_new_settings():
+            set_setting("batch_system", "slurm")
+            FastTask = _build_fast_task("script.py", "out.txt", None, False, False, [])
+            self.assertEqual(FastTask.batch_system, "local")
+
     def test_known_batch_system_is_accepted(self) -> None:
         """A valid name resolves to itself."""
         self.assertEqual(_resolve_batch_system("slurm"), "slurm")
@@ -790,17 +831,6 @@ class TestBatchSystemSelection(TestCase):
         with self.assertRaises(CliUserError) as caught:
             _resolve_batch_system("slrum")
         self.assertIn("slurm", str(caught.exception))
-
-    def test_local_run_ignores_an_explicit_batch_system(self) -> None:
-        """Without --batch the task must stay local, whatever the settings say.
-
-        Guard, not a change: a plain ``b2luigi test`` must never submit anywhere
-        because a settings file happens to name a scheduler.
-        """
-        with with_new_settings():
-            set_setting("batch_system", "slurm")
-            FastTask = _build_fast_task("script.py", "out.txt", None, False, False, [])
-            self.assertEqual(FastTask.batch_system, "local")
 
 
 class TestTestInputInSubdirectory(CLITestCase):

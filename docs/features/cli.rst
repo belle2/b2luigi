@@ -433,6 +433,24 @@ command is ``<interpreter> <script> -o <output> [-i <input>] [extra args]``.
    ``sys.argv`` rather than through :mod:`argparse` may need adjusting. This
    applies whether or not ``--executable`` is used.
 
+Choosing a batch system
+~~~~~~~~~~~~~~~~~~~~~~~
+
+``--batch`` alone detects a batch system by probing ``PATH`` in a fixed order
+(``bsub`` → ``condor_submit`` → ``sbatch``, else local). Use ``--batch-system`` to
+choose explicitly instead:
+
+.. code-block:: bash
+
+    b2luigi test -s my_script.py -o output_file.txt --batch-system slurm
+
+``--batch-system`` implies ``--batch``. It is needed on a machine with more than one
+scheduler installed, and to reach ``gbasf2``, which the ``PATH`` probe can never
+detect. An unknown name is rejected with a did-you-mean rather than ignored.
+
+The flag is sugar over an ordinary setting: it is equivalent to
+``--setting batch_system=<name>`` or a ``batch_system`` entry in ``settings.json``.
+
 .. note::
 
    Earlier versions ignored ``batch_system`` from ``settings.json`` and ``--setting``

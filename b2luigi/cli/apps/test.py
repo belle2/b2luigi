@@ -29,6 +29,17 @@ def test(
         bool,
         typer.Option("--batch", help="Submit task via batch system (batch_system='auto')."),
     ] = False,
+    batch_system: Annotated[
+        str | None,
+        typer.Option(
+            "--batch-system",
+            help=(
+                "Batch system to submit to (implies --batch). Use it to reach a system that "
+                "cannot be auto-detected from PATH (gbasf2), or to choose between several "
+                "that are installed. Equivalent to --setting batch_system=<name>."
+            ),
+        ),
+    ] = None,
     env_script: Annotated[
         str | None,
         typer.Option(
@@ -48,8 +59,9 @@ def test(
             "Applied only on the submission host and NEVER forwarded to the batch worker "
             "(unlike settings.json); use it for submission-side-only settings, and "
             "settings.json for anything (e.g. result_dir, log_dir) both sides must agree "
-            "on. batch_system can be set this way; env_script cannot, since FastTask "
-            "sets it as a class attribute which takes priority over --setting.",
+            "on. batch_system can be set this way (same as --batch-system); env_script "
+            "cannot, since FastTask sets it as a class attribute which takes priority over "
+            "--setting.",
         ),
     ] = None,
     literal_path: Annotated[
@@ -107,4 +119,5 @@ def test(
         settings=setting or [],
         literal_path=literal_path,
         executable=executable,
+        batch_system=batch_system,
     )

@@ -36,8 +36,8 @@ stderr_console = Console(stderr=True)
 def _resolve_batch_system(name: str) -> str:
     """Validate an explicitly requested batch system name.
 
-    ``"auto"`` is deliberately accepted as well: it is what ``batch=True`` means on
-    its own, so naming it explicitly must not be an error.
+    ``"auto"`` is deliberately accepted as well: it is what ``--batch`` means on its
+    own, so naming it explicitly must not be an error.
 
     :param name: The batch system requested by the user.
     :type name: str
@@ -306,10 +306,10 @@ def test_task(
         ``--setting`` values. Safe for submission-side-only settings
         (``apptainer_image``, ``env``, ``env_script``, ``working_dir``); for
         settings both sides must agree on (``result_dir``, ``log_dir``), use
-        ``settings.json`` instead. ``batch_system`` **can** be set this way;
-        ``env_script`` cannot, since :func:`_build_fast_task` sets it as a class
-        attribute on ``FastTask``, which :func:`~b2luigi.core.settings.get_setting`
-        checks before global settings.
+        ``settings.json`` instead. ``batch_system`` **can** be set this way
+        (equivalently to ``--batch-system``); ``env_script`` cannot, since
+        :func:`_build_fast_task` sets it as a class attribute on ``FastTask``, which
+        :func:`~b2luigi.core.settings.get_setting` checks before global settings.
     :type settings: list[str] | None
     :param literal_path: Forwarded to :func:`_build_fast_task`. See there for details.
     :type literal_path: bool
@@ -318,9 +318,9 @@ def test_task(
     :param batch_system: Optional batch system to submit to, validated by
         :func:`_resolve_batch_system`. Implies ``batch=True`` and is applied as an
         ordinary setting, so it is exactly equivalent to ``--setting batch_system=...``
-        or a ``settings.json`` entry — one mechanism, not a second one. Needed to reach
-        a system PATH probing cannot detect (``gbasf2``), and to choose between several
-        that are installed.
+        or a ``settings.json`` entry — discoverable sugar over the one mechanism, not a
+        second one. Needed to reach a system PATH probing cannot detect (``gbasf2``),
+        and to choose between several that are installed.
     :type batch_system: str | None
     :raises SystemExit: With exit code 1 when any task in the build fails.
     :raises CliUserError: If *batch_system* names no known batch system.
@@ -329,7 +329,7 @@ def test_task(
         set_setting(key, value)
 
     if batch_system is not None:
-        # Applied after --setting so an explicit choice wins over a --setting of the same
+        # Applied after --setting so an explicit flag wins over a --setting of the same
         # key, and before _build_fast_task, which probes for an explicit choice.
         set_setting("batch_system", _resolve_batch_system(batch_system))
         batch = True
