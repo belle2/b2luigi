@@ -173,6 +173,25 @@ class TestSlurmJobStatusCache(unittest.TestCase):
         with self.assertRaises(AssertionError):
             self.slurm_job_status_cache._ask_for_job_status()
 
+    @mock.patch("subprocess.run")
+    @mock.patch("subprocess.check_output")
+    def test_ask_for_job_status_treats_invalid_job_id_as_not_found(self, mock_check_output, mock_run):
+        """
+        Test that a squeue failure with "Invalid job id specified" (raised when a job has already
+        been purged from Slurm's live job table) is treated as "no jobs seen" instead of being
+        retried/raised, falling through to the sacct lookup.
+        """
+        # _check_if_sacct_is_disabled_on_server calls subprocess.run(["sacct"]) directly; mock it
+        # to report accounting as enabled (returncode 0) so the code takes the sacct history_cmd
+        # path below, which goes through the mocked subprocess.check_output instead.
+        mock_run.return_value = mock.Mock(returncode=0, stderr=b"")
+        squeue_error = subprocess.CalledProcessError(1, ["mock", "squeue"])
+        squeue_error.stderr = b"slurm_load_jobs error: Invalid job id specified"
+        mock_check_output.side_effect = [squeue_error, self.mock_status_string]
+        self.slurm_job_status_cache._ask_for_job_status(job_id=12344)
+        self.assertEqual(mock_check_output.call_count, 2)
+        self.assertEqual(self.slurm_job_status_cache[12344].value, "COMPLETED")
+
 
 class TestSlurmJobStatus:
     def test_strenum_comparison_with_string(self):
