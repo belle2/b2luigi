@@ -18,6 +18,7 @@ from b2luigi.cli.errors import CliUserError
 from b2luigi.cli.utils import parse_kv_params
 from b2luigi.core.settings import get_setting, set_setting
 from b2luigi.core.utils import (
+    _UNSET,
     create_output_dirs,
     flatten_to_dict,
     flatten_to_file_paths,
@@ -176,8 +177,18 @@ def _build_fast_task(
         if not os.path.exists(output_path):
             raise RuntimeError(f"Script '{exec_script}' ran successfully but did not produce output '{output}'")
 
+    # A class attribute outranks set_setting and settings.json in get_setting's
+    # cascade, so pinning one here is what made --setting batch_system=... and a
+    # settings.json entry silent no-ops. Only pin it when the user has not chosen:
+    # without --batch the task must stay local whatever the settings say, and with
+    # --batch but no explicit choice "auto" preserves the PATH-probing default.
+    if batch and get_setting("batch_system", default=_UNSET) is not _UNSET:
+        batch_system_attrs: dict[str, Any] = {}
+    else:
+        batch_system_attrs = {"batch_system": "auto" if batch else "local"}
+
     attrs: dict[str, Any] = {
-        "batch_system": "auto" if batch else "local",
+        **batch_system_attrs,
         "run": _run,
         "task_cmd_additional_args": (
             # -o and -i are resolved against the SUBMISSION host's cwd, exactly like
@@ -270,9 +281,9 @@ def test_task(
         ``--setting`` values. Safe for submission-side-only settings
         (``apptainer_image``, ``env``, ``env_script``, ``working_dir``); for
         settings both sides must agree on (``result_dir``, ``log_dir``), use
-        ``settings.json`` instead. Also cannot override ``batch_system`` or
-        ``env_script``, since :func:`_build_fast_task` already sets those as
-        class attributes on ``FastTask``, which :func:`~b2luigi.core.settings.get_setting`
+        ``settings.json`` instead. ``batch_system`` **can** be set this way;
+        ``env_script`` cannot, since :func:`_build_fast_task` sets it as a class
+        attribute on ``FastTask``, which :func:`~b2luigi.core.settings.get_setting`
         checks before global settings.
     :type settings: list[str] | None
     :param literal_path: Forwarded to :func:`_build_fast_task`. See there for details.

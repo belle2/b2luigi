@@ -753,6 +753,42 @@ class TestBatchRunnerInputFile(CLITestCase):
             self.assertEqual(output_file.read(), "input was: seed content")
 
 
+class TestBatchSystemSelection(TestCase):
+    """`--batch` must not stop the user choosing a batch system.
+
+    ``_build_fast_task`` set ``batch_system`` as a *class attribute*, and
+    ``get_setting`` ranks a task property above ``set_setting`` and ``settings.json``
+    (``core/settings.py``). So ``--setting batch_system=slurm`` and a ``settings.json``
+    entry were both silently ignored, and ``"auto"`` was resolved by probing PATH in a
+    fixed order — which can only ever reach lsf/htcondor/slurm/local.
+    """
+
+    def test_class_attribute_is_auto_without_an_explicit_setting(self) -> None:
+        """With nothing configured, --batch still means 'detect it for me'."""
+        with with_new_settings():
+            FastTask = _build_fast_task("script.py", "out.txt", None, False, True, [])
+            self.assertEqual(FastTask.batch_system, "auto")
+
+    def test_explicit_setting_wins_over_the_class_attribute(self) -> None:
+        """An explicitly chosen batch system reaches get_setting instead of "auto"."""
+        with with_new_settings():
+            set_setting("batch_system", "htcondor")
+            FastTask = _build_fast_task("script.py", "out.txt", None, False, True, [])
+            self.assertNotIn("batch_system", FastTask.__dict__)
+            self.assertEqual(get_setting("batch_system", default="auto", task=FastTask()), "htcondor")
+
+    def test_local_run_ignores_an_explicit_batch_system(self) -> None:
+        """Without --batch the task must stay local, whatever the settings say.
+
+        Guard, not a change: a plain ``b2luigi test`` must never submit anywhere
+        because a settings file happens to name a scheduler.
+        """
+        with with_new_settings():
+            set_setting("batch_system", "slurm")
+            FastTask = _build_fast_task("script.py", "out.txt", None, False, False, [])
+            self.assertEqual(FastTask.batch_system, "local")
+
+
 class TestTestInputInSubdirectory(CLITestCase):
     """``-i`` must accept a path, not only a bare filename in the current directory.
 

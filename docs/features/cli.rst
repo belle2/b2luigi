@@ -433,6 +433,14 @@ command is ``<interpreter> <script> -o <output> [-i <input>] [extra args]``.
    ``sys.argv`` rather than through :mod:`argparse` may need adjusting. This
    applies whether or not ``--executable`` is used.
 
+.. note::
+
+   Earlier versions ignored ``batch_system`` from ``settings.json`` and ``--setting``
+   for ``b2luigi test``, because ``FastTask`` pinned the value as a class attribute,
+   which outranks both in the settings cascade. They now take effect. If you have a
+   ``settings.json`` naming one scheduler while relying on auto-detection to pick a
+   different one, the setting now wins.
+
 Relative ``-s``/``-o``/``-i`` paths are resolved against the directory you invoke
 ``b2luigi test`` from, and may carry directory components (``-i data/input.txt``).
 Under ``--batch`` they are resolved on the submission host before being sent to the

@@ -48,9 +48,8 @@ def test(
             "Applied only on the submission host and NEVER forwarded to the batch worker "
             "(unlike settings.json); use it for submission-side-only settings, and "
             "settings.json for anything (e.g. result_dir, log_dir) both sides must agree "
-            "on. Cannot override batch_system or env_script — use --batch/--env-script "
-            "for those, since FastTask already sets them as class attributes which take "
-            "priority over --setting.",
+            "on. batch_system can be set this way; env_script cannot, since FastTask "
+            "sets it as a class attribute which takes priority over --setting.",
         ),
     ] = None,
     literal_path: Annotated[
