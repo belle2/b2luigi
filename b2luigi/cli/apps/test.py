@@ -101,12 +101,15 @@ def test(
     :param input: Optional input filename; creates a prerequisite task.
     :param force: Always re-run even if the output already exists.
     :param batch: Submit task via batch system.
+    :param batch_system: Batch system to submit to; implies --batch. Equivalent to
+        --setting batch_system=<name>. Needed for systems PATH probing cannot detect.
     :param env_script: Path to an environment setup script; only takes effect with --batch.
     :param setting: List of key=value overrides applied via set_setting() before the run.
     :param literal_path: When True (the default), -o writes to the literal path given,
         bypassing result_dir nesting; --no-literal-path restores the nesting.
     :param executable: Command used to run the script; defaults to the current interpreter.
     :param extra_args: Extra arguments forwarded verbatim to the script subprocess.
+    :raises CliUserError: If *batch_system* names no known batch system.
     """
     test_task(
         exec_script=script,
