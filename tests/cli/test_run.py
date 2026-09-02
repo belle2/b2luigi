@@ -160,15 +160,19 @@ class TestRunBatchWithParameterGenerator(CLITestCase):
 class TestRunBatchWithApptainerImage(CLITestCase):
     """``apptainer_image`` must not drag the dynamic WrapperTask into a container job.
 
-    ``_make_wrapper_task`` pins ``batch_system = "local"`` so the wrapper — which
-    exists only as a ``type()``-created class and is importable from nowhere —
-    always runs in-process. But ``workers.py`` diverts the *local* branch to
-    ``ApptainerProcess`` whenever ``apptainer_image`` is set, which defeats that
-    pin and submits the wrapper after all. Reconstruction then fails, because a
-    ``type()``-created luigi task reports ``__module__ == "abc"`` (luigi's
-    ``Register`` metaclass extends ``abc.ABCMeta``, so ``type.__new__`` reads the
-    module from ``abc``'s frame) and the worker resolves ``abc.SimpleTaskWrapper``
-    against the real :mod:`abc`.
+    ``batch_system = "local"`` together with an image means "run locally, inside
+    the container", and ``workers.py`` routes the local branch to
+    ``ApptainerProcess`` accordingly. That is intended, and right for the user's
+    real tasks — which must keep running in the image; this test asserts they do.
+
+    The dynamic wrapper from ``_make_wrapper_task`` is the exception. It is
+    b2luigi's own scaffolding rather than user work, exists only as a
+    ``type()``-created class, and is importable from nowhere, so containerising
+    it can only fail: a ``type()``-created luigi task reports
+    ``__module__ == "abc"`` (luigi's ``Register`` metaclass extends
+    ``abc.ABCMeta``, so ``type.__new__`` reads the module from ``abc``'s frame),
+    and the worker then resolves ``abc.SimpleTaskWrapper`` against the real
+    :mod:`abc`.
     """
 
     def setUp(self) -> None:
@@ -184,8 +188,14 @@ class TestRunBatchWithApptainerImage(CLITestCase):
         # Stand in for the container runtime: log the argv, then run the payload
         # on the host. Enough to exercise the dispatch decision without Apptainer,
         # which is Linux-only and cannot be installed on every dev machine.
+        self.apptainer_log = pathlib.Path(self.tmp_dir, "apptainer-calls.log")
         fake_bin = pathlib.Path(self.tmp_dir, "fake-apptainer")
-        fake_bin.write_text('#!/bin/bash\nwhile [ "$1" != "/bin/bash" ]; do shift; done\nexec "$@"\n')
+        fake_bin.write_text(
+            "#!/bin/bash\n"
+            f'echo "$@" >> {self.apptainer_log}\n'
+            'while [ "$1" != "/bin/bash" ]; do shift; done\n'
+            'exec "$@"\n'
+        )
         fake_bin.chmod(0o755)
         pathlib.Path(self.tmp_dir, "env.sh").write_text("#!/bin/bash\n")
         pathlib.Path(self.tmp_dir, "settings.json").write_text(
@@ -207,3 +217,14 @@ class TestRunBatchWithApptainerImage(CLITestCase):
         self.assertNotIn("abc.SimpleTaskWrapper", combined)
         self.assertNotIn("Failed task SimpleTaskWrapper", combined)
         self.assertIn("looks :)", combined)
+        # The real tasks must still have gone through the container path — the
+        # fix must exempt the scaffolding, not disable Apptainer wholesale.
+        for value in (1, 2):
+            self.assertTrue(os.path.exists(os.path.join(self.tmp_dir, f"output_{value}.txt")))
+        self.assertTrue(
+            self.apptainer_log.exists(),
+            "the container runtime was never invoked, so Apptainer was disabled wholesale",
+        )
+        calls = self.apptainer_log.read_text()
+        self.assertIn("--classname SimpleTask", calls)
+        self.assertNotIn("SimpleTaskWrapper", calls)

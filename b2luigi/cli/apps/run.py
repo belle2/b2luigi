@@ -44,14 +44,17 @@ def _make_wrapper_task(task_class: type, param_dicts: list[dict[str, Any]]) -> b
     per-combination task instances are real, importable classes and are
     submitted to the batch system individually as normal.
 
-    ``apptainer_image`` is pinned empty for the same reason, and it is not
-    redundant: :mod:`b2luigi.batch.workers` diverts even the ``local`` branch to
-    ``ApptainerProcess`` whenever an image is configured, which would submit the
-    wrapper despite the ``batch_system`` pin. Reconstruction then fails with
-    ``Unknown task 'abc.<Name>Wrapper'`` — a ``type()``-created luigi task
-    reports ``__module__ == "abc"``, because luigi's ``Register`` metaclass
-    extends :class:`abc.ABCMeta` and ``type.__new__`` takes the module from the
-    calling frame, which is :mod:`abc` itself.
+    ``apptainer_image`` is pinned empty for the same reason, and the pin is not
+    redundant. ``batch_system = "local"`` with an image set means "run locally,
+    but inside the container", so :mod:`b2luigi.batch.workers` routes the
+    ``local`` branch to ``ApptainerProcess`` — by design, and correct for real
+    tasks, which keep running in the image. The wrapper is not a real task: it
+    is b2luigi's own scaffolding, does no work beyond aggregating ``requires()``,
+    and is importable from nowhere, so containerising it can only fail. It fails
+    with ``Unknown task 'abc.<Name>Wrapper'``, because a ``type()``-created luigi
+    task reports ``__module__ == "abc"`` — luigi's ``Register`` metaclass extends
+    :class:`abc.ABCMeta`, and ``type.__new__`` takes the module from the calling
+    frame, which is :mod:`abc` itself.
 
     Both pins rely on a task attribute outranking a global setting in
     :func:`~b2luigi.core.settings.get_setting`'s cascade.
