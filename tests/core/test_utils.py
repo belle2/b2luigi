@@ -628,15 +628,9 @@ class TestCreateCmdFromTask(TestCase):
         m_idx = cmd.index("-m")
         self.assertEqual(cmd[m_idx : m_idx + 3], ["-m", "b2luigi", "batch-runner"])
 
-    @patch("b2luigi.core.utils.get_filename", return_value="/abs/path/myscript.py")
     @patch("b2luigi.core.utils.get_setting")
-    def test_new_cli_mode_appends_task_file(self, mock_gs, _mock_gf):
-        """--task-file is appended when __batch_runner_task_file is set.
-
-        The token is the path relative to the project directory, so it stays
-        valid after the wrapper changes into a relocated ``working_dir``; see
-        :class:`TestTaskFileEncodingForWorker`.
-        """
+    def test_new_cli_mode_appends_task_file(self, mock_gs):
+        """--task-file is appended when __batch_runner_task_file is set."""
         mock_gs.side_effect = _make_get_setting(
             {
                 "__batch_runner_use_cli": True,
@@ -646,7 +640,7 @@ class TestCreateCmdFromTask(TestCase):
         cmd = create_cmd_from_task(_mock_task())
         self.assertIn("--task-file", cmd)
         idx = cmd.index("--task-file")
-        self.assertEqual(cmd[idx + 1], "myscript.py")
+        self.assertEqual(cmd[idx + 1], "/abs/path/myscript.py")
 
     @patch("b2luigi.core.utils.get_setting")
     def test_new_cli_mode_no_task_file_when_unset(self, mock_gs):
@@ -830,19 +824,13 @@ class TestCreateCmdFromTaskQuoting(TestCase):
             ["b2luigi", "batch-runner", "--classname", "MyTask", "--param", "label=it's here"],
         )
 
-    @patch("b2luigi.core.utils.get_filename", return_value="/proj/tasks.py")
     @patch("b2luigi.core.utils.get_setting")
-    def test_task_file_path_with_space_survives_shell_split(self, mock_gs, _mock_gf):
-        """The --task-file path has the same exposure as --param values.
-
-        The space must sit in the part of the path that survives encoding —
-        the token is relative to the project directory, so a space in the
-        absolute prefix alone would leave nothing to quote.
-        """
-        mock_gs.side_effect = self._cli_settings({"__batch_runner_task_file": "/proj/my dir/tasks.py"})
+    def test_task_file_path_with_space_survives_shell_split(self, mock_gs):
+        """The --task-file path has the same exposure as --param values."""
+        mock_gs.side_effect = self._cli_settings({"__batch_runner_task_file": "/my path/tasks.py"})
         cmd = create_cmd_from_task(_mock_task())
         argv = shlex.split(" ".join(cmd))
-        self.assertEqual(argv[argv.index("--task-file") + 1], os.path.join("my dir", "tasks.py"))
+        self.assertEqual(argv[argv.index("--task-file") + 1], "/my path/tasks.py")
 
     @patch("b2luigi.core.utils.get_setting")
     def test_user_supplied_settings_are_not_quoted(self, mock_gs):
@@ -947,19 +935,18 @@ class TestCreateApptainerCommandQuoting(TestCase):
 
 
 class TestTaskFileEncodingForWorker(TestCase):
-    """The ``--task-file`` token must survive relocation to the worker.
+    """The ``--task-file`` token keeps the shape the user asked for.
 
-    ``working_dir`` names the project root *as the worker sees it*
-    (``docs/features/batch.rst``: "your script needs to be in this folder"),
-    so the wire token has to be the task file's position *inside* the project,
-    not its absolute path on the submission host. An absolute path breaks the
-    two normal relocating deployments: scratch staging, where it does not
-    exist on the node, and dev/production checkouts, where it silently points
-    back at the wrong copy.
+    b2luigi's convention: an absolute path the user supplied stays absolute, a
+    relative one stays relative and is resolved against ``working_dir`` (which
+    defaults to the directory you invoked b2luigi from). Applied here, that is
+    also what makes a relocating ``working_dir`` work — the wrapper ``cd``s
+    into a copy of the project and a relative token resolves inside it, where
+    an absolute submission-host path would either not exist or, worse, point
+    back at a different checkout on a shared filesystem.
 
-    The reference point is the submission-side project root, never
-    ``working_dir`` itself — that names a directory on the worker, so the two
-    have different roots and cannot be related to one another.
+    Absolutising the path here would take that choice away from the user, so
+    the encoder passes it through untouched.
     """
 
     @staticmethod
@@ -978,57 +965,36 @@ class TestTaskFileEncodingForWorker(TestCase):
     def _task_file_token(cmd):
         return cmd[cmd.index("--task-file") + 1]
 
-    @patch("b2luigi.core.utils.get_filename", return_value="/home/dev/proj/tasks.py")
     @patch("b2luigi.core.utils.get_setting")
-    def test_task_file_in_project_root_yields_bare_name(self, mock_gs, _mock_gf):
-        """The common case collapses to the bare file name, as the legacy encoding did."""
-        mock_gs.side_effect = self._settings("/home/dev/proj/tasks.py")
+    def test_relative_task_file_stays_relative(self, mock_gs):
+        """The default case: a relative path is what relocates to the worker."""
+        mock_gs.side_effect = self._settings("tasks.py")
         cmd = create_cmd_from_task(_mock_task())
         self.assertEqual(self._task_file_token(cmd), "tasks.py")
 
-    @patch("b2luigi.core.utils.get_filename", return_value="/home/dev/proj/tasks.py")
     @patch("b2luigi.core.utils.get_setting")
-    def test_relocated_working_dir_does_not_appear_in_token(self, mock_gs, _mock_gf):
-        """A worker-side working_dir must not influence the token at all.
-
-        This is both the scratch-staging and the dev/production case: neither
-        the submission-host prefix nor the worker-side one belongs in the wire
-        format, only the path within the project.
-        """
-        mock_gs.side_effect = self._settings("/home/dev/proj/tasks.py", working_dir="/scratch/job42/proj")
-        cmd = create_cmd_from_task(_mock_task())
-        token = self._task_file_token(cmd)
-        self.assertEqual(token, "tasks.py")
-        self.assertNotIn("/home/dev", token)
-        self.assertNotIn("/scratch", token)
-
-    @patch("b2luigi.core.utils.get_filename", return_value="/home/dev/proj/tasks.py")
-    @patch("b2luigi.core.utils.get_setting")
-    def test_subdirectory_component_is_preserved(self, mock_gs, _mock_gf):
-        """A task file nested inside the project keeps its relative sub-path."""
-        mock_gs.side_effect = self._settings("/home/dev/proj/sub/tasks.py", working_dir="/scratch/job42/proj")
+    def test_relative_subdirectory_is_preserved(self, mock_gs):
+        """A relative path with a directory component keeps it."""
+        mock_gs.side_effect = self._settings(os.path.join("sub", "tasks.py"))
         cmd = create_cmd_from_task(_mock_task())
         self.assertEqual(self._task_file_token(cmd), os.path.join("sub", "tasks.py"))
 
-    @patch("b2luigi.core.utils.get_filename", return_value="/home/dev/proj/tasks.py")
     @patch("b2luigi.core.utils.get_setting")
-    def test_dot_working_dir_yields_bare_name(self, mock_gs, _mock_gf):
-        """working_dir='.' is required by HTCondor transfer_files and needs no special case."""
-        mock_gs.side_effect = self._settings("/home/dev/proj/tasks.py", working_dir=".")
-        cmd = create_cmd_from_task(_mock_task())
-        self.assertEqual(self._task_file_token(cmd), "tasks.py")
+    def test_absolute_task_file_stays_absolute(self, mock_gs):
+        """An absolute path the user gave is honoured, not rewritten.
 
-    @patch("b2luigi.core.utils.get_filename", return_value="/home/dev/proj/tasks.py")
-    @patch("b2luigi.core.utils.get_setting")
-    def test_task_file_outside_project_dir_raises(self, mock_gs, _mock_gf):
-        """A task file outside the project cannot be reconstructed and must fail loudly.
-
-        Falling back to the absolute path here is the silent direction: on a
-        shared filesystem it would run the wrong copy of the code.
+        ``b2luigi run --task-file /elsewhere/tasks.py --batch`` is legitimate
+        and works locally; the batch path must not reject or relativise it.
         """
-        mock_gs.side_effect = self._settings("/elsewhere/other/tasks.py")
-        with self.assertRaises(ValueError) as ctx:
-            create_cmd_from_task(_mock_task())
-        message = str(ctx.exception)
-        self.assertIn("/elsewhere/other/tasks.py", message)
-        self.assertIn("/home/dev/proj", message)
+        mock_gs.side_effect = self._settings("/elsewhere/proj/tasks.py")
+        cmd = create_cmd_from_task(_mock_task())
+        self.assertEqual(self._task_file_token(cmd), "/elsewhere/proj/tasks.py")
+
+    @patch("b2luigi.core.utils.get_setting")
+    def test_working_dir_does_not_rewrite_the_token(self, mock_gs):
+        """working_dir names a directory on the worker; it cannot rewrite a path here."""
+        mock_gs.side_effect = self._settings("tasks.py", working_dir="/scratch/job42/proj")
+        cmd = create_cmd_from_task(_mock_task())
+        token = self._task_file_token(cmd)
+        self.assertEqual(token, "tasks.py")
+        self.assertNotIn("/scratch", token)

@@ -1,4 +1,3 @@
-import os
 from typing import Annotated, Any, Optional
 
 import typer
@@ -118,7 +117,13 @@ def run_task(
     else:
         task_instance = _make_wrapper_task(task_class, param_dicts)
 
-    process_task_instance(task_instance, task_file=os.path.abspath(task_filename), **kwargs)
+    # Pass the task file through as the user gave it. b2luigi's convention is that
+    # an absolute path stays absolute and a relative one is resolved against
+    # working_dir, which the batch wrapper cd's into. Absolutising here would bake
+    # the submission host's layout into the worker command, breaking a relocating
+    # working_dir: the path either does not exist on the node, or on a shared
+    # filesystem points back at a different checkout of the project.
+    process_task_instance(task_instance, task_file=task_filename, **kwargs)
 
 
 @run_app.callback(invoke_without_command=True)
