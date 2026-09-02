@@ -13,9 +13,9 @@ import luigi.configuration
 from rich.console import Console
 from rich.prompt import Confirm
 
-from b2luigi.batch.workers import SendJobWorkerSchedulerFactory
+from b2luigi.batch.workers import BatchSystems, SendJobWorkerSchedulerFactory
 from b2luigi.cli.errors import CliUserError
-from b2luigi.cli.utils import parse_kv_params
+from b2luigi.cli.utils import parse_kv_params, suggest
 from b2luigi.core.settings import get_setting, set_setting
 from b2luigi.core.utils import (
     _UNSET,
@@ -31,6 +31,30 @@ console = Console()
 #: is designed to be piped and ``graph --format dot`` to be fed to Graphviz, so
 #: anything printed alongside them belongs on stderr.
 stderr_console = Console(stderr=True)
+
+
+def _resolve_batch_system(name: str) -> str:
+    """Validate an explicitly requested batch system name.
+
+    ``"auto"`` is deliberately accepted as well: it is what ``batch=True`` means on
+    its own, so naming it explicitly must not be an error.
+
+    :param name: The batch system requested by the user.
+    :type name: str
+    :returns: The validated name, unchanged.
+    :rtype: str
+    :raises CliUserError: If *name* is not a known batch system. A near miss is
+        reported with a did-you-mean, since the historical failure mode here was a
+        silently ignored value rather than a rejection.
+    """
+    valid = [system.value for system in BatchSystems] + ["auto"]
+    if name in valid:
+        return name
+    hint = suggest(name, valid)
+    message = f"Unknown batch system {name!r}."
+    if hint:
+        message += f" Did you mean {hint!r}?"
+    raise CliUserError(f"{message} Valid choices: {', '.join(sorted(valid))}.")
 
 
 def _build_fast_req_task(input_file: str) -> type:
@@ -241,6 +265,7 @@ def test_task(
     settings: list[str] | None = None,
     literal_path: bool = True,
     executable: str | None = None,
+    batch_system: str | None = None,
 ) -> None:
     """Run a one-off b2luigi task that executes *exec_script* as a subprocess.
 
@@ -290,10 +315,24 @@ def test_task(
     :type literal_path: bool
     :param executable: Forwarded to :func:`_build_fast_task`. See there for details.
     :type executable: str | None
+    :param batch_system: Optional batch system to submit to, validated by
+        :func:`_resolve_batch_system`. Implies ``batch=True`` and is applied as an
+        ordinary setting, so it is exactly equivalent to ``--setting batch_system=...``
+        or a ``settings.json`` entry — one mechanism, not a second one. Needed to reach
+        a system PATH probing cannot detect (``gbasf2``), and to choose between several
+        that are installed.
+    :type batch_system: str | None
     :raises SystemExit: With exit code 1 when any task in the build fails.
+    :raises CliUserError: If *batch_system* names no known batch system.
     """
     for key, value in parse_kv_params(settings or []).items():
         set_setting(key, value)
+
+    if batch_system is not None:
+        # Applied after --setting so an explicit choice wins over a --setting of the same
+        # key, and before _build_fast_task, which probes for an explicit choice.
+        set_setting("batch_system", _resolve_batch_system(batch_system))
+        batch = True
 
     set_setting("__batch_runner_use_cli", True)
     FastTask = _build_fast_task(

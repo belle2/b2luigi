@@ -12,7 +12,7 @@ from unittest import TestCase, mock
 import b2luigi
 
 from b2luigi.cli.errors import CliUserError
-from b2luigi.cli.runner import _build_fast_task, _build_fast_req_task, test_task
+from b2luigi.cli.runner import _build_fast_task, _build_fast_req_task, _resolve_batch_system, test_task
 from b2luigi.core.executable import create_executable_wrapper
 from b2luigi.core.settings import get_setting, set_setting, with_new_settings
 from b2luigi.core.utils import create_cmd_from_task
@@ -776,6 +776,20 @@ class TestBatchSystemSelection(TestCase):
             FastTask = _build_fast_task("script.py", "out.txt", None, False, True, [])
             self.assertNotIn("batch_system", FastTask.__dict__)
             self.assertEqual(get_setting("batch_system", default="auto", task=FastTask()), "htcondor")
+
+    def test_known_batch_system_is_accepted(self) -> None:
+        """A valid name resolves to itself."""
+        self.assertEqual(_resolve_batch_system("slurm"), "slurm")
+
+    def test_gbasf2_is_selectable(self) -> None:
+        """gbasf2 is a valid choice even though PATH probing can never detect it."""
+        self.assertEqual(_resolve_batch_system("gbasf2"), "gbasf2")
+
+    def test_unknown_batch_system_is_rejected_with_a_suggestion(self) -> None:
+        """A typo is a hard error naming the nearest valid system, not a silent no-op."""
+        with self.assertRaises(CliUserError) as caught:
+            _resolve_batch_system("slrum")
+        self.assertIn("slurm", str(caught.exception))
 
     def test_local_run_ignores_an_explicit_batch_system(self) -> None:
         """Without --batch the task must stay local, whatever the settings say.
