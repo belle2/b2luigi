@@ -577,6 +577,44 @@ def add_on_failure_function(task):
     task.on_failure = types.MethodType(on_failure, task)
 
 
+def encode_task_file_for_worker(task_file: str) -> str:
+    """Express *task_file* the way the batch worker will see it.
+
+    The wrapper runs ``cd <working_dir>`` before invoking ``batch-runner``, and
+    ``working_dir`` is documented as the project root *as the worker sees it*
+    (``docs/features/batch.rst``: "your script needs to be in this folder").
+    So the wire token has to be the task file's position **inside the project**,
+    which relocates cleanly, rather than its absolute path on the submission
+    host, which does not: on a node that stages the repo into a scratch
+    directory that path does not exist, and on a shared filesystem it points
+    back at the submission host's own checkout, silently running the wrong copy
+    of the code. This reproduces the legacy encoding, which sent
+    ``os.path.basename(get_filename())``.
+
+    The reference point is the **submission-side** project root
+    (``os.path.dirname(get_filename())``), never ``working_dir`` — the latter
+    names a directory on the worker, so the two paths have different roots and
+    cannot be related to each other.
+
+    :param task_file: Absolute path to the task file on the submission host.
+    :type task_file: str
+    :returns: The task file path relative to the project root.
+    :rtype: str
+    :raises ValueError: If *task_file* lies outside the project root, which the
+        worker cannot reconstruct. Falling back to the absolute path would be
+        the silent failure this function exists to prevent.
+    """
+    project_dir = os.path.abspath(os.path.dirname(get_filename()))
+    relative = os.path.relpath(os.path.abspath(task_file), project_dir)
+    if relative.split(os.sep)[0] == os.pardir:
+        raise ValueError(
+            f"The task file '{task_file}' is outside the project directory '{project_dir}', so a batch "
+            "worker cannot locate it after changing into working_dir. Run b2luigi from the directory "
+            "containing your task file, or move the task file into the project."
+        )
+    return relative
+
+
 def create_cmd_from_task(task):
     """
     Constructs a command-line argument list to execute a task on a batch worker node.
@@ -711,7 +749,7 @@ def create_cmd_from_task(task):
             cmd += ["--param", shlex.quote(f"{param_name}={param_value}")]
         task_file = get_setting("__batch_runner_task_file", default=False) or None
         if task_file is not None:
-            cmd += ["--task-file", shlex.quote(task_file)]
+            cmd += ["--task-file", shlex.quote(encode_task_file_for_worker(task_file))]
     else:
         filename = (
             os.path.basename(get_filename()) if get_setting("add_filename_to_cmd", task=task, default=True) else ""
