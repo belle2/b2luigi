@@ -4,6 +4,7 @@
     execution and error handling via a positional task name argument.
 """
 
+import json
 import os
 import pathlib
 import shutil
@@ -154,3 +155,55 @@ class TestRunBatchWithParameterGenerator(CLITestCase):
         self.assertIn("looks :)", combined)
         self.assertTrue(os.path.exists(os.path.join(self.tmp_dir, "output_1.txt")))
         self.assertTrue(os.path.exists(os.path.join(self.tmp_dir, "output_2.txt")))
+
+
+class TestRunBatchWithApptainerImage(CLITestCase):
+    """``apptainer_image`` must not drag the dynamic WrapperTask into a container job.
+
+    ``_make_wrapper_task`` pins ``batch_system = "local"`` so the wrapper — which
+    exists only as a ``type()``-created class and is importable from nowhere —
+    always runs in-process. But ``workers.py`` diverts the *local* branch to
+    ``ApptainerProcess`` whenever ``apptainer_image`` is set, which defeats that
+    pin and submits the wrapper after all. Reconstruction then fails, because a
+    ``type()``-created luigi task reports ``__module__ == "abc"`` (luigi's
+    ``Register`` metaclass extends ``abc.ABCMeta``, so ``type.__new__`` reads the
+    module from ``abc``'s frame) and the worker resolves ``abc.SimpleTaskWrapper``
+    against the real :mod:`abc`.
+    """
+
+    def setUp(self) -> None:
+        super().setUp()
+        test_dir = os.path.dirname(__file__)
+        shutil.copy(
+            os.path.join(test_dir, "cli_generator_tasks.py"),
+            os.path.join(self.tmp_dir, "tasks.py"),
+        )
+        pathlib.Path(self.tmp_dir, "parameters.py").write_text(
+            "from b2luigi import ParameterGenerator\nconfig = {'value': ParameterGenerator([1, 2])}\n"
+        )
+        # Stand in for the container runtime: log the argv, then run the payload
+        # on the host. Enough to exercise the dispatch decision without Apptainer,
+        # which is Linux-only and cannot be installed on every dev machine.
+        fake_bin = pathlib.Path(self.tmp_dir, "fake-apptainer")
+        fake_bin.write_text('#!/bin/bash\nwhile [ "$1" != "/bin/bash" ]; do shift; done\nexec "$@"\n')
+        fake_bin.chmod(0o755)
+        pathlib.Path(self.tmp_dir, "env.sh").write_text("#!/bin/bash\n")
+        pathlib.Path(self.tmp_dir, "settings.json").write_text(
+            json.dumps(
+                {
+                    "batch_system": "local",
+                    "apptainer_image": os.path.join(self.tmp_dir, "fake.sif"),
+                    "apptainer_cmd": str(fake_bin),
+                    "apptainer_mounts": [],
+                    "env_script": os.path.join(self.tmp_dir, "env.sh"),
+                }
+            )
+        )
+
+    def test_wrapper_task_is_not_submitted_as_a_container_job(self) -> None:
+        """The wrapper must stay in-process even with an Apptainer image configured."""
+        _returncode, stdout, stderr = self._run_cli("run", ["SimpleTask", "--batch"])
+        combined = stdout + stderr
+        self.assertNotIn("abc.SimpleTaskWrapper", combined)
+        self.assertNotIn("Failed task SimpleTaskWrapper", combined)
+        self.assertIn("looks :)", combined)
