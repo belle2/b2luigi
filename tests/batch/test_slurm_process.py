@@ -230,8 +230,14 @@ class TestSlurmGroupedSubmission(B2LuigiTestCase):
     def setUp(self):
         super().setUp()
         _batch_job_status_cache.clear()
+        # Sub-task wrappers and logs must land in the temp dir: the defaults resolve relative to
+        # the "main script", which under pytest on CI is a read-only externals installation.
+        b2luigi.set_setting("log_dir", os.path.join(self.test_dir, "logs"))
+        b2luigi.set_setting("task_file_dir", os.path.join(self.test_dir, "task_files"))
 
     def tearDown(self):
+        b2luigi.clear_setting("log_dir")
+        b2luigi.clear_setting("task_file_dir")
         _batch_job_status_cache.clear()
         super().tearDown()
 
@@ -258,6 +264,7 @@ class TestSlurmGroupedSubmission(B2LuigiTestCase):
         for value, call in zip((0, 1, 2), check_output.call_args_list):
             self.assertEqual(call.args[0][0], "sbatch")
             self.assertIn(f"grouped={value}", str(call.kwargs["cwd"]))
+            self.assertTrue(str(call.kwargs["cwd"]).startswith(self.test_dir), call.kwargs["cwd"])
 
     @mock.patch("subprocess.check_output")
     def test_ungrouped_task_is_submitted_once(self, check_output):

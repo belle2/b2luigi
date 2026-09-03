@@ -157,6 +157,18 @@ class TestHTCondorGroupedSubmitFile(B2LuigiTestCase):
     per element of that tuple, each describing a single scalar sub-task.
     """
 
+    def setUp(self):
+        super().setUp()
+        # Sub-task wrappers and logs must land in the temp dir: the defaults resolve relative to
+        # the "main script", which under pytest on CI is a read-only externals installation.
+        b2luigi.set_setting("log_dir", os.path.join(self.test_dir, "logs"))
+        b2luigi.set_setting("task_file_dir", os.path.join(self.test_dir, "task_files"))
+
+    def tearDown(self):
+        b2luigi.clear_setting("log_dir")
+        b2luigi.clear_setting("task_file_dir")
+        super().tearDown()
+
     def _make_process(self, task):
         process = mock.Mock()
         task.get_task_file_dir = lambda: self.test_dir

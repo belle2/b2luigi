@@ -7,6 +7,7 @@ from unittest import mock
 
 import luigi
 
+import b2luigi
 from b2luigi.batch.processes import JobStatus
 from b2luigi.batch.processes.lsf import LSFProcess, _batch_job_status_cache
 
@@ -24,8 +25,14 @@ class TestLSFGroupedSubmission(B2LuigiTestCase):
     def setUp(self):
         super().setUp()
         _batch_job_status_cache.clear()
+        # Sub-task wrappers and logs must land in the temp dir: the defaults resolve relative to
+        # the "main script", which under pytest on CI is a read-only externals installation.
+        b2luigi.set_setting("log_dir", os.path.join(self.test_dir, "logs"))
+        b2luigi.set_setting("task_file_dir", os.path.join(self.test_dir, "task_files"))
 
     def tearDown(self):
+        b2luigi.clear_setting("log_dir")
+        b2luigi.clear_setting("task_file_dir")
         _batch_job_status_cache.clear()
         super().tearDown()
 
@@ -57,6 +64,7 @@ class TestLSFGroupedSubmission(B2LuigiTestCase):
             command = call.args[0]
             self.assertEqual(command[0], "bsub")
             self.assertIn(f"grouped={value}", command[-1])
+            self.assertTrue(command[-1].startswith(self.test_dir), command[-1])
 
     @mock.patch("subprocess.check_output")
     def test_ungrouped_task_is_submitted_once(self, check_output):
