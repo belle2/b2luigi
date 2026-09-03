@@ -44,6 +44,8 @@ General settings
     This is used when targets are created with the :meth:`b2luigi.Task.add_to_output` method. If not set, the path
     returned by ``tempfile.gettempdir()`` is used to write temporary files (very likely ``/tmp`` is used unless
     the environment variables ``TMPDIR``, ``TEMP`` or ``TMP`` are set).
+    Note that input files are copied here too by default; a task that reads many large inputs can skip
+    that with ``@b2luigi.on_temporary_files(inputs=False)``.
 
 - ``batch_system``: String
     The batch system to use when executed in batch mode. Currently, ``htcondor``, ``lsf``, ``slurm``, ``gbasf2``, ``auto`` and ``local`` are supported.
