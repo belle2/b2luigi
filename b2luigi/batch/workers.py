@@ -86,20 +86,20 @@ class SendJobWorker(luigi.worker.Worker):
         """
         batch_system = self.detect_batch_system(task)
 
-        # fail if grouping is used on other tasks then htcondor tasks
-        if task.has_grouped_params() and task.max_grouping_size > 1 and batch_system != BatchSystems.htcondor:
-            raise RuntimeError(
-                f"The grouping of tasks is currently only implemented for HTCondor processes and not for {batch_system}!"
-            )
+        # fail if grouping is used on a batch system that cannot expand a group
+        grouping_batch_systems = {BatchSystems.htcondor, BatchSystems.slurm, BatchSystems.lsf}
+        if task.has_grouped_params() and task.max_grouping_size > 1:
+            if batch_system not in grouping_batch_systems:
+                raise RuntimeError(
+                    "The grouping of tasks is currently only implemented for HTCondor, Slurm and LSF "
+                    f"processes and not for {batch_system}!"
+                )
+            logging.warning("Grouping of tasks is currently an experimental feature and should be treated with care!")
 
         if batch_system == BatchSystems.lsf:
             process_class = LSFProcess
         elif batch_system == BatchSystems.htcondor:
             process_class = HTCondorProcess
-            if task.has_grouped_params():
-                logging.warning(
-                    "Grouping of tasks is currently an experimental feature and should be treated with care!"
-                )
         elif batch_system == BatchSystems.slurm:
             process_class = SlurmProcess
         elif batch_system == BatchSystems.gbasf2:

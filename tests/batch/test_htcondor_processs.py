@@ -8,11 +8,20 @@ import subprocess
 import unittest
 from unittest import mock
 
+import luigi
+
 import b2luigi
-from b2luigi.batch.processes.htcondor import HTCondorJobStatusCache, HTCondorProcess
+from b2luigi.batch.processes import JobStatus
+from b2luigi.batch.processes.htcondor import (
+    HTCondorJobStatus,
+    HTCondorJobStatusCache,
+    HTCondorProcess,
+    _batch_job_status_cache,
+)
 
 from ..helpers import B2LuigiTestCase
 from .batch_task_1 import MyTask
+from .batch_task_grouped import MyGroupedTask
 
 
 class TestHTCondorCreateSubmitFile(B2LuigiTestCase):
@@ -137,3 +146,97 @@ class TestHTCondorJobStatusCache(unittest.TestCase):
         ]
         with self.assertRaises(subprocess.CalledProcessError):
             self.htcondor_job_status_cache._ask_for_job_status()
+
+
+class TestHTCondorGroupedSubmitFile(B2LuigiTestCase):
+    """
+    Tests for the parameter-grouping branch of :obj:`HTCondorProcess._create_htcondor_submit_file`.
+
+    A grouped task arrives from luigi's batching machinery with a *tuple* value for
+    every grouped parameter. The submit file must then carry one ``queue 1`` block
+    per element of that tuple, each describing a single scalar sub-task.
+    """
+
+    def _make_process(self, task):
+        process = mock.Mock()
+        task.get_task_file_dir = lambda: self.test_dir
+        task.get_log_file_dir = lambda: self.test_dir
+        process.task = task
+        process._terminated = False
+        process._create_submit_file_content = lambda task: HTCondorProcess._create_submit_file_content(task)
+        return process
+
+    def _submit_file_string(self, task):
+        process = self._make_process(task)
+        HTCondorProcess._create_htcondor_submit_file(process)
+        with open(os.path.join(self.test_dir, "job.submit"), "r") as submit_file:
+            return submit_file.read()
+
+    @staticmethod
+    def _mark_complete(task):
+        output_file_name = task.get_output_file_name("grouped.txt")
+        os.makedirs(os.path.dirname(output_file_name), exist_ok=True)
+        with open(output_file_name, "w") as f:
+            f.write("already done")
+
+    def test_grouped_task_gets_one_queue_block_per_value(self):
+        submit_file_string = self._submit_file_string(MyGroupedTask(plain=0, grouped=(0, 1, 2)))
+        self.assertEqual(submit_file_string.count("queue 1"), 3)
+
+    def test_grouped_task_blocks_carry_the_individual_values(self):
+        submit_file_string = self._submit_file_string(MyGroupedTask(plain=0, grouped=(0, 1, 2)))
+        for value in (0, 1, 2):
+            self.assertIn(f"grouped={value}{os.sep}", submit_file_string)
+        self.assertNotIn("grouped=(0, 1, 2)", submit_file_string)
+
+    def test_ungrouped_value_is_submitted_as_a_single_job(self):
+        submit_file_string = self._submit_file_string(MyGroupedTask(plain=0, grouped=7))
+        self.assertEqual(submit_file_string.count("queue 1"), 1)
+
+    def test_complete_sub_tasks_are_not_resubmitted(self):
+        task = MyGroupedTask(plain=0, grouped=(0, 1, 2))
+        self._mark_complete(task.clone(None, grouped=1))
+
+        submit_file_string = self._submit_file_string(task)
+
+        self.assertEqual(submit_file_string.count("queue 1"), 2)
+        self.assertNotIn(f"grouped=1{os.sep}", submit_file_string)
+
+    def test_fully_complete_group_terminates_without_submitting(self):
+        task = MyGroupedTask(plain=0, grouped=(0, 1))
+        for value in (0, 1):
+            self._mark_complete(task.clone(None, grouped=value))
+
+        process = self._make_process(task)
+        HTCondorProcess._create_htcondor_submit_file(process)
+
+        self.assertTrue(process._terminated)
+        process._put_to_result_queue.assert_called_once_with(status=luigi.scheduler.DONE, explanation="")
+
+
+class TestHTCondorGroupedJobStatus(B2LuigiTestCase):
+    def setUp(self):
+        super().setUp()
+        _batch_job_status_cache.clear()
+
+    def tearDown(self):
+        _batch_job_status_cache.clear()
+        super().tearDown()
+
+    def test_status_is_aggregated_over_all_jobs(self):
+        process = HTCondorProcess(
+            task=MyGroupedTask(plain=0, grouped=(0, 1, 2)),
+            scheduler=mock.Mock(),
+            result_queue=mock.Mock(),
+            worker_timeout=None,
+        )
+        process._batch_job_ids = [101, 102, 103]
+        _batch_job_status_cache.add_job_ids(process._batch_job_ids)
+
+        _batch_job_status_cache[101] = (HTCondorJobStatus.completed, "log")
+        _batch_job_status_cache[102] = (HTCondorJobStatus.running, "log")
+        _batch_job_status_cache[103] = (HTCondorJobStatus.failed, "log")
+        self.assertEqual(process.get_job_status(), JobStatus.running)
+
+        _batch_job_status_cache[102] = (HTCondorJobStatus.completed, "log")
+        self.assertEqual(process.get_job_status(), JobStatus.aborted)

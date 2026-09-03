@@ -4,7 +4,9 @@ import subprocess
 import os
 from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_exponential
 
-from b2luigi.batch.processes import BatchProcess, JobStatus
+import luigi.scheduler
+
+from b2luigi.batch.processes import BatchProcess, JobStatus, aggregate_job_status, expand_grouped_task
 from b2luigi.batch.cache import BatchJobStatusCache
 from b2luigi.core.utils import get_log_file_dir
 from b2luigi.core.executable import create_executable_wrapper
@@ -57,6 +59,10 @@ class LSFProcess(BatchProcess):
     * the number of slots for the job. On KEKCC this increases the memory available to the job: ``job_slots``.
     * the LSF job name: ``job_name``.
 
+    Parameter grouping (see :ref:`parameter-grouping-label`) is supported: a grouped task is
+    submitted as one ``bsub`` call per scalar sub-task, and the task is only reported
+    successful once every one of these jobs has finished successfully.
+
     For example:
 
     .. code-block:: python
@@ -82,11 +88,30 @@ class LSFProcess(BatchProcess):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-        self._batch_job_id = None
+        # One id per submitted job: a single entry for a plain task, one per scalar
+        # sub-task for a parameter-grouped task (see :obj:`expand_grouped_task`).
+        self._batch_job_ids: list[str] = []
 
-    def get_job_status(self):
+    def get_job_status(self) -> JobStatus:
         """
-        Retrieves the current status of the batch job associated with this instance.
+        Determine the status of the task from the LSF status of all its jobs.
+
+        A plain task has exactly one job. A parameter-grouped task has one job per
+        scalar sub-task, and their statuses are combined with :obj:`aggregate_job_status`:
+        running while any job runs, aborted if any job failed, successful only when all did.
+
+        Returns:
+            JobStatus: The aggregated status, or :meth:`JobStatus.aborted <b2luigi.process.JobStatus.aborted>`
+            if no job was submitted.
+        """
+        if not self._batch_job_ids:
+            return JobStatus.aborted
+        return aggregate_job_status(self._get_job_status_for_id(job_id) for job_id in self._batch_job_ids)
+
+    @staticmethod
+    def _get_job_status_for_id(job_id: str) -> JobStatus:
+        """
+        Retrieves the current status of one batch job.
 
         Returns:
             JobStatus: The status of the job, which can be one of the following:
@@ -94,11 +119,8 @@ class LSFProcess(BatchProcess):
                 - :meth:`JobStatus.aborted <b2luigi.process.JobStatus.aborted>`: If the job has been aborted or is not found in the cache ("EXIT" or missing ID).
                 - :meth:`JobStatus.running <b2luigi.process.JobStatus.running>`: If the job is still in progress.
         """
-        if not self._batch_job_id:
-            return JobStatus.aborted
-
         try:
-            job_status = _batch_job_status_cache[self._batch_job_id]
+            job_status = _batch_job_status_cache[job_id]
         except KeyError:
             return JobStatus.aborted
 
@@ -117,6 +139,10 @@ class LSFProcess(BatchProcess):
         It dynamically configures the job submission parameters based on task-specific settings
         and creates necessary log files for capturing standard output and error.
 
+        For a parameter-grouped task (see :ref:`parameter-grouping-label`) one ``bsub`` call is
+        made per scalar sub-task that is not complete yet. If every sub-task is already
+        complete, nothing is submitted and the task is reported as done.
+
         Raises:
             RuntimeError: If the batch submission fails or the job ID cannot be extracted
                           from the ``bsub`` command output.
@@ -126,21 +152,44 @@ class LSFProcess(BatchProcess):
             2. The ``stdout`` and ``stderr`` log files are created in the task's log directory. See :obj:`get_log_file_dir`.
             3. The executable is created with :obj:`create_executable_wrapper`.
         """
+        sub_tasks = expand_grouped_task(self.task)
+        if not sub_tasks:
+            self._put_to_result_queue(status=luigi.scheduler.DONE, explanation="")
+            self._terminated = True
+            return
+
+        for sub_task in sub_tasks:
+            self._batch_job_ids.append(self._submit_task(sub_task))
+
+    @staticmethod
+    def _submit_task(task) -> str:
+        """
+        Submit one task with ``bsub`` and return its LSF job ID.
+
+        Args:
+            task: The task to submit. Its settings, log directory and executable wrapper are used.
+
+        Returns:
+            str: The LSF job ID parsed from the ``bsub`` output.
+
+        Raises:
+            RuntimeError: If the job ID cannot be extracted from the ``bsub`` output.
+        """
         command = ["bsub", "-env all"]
 
-        queue = get_setting("queue", task=self.task, default=False)
+        queue = get_setting("queue", task=task, default=False)
         if queue is not False:
             command += ["-q", queue]
 
-        job_slots = str(get_setting("job_slots", task=self.task, default=False))
+        job_slots = str(get_setting("job_slots", task=task, default=False))
         if job_slots is not str(False):
             command += ["-n", job_slots]
 
-        job_name = get_setting("job_name", task=self.task, default=False)
+        job_name = get_setting("job_name", task=task, default=False)
         if job_name is not False:
             command += ["-J", job_name]
 
-        log_file_dir = get_log_file_dir(self.task)
+        log_file_dir = get_log_file_dir(task)
         os.makedirs(log_file_dir, exist_ok=True)
 
         stdout_log_file = os.path.join(log_file_dir, "stdout")
@@ -148,7 +197,7 @@ class LSFProcess(BatchProcess):
 
         command += ["-eo", stderr_log_file, "-oo", stdout_log_file]
 
-        executable_file = create_executable_wrapper(self.task)
+        executable_file = create_executable_wrapper(task)
         command.append(executable_file)
 
         output = subprocess.check_output(command)
@@ -159,15 +208,15 @@ class LSFProcess(BatchProcess):
         if not match:
             raise RuntimeError("Batch submission failed with output " + output)
 
-        self._batch_job_id = match.group(0)[1:-1]
+        return match.group(0)[1:-1]
 
     def terminate_job(self):
         """
-        This method checks if a batch job ID is set. If it exists, it attempts to
-        terminate the job using the ``bkill`` command. The command's output is suppressed,
+        Terminate all batch jobs of this task if any were submitted, with a single
+        ``bkill`` command listing every job ID. The command's output is suppressed,
         and errors during execution are not raised.
         """
-        if not self._batch_job_id:
+        if not self._batch_job_ids:
             return
 
-        subprocess.run(["bkill", self._batch_job_id], stdout=subprocess.DEVNULL, check=False)
+        subprocess.run(["bkill", *self._batch_job_ids], stdout=subprocess.DEVNULL, check=False)

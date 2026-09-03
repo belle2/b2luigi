@@ -2,17 +2,27 @@
 Test helper functions for :py:class:`SlurmProcess`.
 """
 
+import os
 import pathlib
 
 import subprocess
 import unittest
 from unittest import mock
 
+import luigi
+
 import b2luigi
-from b2luigi.batch.processes.slurm import SlurmJobStatusCache, SlurmProcess, SlurmJobStatus
+from b2luigi.batch.processes import JobStatus
+from b2luigi.batch.processes.slurm import (
+    SlurmJobStatusCache,
+    SlurmProcess,
+    SlurmJobStatus,
+    _batch_job_status_cache,
+)
 
 from ..helpers import B2LuigiTestCase
 from .batch_task_1 import MyTask
+from .batch_task_grouped import MyGroupedTask
 
 
 class TestSlurmCreateSubmitFile(B2LuigiTestCase):
@@ -209,3 +219,108 @@ class TestSlurmJobStatus:
         """Test that SlurmJobStatus can be created from a string value."""
         status = SlurmJobStatus("CONFIGURING")
         assert status == SlurmJobStatus.configuring
+
+
+class TestSlurmGroupedSubmission(B2LuigiTestCase):
+    """
+    Parameter grouping on Slurm: one ``sbatch`` per incomplete scalar sub-task,
+    with the job status aggregated over all submitted ids.
+    """
+
+    def setUp(self):
+        super().setUp()
+        _batch_job_status_cache.clear()
+
+    def tearDown(self):
+        _batch_job_status_cache.clear()
+        super().tearDown()
+
+    @staticmethod
+    def _make_process(task):
+        return SlurmProcess(task=task, scheduler=mock.Mock(), result_queue=mock.Mock(), worker_timeout=None)
+
+    @staticmethod
+    def _mark_complete(task):
+        output_file_name = task.get_output_file_name("grouped.txt")
+        os.makedirs(os.path.dirname(output_file_name), exist_ok=True)
+        with open(output_file_name, "w") as f:
+            f.write("already done")
+
+    @mock.patch("subprocess.check_output")
+    def test_one_sbatch_per_sub_task(self, check_output):
+        check_output.side_effect = [b"Submitted batch job 101", b"Submitted batch job 102", b"Submitted batch job 103"]
+        process = self._make_process(MyGroupedTask(plain=0, grouped=(0, 1, 2)))
+
+        process.start_job()
+
+        self.assertEqual(process._batch_job_ids, [101, 102, 103])
+        self.assertEqual(check_output.call_count, 3)
+        for value, call in zip((0, 1, 2), check_output.call_args_list):
+            self.assertEqual(call.args[0][0], "sbatch")
+            self.assertIn(f"grouped={value}", str(call.kwargs["cwd"]))
+
+    @mock.patch("subprocess.check_output")
+    def test_ungrouped_task_is_submitted_once(self, check_output):
+        check_output.return_value = b"Submitted batch job 7"
+        process = self._make_process(MyTask("some_parameter"))
+
+        process.start_job()
+
+        self.assertEqual(process._batch_job_ids, [7])
+        self.assertEqual(check_output.call_count, 1)
+
+    @mock.patch("subprocess.check_output")
+    def test_complete_sub_tasks_are_not_submitted(self, check_output):
+        check_output.side_effect = [b"Submitted batch job 101", b"Submitted batch job 103"]
+        task = MyGroupedTask(plain=0, grouped=(0, 1, 2))
+        self._mark_complete(task.clone(None, grouped=1))
+        process = self._make_process(task)
+
+        process.start_job()
+
+        self.assertEqual(process._batch_job_ids, [101, 103])
+        cwds = [str(call.kwargs["cwd"]) for call in check_output.call_args_list]
+        self.assertFalse(any("grouped=1" in cwd for cwd in cwds))
+
+    @mock.patch("subprocess.check_output")
+    def test_fully_complete_group_reports_done_without_submitting(self, check_output):
+        task = MyGroupedTask(plain=0, grouped=(0, 1))
+        for value in (0, 1):
+            self._mark_complete(task.clone(None, grouped=value))
+        process = self._make_process(task)
+
+        process.start_job()
+
+        check_output.assert_not_called()
+        self.assertTrue(process._terminated)
+        process._result_queue.put.assert_called_once()
+        self.assertEqual(process._result_queue.put.call_args.args[0][1], luigi.scheduler.DONE)
+
+    def test_status_is_aggregated_over_all_jobs(self):
+        process = self._make_process(MyGroupedTask(plain=0, grouped=(0, 1, 2)))
+        process._batch_job_ids = [101, 102, 103]
+
+        _batch_job_status_cache[101] = SlurmJobStatus.completed
+        _batch_job_status_cache[102] = SlurmJobStatus.running
+        _batch_job_status_cache[103] = SlurmJobStatus.failed
+        self.assertEqual(process.get_job_status(), JobStatus.running)
+
+        _batch_job_status_cache[102] = SlurmJobStatus.completed
+        self.assertEqual(process.get_job_status(), JobStatus.aborted)
+
+        _batch_job_status_cache[103] = SlurmJobStatus.completed
+        self.assertEqual(process.get_job_status(), JobStatus.successful)
+
+    def test_status_without_job_ids_is_aborted(self):
+        process = self._make_process(MyGroupedTask(plain=0, grouped=(0, 1)))
+        self.assertEqual(process.get_job_status(), JobStatus.aborted)
+
+    @mock.patch("subprocess.run")
+    def test_terminate_cancels_every_job(self, run):
+        process = self._make_process(MyGroupedTask(plain=0, grouped=(0, 1)))
+        process._batch_job_ids = [101, 102]
+
+        process.terminate_job()
+
+        run.assert_called_once()
+        self.assertEqual(run.call_args.args[0], ["scancel", "101", "102"])

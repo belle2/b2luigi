@@ -17,6 +17,54 @@ class JobStatus(enum.Enum):
     idle = "idle"
 
 
+def expand_grouped_task(task: luigi.Task) -> list[luigi.Task]:
+    """
+    Expand a parameter-grouped task into the scalar sub-tasks that still need to run.
+
+    luigi's batching hands a batch process one task instance whose grouped parameters
+    (see :ref:`parameter-grouping-label`) carry a *tuple* of values. Every batch system
+    that supports grouping submits one job per element of that tuple, so the expansion
+    lives here and is shared by all of them.
+
+    :param task: The task handed to the batch process.
+    :return: ``[task]`` when the task has no grouped parameters or luigi did not batch it
+        (the grouped value is a plain scalar). Otherwise one clone per tuple index with the
+        grouped parameters set to their scalar values, **excluding** clones whose output
+        already exists, so a resubmission only re-runs the failed members of the group.
+        An empty list means every member is already complete and nothing must be submitted.
+    """
+    grouped_params = task.grouped_param_names()
+    if not grouped_params or not isinstance(task.param_kwargs[grouped_params[0]], tuple):
+        return [task]
+
+    n_values = len(task.param_kwargs[grouped_params[0]])
+    sub_tasks = []
+    for i in range(n_values):
+        sub_task = task.clone(None, **{param: task.param_kwargs[param][i] for param in grouped_params})
+        # If a sub_task was already successful do not resubmit it
+        if sub_task.complete():
+            continue
+        sub_tasks.append(sub_task)
+    return sub_tasks
+
+
+def aggregate_job_status(statuses) -> JobStatus:
+    """
+    Collapse the statuses of the jobs of one (possibly grouped) task into a single status.
+
+    :param statuses: An iterable of :obj:`JobStatus` values, one per submitted job.
+    :return: :attr:`JobStatus.running` while any job still runs, otherwise
+        :attr:`JobStatus.aborted` if any job failed, otherwise :attr:`JobStatus.successful`.
+        A group is only successful when every member is.
+    """
+    statuses = list(statuses)
+    if any(status == JobStatus.running for status in statuses):
+        return JobStatus.running
+    if any(status == JobStatus.aborted for status in statuses):
+        return JobStatus.aborted
+    return JobStatus.successful
+
+
 class BatchProcess:
     """
     This is the base class for all batch algorithms that allow luigi to run on a specific batch system.
