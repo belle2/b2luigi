@@ -151,6 +151,10 @@ nTuple Generation
     if __name__ == "__main__":
         luigi.process(AnalysisWrapperTask(), workers=500)
 
+.. note::
+    :class:`Basf2PathTask <b2luigi.basf2_helper.tasks.Basf2PathTask>` also accepts a
+    ``calculate_statistics`` parameter (``False`` by default) which, when set to ``True``,
+    prints ``basf2`` statistics after the path is processed.
 
 Standard Simulation, Reconstruction and some nTuple Generation
 --------------------------------------------------------------

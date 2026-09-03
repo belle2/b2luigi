@@ -2,7 +2,7 @@ import subprocess
 import pathlib
 import re
 import getpass
-import enum
+from enum import StrEnum
 from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_exponential
 
 from luigi.parameter import _no_value
@@ -42,7 +42,18 @@ class SlurmJobStatusCache(BatchJobStatusCache):
         q_cmd = ["squeue", "--noheader", "--user", user, "--format", "'%i %T'"] + (
             ["--job", str(job_id)] if job_id else []
         )
-        output = subprocess.check_output(q_cmd)
+        try:
+            output = subprocess.check_output(q_cmd, stderr=subprocess.PIPE)
+        except subprocess.CalledProcessError as e:
+            # When a specific job_id has already been purged from Slurm's live job table,
+            # squeue exits non-zero with "Invalid job id specified" instead of just returning
+            # empty output. This is an expected outcome (not a transient failure), so we treat
+            # it as "no jobs seen" and let the sacct/scontrol fallback below resolve the status,
+            # rather than retrying (which would just fail identically) and crashing.
+            if job_id and e.stderr and b"Invalid job id specified" in e.stderr:
+                output = b""
+            else:
+                raise
 
         output = output.decode()
         seen_ids = self._fill_from_output(output)
@@ -172,10 +183,9 @@ class SlurmJobStatusCache(BatchJobStatusCache):
         return self.sacct_disabled
 
 
-class SlurmJobStatus(enum.Enum):
+class SlurmJobStatus(StrEnum):
     """
     See https://slurm.schedmd.com/job_state_codes.html
-    TODO: make this a StrEnum with python>=3.11
 
     Attributes:
         completed (str): The job has completed successfully.
@@ -214,15 +224,6 @@ class SlurmJobStatus(enum.Enum):
     out_of_memory = "OUT_OF_MEMORY"
     failed = "FAILED"
     timeout = "TIMEOUT"
-
-    def __eq__(self, other):
-        if isinstance(other, str):
-            return self.value == other
-        elif isinstance(other, SlurmJobStatus):
-            return self.value == other.value
-        raise TypeError(
-            "The equivalence of a SlurmJobStatus can only be checked with a string or another SlurmJobStatus object."
-        )
 
 
 _batch_job_status_cache = SlurmJobStatusCache()
