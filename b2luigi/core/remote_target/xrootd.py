@@ -1,5 +1,8 @@
 import os
 from typing import Any, List, Tuple, Dict, Union
+from XRootD import client
+from XRootD.client.flags import DirListFlags, OpenFlags, MkDirFlags
+
 from b2luigi.core.remote_target import RemoteFileSystem, RemoteTarget
 from b2luigi.core.utils import get_luigi_logger
 
@@ -37,14 +40,6 @@ class XRootDSystem(RemoteFileSystem):
         Args:
             server_path: Path to the server, e.g. root://eosuser.cern.ch/
         """
-        try:
-            from XRootD import client
-            from XRootD.client.flags import DirListFlags, OpenFlags, MkDirFlags
-
-        except ModuleNotFoundError as err:
-            logger.error("The XRootD python package is not imported.")
-            raise err
-
         super().__init__(server_path)
         self.dir_list_flags = DirListFlags
         self.open_flags = OpenFlags
