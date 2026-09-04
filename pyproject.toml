@@ -27,7 +27,8 @@ requires = [
 	 "jinja2",
      "setuptools",
 	 "tenacity>=8,<9",
-     "webdavclient3>=3.14.7"
+     "webdavclient3>=3.14.7",
+     "xrootd>=5.7.0"
 
 ]
 requires-python = ">=3.11"
