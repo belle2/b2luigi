@@ -15,10 +15,7 @@ Community contributions for different systems and protocols are very much welcom
 XRootD
 ------
 
-In the background, the implementation for the :obj:`XRootDSystem` relies on the `Python bindings <https://pypi.org/project/xrootd/>`_ of the XRootD client and requires a working XRootD client installation.
-
-.. hint::
-    For Belle II users, the XRootD client is already installed in basf2 environments.
+In the background, the implementation for the :obj:`XRootDSystem` relies on the `Python bindings <https://pypi.org/project/xrootd/>`_ of the XRootD client and is included in the dependencies of ``b2luigi``.
 
 WebDAV
 ------
