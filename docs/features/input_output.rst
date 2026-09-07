@@ -19,6 +19,8 @@ This method always returns the full path of the output file.
     This will ensure, that the correct file is used.
     If you want to work with temporary files, use the :meth:`b2luigi.on_temporary_files` decorator.
     As long as you fully commit to these tasks own methods, you do not have to change any of your code when working with temporary files.
+    The decorator stages both inputs and outputs by default; either side can be switched off with
+    ``@b2luigi.on_temporary_files(inputs=False)`` or ``@b2luigi.on_temporary_files(outputs=False)``.
 
 To find out more about the task and its methods, check the :class:`b2luigi.Task` documentation.
 The temporary file decorator is documented in the :ref:`Temporary File Context Manager <api-on-temporary-label>` section.

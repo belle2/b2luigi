@@ -1,7 +1,7 @@
 from contextlib import ExitStack
 from functools import wraps
 from multiprocessing.pool import ThreadPool
-from typing import Optional
+from typing import Callable, Optional
 import tempfile
 import os
 
@@ -17,14 +17,24 @@ class TemporaryFileContextManager(ExitStack):
     paths are used during the context's lifetime. Upon exiting the context, the original methods
     are restored.
 
+    :param task: The task whose file-name methods are redirected while the context is active.
+    :param inputs: When ``True`` (default), the input-side methods are overridden so every input is
+        copied into ``scratch_dir`` on first access. When ``False``, inputs are left untouched and read
+        from their real location.
+    :param outputs: When ``True`` (default), :meth:`b2luigi.Task.get_output_file_name` returns a temporary
+        path that is moved to the final location only when the context exits without an exception.
+        When ``False``, outputs are written directly to their final location.
+
     Usage:
         This class is not meant to be used directly. Instead, it is used within the :obj:`on_temporary_files`
     """
 
-    def __init__(self, task: Task):
+    def __init__(self, task: Task, inputs: bool = True, outputs: bool = True):
         super().__init__()
 
         self._task = task
+        self._inputs = inputs
+        self._outputs = outputs
         self._task_output_function = task.get_output_file_name
         self._task_input_function = task.get_input_file_names
         self._task_all_input_function = task.get_all_input_file_names
@@ -118,7 +128,11 @@ class TemporaryFileContextManager(ExitStack):
 
             return self._open_output_files[key]
 
-        self._task.get_output_file_name = get_output_file_name
+        if self._outputs:
+            self._task.get_output_file_name = get_output_file_name
+
+        if not self._inputs:
+            return self
 
         def get_input_file_names(key: str, **tmp_file_kwargs):
             """ """
@@ -189,6 +203,7 @@ class TemporaryFileContextManager(ExitStack):
             return self._open_input_files[internal_key]
 
         self._task.get_input_file_names_from_dict = get_input_file_names_from_dict
+        return self
 
     def __exit__(self, *exc_details):
         super().__exit__(*exc_details)
@@ -199,9 +214,9 @@ class TemporaryFileContextManager(ExitStack):
         self._task.get_input_file_names_from_dict = self._task_input_function_from_dict
 
 
-def on_temporary_files(run_function):
+def on_temporary_files(run_function: Callable | None = None, *, inputs: bool = True, outputs: bool = True):
     """
-    Wrapper for decorating a task's run function to use temporary files as outputs.
+    Wrapper for decorating a task's run function to use temporary files for its inputs and outputs.
 
     A common problem when using long running tasks in ``luigi`` is the so called thanksgiving bug
     (see https://www.arashrouhani.com/luigi-budapest-bi-oct-2015/#/21).
@@ -241,18 +256,53 @@ def on_temporary_files(run_function):
     file first and copied to its final location at the end of the run function (but only if there
     was no error).
 
+    Inputs are handled the same way: by default every file returned by :meth:`b2luigi.Task.get_input_file_names`,
+    :meth:`b2luigi.Task.get_all_input_file_names` and :meth:`b2luigi.Task.get_input_file_names_from_dict` is copied
+    into the ``scratch_dir`` first, so a task always works on a local copy (which is what makes remote targets usable
+    transparently).
+
+    Both halves can be switched off independently with keyword arguments. A task that reads a large number of
+    input files and produces only a small output usually does not want its inputs duplicated into ``scratch_dir``:
+
+    .. code-block:: python
+
+      class MergeTask(b2luigi.Task):
+          @b2luigi.on_temporary_files(inputs=False)
+          def run(self):
+              # inputs are read from their real location, the output is still staged
+              ...
+
+    :param run_function: The ``run`` method being decorated. Supplied automatically when the decorator is
+        used without parentheses.
+    :param inputs: Copy every input file into ``scratch_dir`` before handing its path to the task.
+        Defaults to ``True``. Set to ``False`` to read inputs in place.
+    :param outputs: Write every output to a temporary path and move it to the final location only when
+        ``run`` finishes without an exception. Defaults to ``True``. Set to ``False`` to write outputs directly.
+    :raises TypeError: If the first positional argument is not the function being decorated. The flags are
+        keyword-only, so ``@on_temporary_files(False)`` is rejected instead of silently doing something else.
+
     Warning:
-        The decorator only edits the function :meth:`b2luigi.Task.get_output_file_name`. If you are using
-        the output directly, you have to take care of using the temporary path correctly by yourself!
+        The decorator only edits the file-name methods listed above. If you are using
+        the targets directly, you have to take care of using the temporary path correctly by yourself!
 
     """
 
-    @wraps(run_function)
-    def run(self, *args, **kwargs):
-        with TemporaryFileContextManager(self):
-            run_function(self, *args, **kwargs)
+    def decorate(function: Callable) -> Callable:
+        @wraps(function)
+        def run(self, *args, **kwargs):
+            with TemporaryFileContextManager(self, inputs=inputs, outputs=outputs):
+                function(self, *args, **kwargs)
 
-    return run
+        return run
+
+    if run_function is None:
+        return decorate
+    if not callable(run_function):
+        raise TypeError(
+            "on_temporary_files() takes the decorated function as its only positional argument; "
+            "pass the flags as keywords, e.g. @on_temporary_files(inputs=False)"
+        )
+    return decorate(run_function)
 
 
 class EnsuredTemporaryScratchDirectory(tempfile.TemporaryDirectory):
