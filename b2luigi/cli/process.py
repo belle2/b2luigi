@@ -11,6 +11,8 @@ def process(
     dry_run=False,
     test=False,
     batch=False,
+    batch_runner=False,
+    progress_tui=False,
     remove=[],
     remove_only=[],
     auto_confirm=False,
@@ -63,7 +65,7 @@ def process(
             which will be generated marked in color, if they are present already.
             Good for testing of your tasks will do, what you think they should.
 
-        dry_run (bool, optional): Instead od running the task(s), write out which tasks will
+        dry_run (bool, optional): Instead of running the task(s), write out which tasks will
             be executed. This is a simplified form of dependency resolution, so this
             information may be wrong in some corner cases. Also good for testing.
 
@@ -77,6 +79,14 @@ def process(
             Refer to :ref:`quick-start-label` for more information.
             By default, the global batch system uses the `auto` setting, but this can be changed with the
             `batch_system` settings. See :meth:`get_setting <b2luigi.core.settings.get_setting>` on how to define settings.
+
+        batch_runner (bool, optional): Internal flag set by the ``b2luigi batch-runner`` CLI
+            command to execute a single reconstructed task directly on a batch worker node.
+            Do not set this manually — use ``b2luigi run`` instead.
+
+        progress_tui (bool, optional): If set to `True`, show a live Textual progress TUI while
+            running tasks. Requires the 'tui' optional dependency: ``pip install b2luigi[tui]``.
+            Can also be activated with the ``--tui`` command-line flag.
 
         remove (list, optional): If a single task is given, remove the output of this task.
             If a list of tasks is given, remove the output of all tasks in the list.
@@ -105,33 +115,44 @@ def process(
     else:
         task_list = task_like_elements
 
-    # Check the CLI arguments and run as requested
+    # New CLI path: set by the b2luigi batch-runner app.
+    # The task has already been reconstructed from its class name and serialised
+    # parameters, so we can execute it directly without sys.argv parsing.
+    if batch_runner:
+        runner.run_batch_worker(task_list[0])
+        return
+
+    # Legacy path: parse sys.argv so that users who call b2luigi.process() directly
+    # from their own script can still drive all modes via command-line flags
+    # (e.g. python tasks.py --batch-runner --task-id X).
     cli_args = get_cli_arguments(ignore_additional_command_line_args=ignore_additional_command_line_args)
 
-    if cli_args.show_output or show_output:
+    if show_output or cli_args.show_output:
         runner.show_all_outputs(task_list)
-    elif cli_args.dry_run or dry_run:
+    elif dry_run or cli_args.dry_run:
         runner.dry_run(task_list)
     elif cli_args.test or test:
-        runner.run_test_mode(task_list, cli_args, kwargs)
+        runner.run_test_mode(task_list, kwargs)
     elif cli_args.batch_runner:
-        runner.run_as_batch_worker(task_list, cli_args, kwargs)
+        runner.run_as_batch_worker(task_list, cli_args)
     elif cli_args.remove or remove:
-        runner.remove_outputs(
+        runner.legacy_remove_outputs(
             task_list,
             target_tasks=cli_args.remove or remove,
             auto_confirm=auto_confirm or cli_args.yes,
             keep_tasks=cli_args.keep or keep_tasks,
         )
     elif cli_args.remove_only or remove_only:
-        runner.remove_outputs(
+        runner.legacy_remove_outputs(
             task_list,
             target_tasks=cli_args.remove_only or remove_only,
             only=True,
             auto_confirm=auto_confirm or cli_args.yes,
             keep_tasks=cli_args.keep or keep_tasks,
         )
+    elif cli_args.tui or progress_tui:
+        runner.run_with_tui(task_list, kwargs, batch=cli_args.batch or batch)
     elif cli_args.batch or batch:
-        runner.run_batched(task_list, cli_args, kwargs)
+        runner.run_batched(task_list, kwargs)
     else:
-        runner.run_local(task_list, cli_args, kwargs)
+        runner.run_local(task_list, kwargs)

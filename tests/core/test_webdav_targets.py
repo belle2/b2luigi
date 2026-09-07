@@ -45,7 +45,10 @@ class TestEnsureRequestsCABundle(unittest.TestCase):
 
             os.environ["REQUESTS_CA_BUNDLE"] = str(p)
             ensure_requests_ca_bundle(str(p))
-            self.assertEqual(os.environ["REQUESTS_CA_BUNDLE"], str(p.resolve()))
+            # A true no-op leaves the existing env var untouched, not rewritten to the
+            # resolved path (which on macOS differs from the raw path due to the
+            # /var -> /private/var symlink, e.g. tempfile.TemporaryDirectory()).
+            self.assertEqual(os.environ["REQUESTS_CA_BUNDLE"], str(p))
 
     def test_merges_file_and_file(self):
         with tempfile.TemporaryDirectory() as td:

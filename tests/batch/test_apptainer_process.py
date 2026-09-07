@@ -1,8 +1,13 @@
+import shlex
 import unittest
-import subprocess
 from unittest.mock import patch, MagicMock
+
+import luigi
+
 from b2luigi.batch.processes.apptainer import ApptainerProcess
 from b2luigi.batch.processes import JobStatus
+from b2luigi.cli.utils import split_kv_params
+from b2luigi.core.settings import clear_setting, set_setting
 from .batch_task_1 import MyTask
 
 
@@ -11,11 +16,18 @@ class MyApptainerTask(MyTask):
     apptainer_mounts = ["/cvmfs"]
     apptainer_mount_defaults = True
     apptainer_additional_params = "--cleanenv"
+    env_script = "/env.sh"
+    some_list_parameter = luigi.ListParameter()
+    some_spacey_parameter = luigi.Parameter()
 
 
 class TestApptainerProcess(unittest.TestCase):
     def setUp(self):
-        self.mock_task = MyApptainerTask("some_parameter")
+        self.mock_task = MyApptainerTask(
+            some_parameter="some_parameter",
+            some_list_parameter=[1, 2, 3],
+            some_spacey_parameter="value with spaces",
+        )
         self.mock_scheduler = MagicMock()
         self.mock_result_queue = MagicMock()
         self.mock_worker_timeout = MagicMock()
@@ -26,21 +38,48 @@ class TestApptainerProcess(unittest.TestCase):
             worker_timeout=self.mock_worker_timeout,
         )
 
-    @patch("b2luigi.batch.processes.apptainer.create_cmd_from_task")
-    @patch("b2luigi.batch.processes.apptainer.create_apptainer_command")
+    @patch("b2luigi.core.utils.get_apptainer_or_singularity", return_value="apptainer")
+    @patch("b2luigi.core.utils.map_folder", return_value="/tmp/results")
+    @patch("b2luigi.core.utils.get_log_file_dir", return_value="/tmp/logs")
+    @patch("os.makedirs")
     @patch("subprocess.Popen")
-    def test_start_job(self, mock_popen, mock_create_apptainer_command, mock_create_cmd_from_task):
-        mock_create_cmd_from_task.return_value = ["echo", "hello"]
-        mock_create_apptainer_command.return_value = "apptainer exec echo hello"
-        mock_process = MagicMock()
-        mock_popen.return_value = mock_process
+    def test_start_job_passes_payload_as_one_argv_element(
+        self, mock_popen, _mock_makedirs, _mock_log_dir, _mock_map_folder, _mock_ap
+    ):
+        """Popen receives a real argv list whose bash payload is a single element, and the
+        ``--param`` tokens inside that payload round-trip back to the submitter's ``task_id``
+        even though one parameter contains spaces and another is a list.
+        """
+        set_setting("__batch_runner_use_cli", True)
+        self.addCleanup(clear_setting, "__batch_runner_use_cli")
+        mock_popen.return_value = MagicMock()
 
         self.process.start_job()
 
-        mock_create_cmd_from_task.assert_called_once_with(self.mock_task)
-        mock_create_apptainer_command.assert_called_once_with("echo hello", task=self.mock_task)
-        mock_popen.assert_called_once_with("apptainer exec echo hello", stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-        self.assertEqual(self.process._process, mock_process)
+        argv = mock_popen.call_args[0][0]
+        self.assertIsInstance(argv, list)
+        self.assertEqual(argv[-3], "/bin/bash")
+        self.assertEqual(argv[-2], "-c")
+        self.assertFalse(argv[-1].startswith("'"))
+        self.assertTrue(argv[-1].startswith("source /env.sh && "))
+        self.assertNotIn("&&", argv[:-1])
+        # apptainer_additional_params must be word-split, not one " --cleanenv" element
+        self.assertIn("--cleanenv", argv)
+
+        # The payload is what would be handed to `bash -c`. Split it exactly like bash
+        # would, pull out the --param tokens, and reconstruct the task on the "worker"
+        # side to confirm it survives the round trip byte-for-byte.
+        payload = argv[-1]
+        payload_argv = shlex.split(payload)
+        params = [
+            payload_argv[i + 1]
+            for i, token in enumerate(payload_argv)
+            if token == "--param" and i + 1 < len(payload_argv)
+        ]
+        self.assertTrue(params, "expected at least one --param token in the payload")
+
+        reconstructed = MyApptainerTask.from_str_params(split_kv_params(params))
+        self.assertEqual(reconstructed.task_id, self.mock_task.task_id)
 
     @patch("b2luigi.batch.processes.apptainer.get_log_file_dir")
     def test_write_output(self, mock_get_log_file_dir):

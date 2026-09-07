@@ -1,3 +1,4 @@
+import tempfile
 import unittest
 from unittest.mock import MagicMock
 
@@ -83,7 +84,7 @@ class TestRemoteTarget(unittest.TestCase):
     def test_get_temporary_input(self):
         with self.target.get_temporary_input() as output:
             self.assertTrue(output.endswith("bar"))
-            self.assertTrue(output.startswith("/tmp"))
+            self.assertTrue(output.startswith(tempfile.gettempdir()))
 
 
 if __name__ == "__main__":

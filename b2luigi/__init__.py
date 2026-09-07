@@ -38,6 +38,7 @@ from b2luigi.core.remote_target import RemoteTarget
 from b2luigi.core.remote_target.xrootd import XRootDSystem, XRootDTarget
 from b2luigi.core.remote_target.webdav import WebDAVSystem, WebDAVTarget
 from b2luigi.cli.process import process
+from b2luigi.cli.parameter_generator import ParameterGenerator, ZippedParameterGenerator
 
 
 class requires(object):
