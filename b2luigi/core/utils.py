@@ -15,6 +15,16 @@ import luigi
 from b2luigi.core.settings import get_setting
 
 
+# Sentinel for detecting unset values in get_setting
+_UNSET = object()
+
+#: Module name assigned to the user's task file when the CLI imports it.
+#: Classes defined *in* the task file carry this as ``__module__``; classes
+#: imported *into* it keep their real module. The batch encoding
+#: (create_cmd_from_task) and the CLI task index both branch on it.
+SYNTHETIC_TASK_MODULE = "TaskClasses"
+
+
 def product_dict(**kwargs: Any) -> Iterator[Dict[str, Any]]:
     """
     Cross-product the given parameters and return a list of dictionaries.
@@ -384,14 +394,63 @@ def get_task_file_dir(task):
 
 def get_filename():
     """
-    Retrieves the absolute path of the main script being executed.
+    Returns the absolute path of the task-definitions file.
+
+    Resolution order:
+
+    1. **``B2LUIGI_TASK_FILE`` environment variable** — set this when the task file
+       is not the script being executed directly (e.g. when using the ``b2luigi``
+       CLI with ``python -m b2luigi``).
+    2. **``__main__.__file__``** when it is a ``.py`` file — the classic
+       ``python tasks.py`` invocation; the executed script IS the task file.
+    3. **``os.getcwd()/tasks.py`` fallback** — used when the process is started via
+       a CLI binary (e.g. the installed ``b2luigi`` script, which has no ``.py``
+       extension).  The current working directory is the project root in this case,
+       and ``dirname(cwd/tasks.py) == cwd`` gives callers the correct base directory
+       for resolving relative paths.
 
     Returns:
-        str: The absolute path of the main script.
+        str: The absolute path of the task-definitions file.
+
+    Raises:
+        AttributeError: If ``__main__.__file__`` is not set (e.g. in a Jupyter
+            notebook) and ``B2LUIGI_TASK_FILE`` is also not set.
     """
     import __main__
 
-    return os.path.abspath(__main__.__file__)
+    # 1. Explicit override — wins unconditionally.
+    task_file = os.environ.get("B2LUIGI_TASK_FILE", None)
+    if task_file:
+        return os.path.abspath(task_file)
+
+    # 2. Direct script execution: python tasks.py
+    #    ``__main__.__spec__`` is None only for a plain ``python script.py`` run;
+    #    ``python -m <package>`` invocations (e.g. ``python -m b2luigi`` or
+    #    ``python -m pytest``) set it to a ModuleSpec even though the resolved
+    #    ``__main__.__file__`` also ends in ``.py`` (the package's own
+    #    __main__.py), so that case must fall through to the cwd-based
+    #    fallback below rather than being mistaken for the user's task file.
+    main_file = getattr(__main__, "__file__", None)
+    if main_file is None:
+        raise AttributeError("module '__main__' has no attribute '__file__'")
+
+    abs_main = os.path.abspath(main_file)
+    if abs_main.endswith(".py") and getattr(__main__, "__spec__", None) is None:
+        return abs_main
+
+    # 3. CLI binary invocation (b2luigi run …): the binary has no .py extension.
+    #    Return a placeholder path so that os.path.dirname(get_filename()) resolves
+    #    to os.getcwd(), which is the project root when the user invokes b2luigi from
+    #    there — and on batch workers, create_executable_wrapper already does
+    #    'cd {working_dir}' before running, so os.getcwd() is also the project root.
+    #
+    #    Deliberately NOT checked for existence. The "tasks.py" component is a
+    #    placeholder that exists only to be stripped by the dirname() call every
+    #    consumer applies; nothing ever opens this path. Requiring the file to exist
+    #    would break the legitimate case of pointing the CLI at a differently named
+    #    task file (``b2luigi run -f mytasks.py``), where no ./tasks.py is present but
+    #    the resolved directory is still correct.
+    return os.path.join(os.path.abspath(os.getcwd()), "tasks.py")
 
 
 def map_folder(input_folder):
@@ -520,52 +579,149 @@ def add_on_failure_function(task):
 
 def create_cmd_from_task(task):
     """
-    Constructs a command-line argument list based on the provided task and its settings.
+    Constructs a command-line argument list to execute a task on a batch worker node.
 
-    The executable string is made up of three key components::
+    Branches on the internal ``__batch_runner_use_cli`` setting:
 
-        <executable_prefix> <executable> <filename> --batch-runner --task-id ExampleTask_id_123 <task_cmd_additional_args>
+    * **New CLI mode** (``True``): emits the Typer-based ``batch-runner`` invocation.
+      By default it runs the module directly through a Python interpreter::
 
+        <executable_prefix> <executable> -m <batch_runner_cli> batch-runner
+            --classname TaskFamily
+            --param key=value …
+            [--task-file /abs/path/to/tasks.py]
+            <task_cmd_additional_args>
+
+      If ``executable_is_entrypoint`` is ``True``, the ``-m <batch_runner_cli>`` step is
+      skipped and ``executable`` is invoked directly as the b2luigi entrypoint instead::
+
+        <executable_prefix> <executable> batch-runner
+            --classname TaskFamily
+            --param key=value …
+            [--task-file /abs/path/to/tasks.py]
+            <task_cmd_additional_args>
+
+      This avoids baking an absolute, submission-host-specific interpreter path into
+      the executable wrapper, which breaks when the batch execution environment has a
+      different filesystem view than the submission host (e.g. a container batch
+      universe). Instead, ``executable`` (default: ``[<batch_runner_cli>]``, e.g.
+      ``["b2luigi"]``) is resolved via ``PATH`` at execution time.
+
+      Set automatically by :func:`b2luigi.cli.utils.process_task_instance` — do not
+      set ``__batch_runner_use_cli`` manually.
+
+    * **Old mode** (``False``, default): emits the legacy argparse invocation::
+
+        <executable_prefix> <executable> [filename] --batch-runner --task-id TaskFamily_id
+            <task_cmd_additional_args>
+
+      ``filename`` is omitted when the ``add_filename_to_cmd`` setting is ``False``.
+      ``executable_is_entrypoint`` has no effect here: this mode executes an arbitrary
+      user script file, which always requires a Python interpreter and has no
+      entrypoint-only equivalent.
+
+    The ``batch_runner_cli`` setting (default: ``"b2luigi"``) lets projects that ship
+    their own CLI built on top of b2luigi override the module name (``-m`` mode) or the
+    default entrypoint name (``executable_is_entrypoint=True`` mode, when ``executable``
+    is otherwise unset)::
+
+        set_setting("batch_runner_cli", "flare")
+
+    ``executable`` defaults depend on mode: ``[sys.executable]`` in ``-m`` mode,
+    ``[<batch_runner_cli>]`` in entrypoint mode. ``executable_is_entrypoint`` itself
+    defaults to ``True`` only when ``executable`` has not been explicitly set anywhere
+    in the settings cascade — if you already override ``executable`` (e.g. to a specific
+    interpreter), the ``-m`` default is preserved so existing setups keep working
+    unchanged. When ``executable_is_entrypoint=True`` and ``executable`` is explicitly
+    set, ``batch_runner_cli`` is silently ignored (there's no ``-m`` step for it to
+    configure).
 
     Args:
         task: An object representing the task for which the command is being created.
 
     Returns:
-        list: A list of strings representing the command-line arguments.
+        list: A list of strings representing the command-line arguments, intended
+        to be flattened into a **shell** context (e.g. ``" ".join(...)`` embedded
+        in a generated shell script, as :func:`b2luigi.core.executable.create_executable_wrapper`
+        does), not passed directly to ``subprocess.Popen`` without ``shell=True``.
+        The b2luigi-generated ``--param key=value`` and ``--task-file`` tokens are
+        individually ``shlex.quote``-d so they survive that flattening intact even
+        when a parameter value contains spaces, brackets, or quotes. User-supplied
+        settings — ``executable_prefix``, ``executable``, and
+        ``task_cmd_additional_args`` — are passed through **verbatim**, by design:
+        they may themselves already contain multiple shell words (e.g.
+        ``executable_prefix=["nice", "-n", "10"]``) that must not be quoted into a
+        single token.
+
+        In CLI mode, the ``--classname`` token is module-qualified
+        (``pkg.mod.ClassName``) for classes not defined in the task file itself,
+        so the worker can reconstruct classes that are not attributes of the
+        task file's namespace (e.g. a task imported transitively by a module the
+        task file imports). Classes defined in the task file are still sent bare:
+        their synthetic module name is not importable, but the worker imports the
+        task file anyway and finds them there. As a side effect, tasks using
+        luigi's ``task_namespace`` — previously encoded as ``namespace.ClassName``
+        via ``get_task_family()``, which the worker's plain ``getattr`` could
+        never resolve — are now encoded by class provenance and resolve
+        correctly.
 
     Raises:
-        ValueError: If any of the following conditions are met:
-            - The ``task_cmd_additional_args`` setting is not a list of strings.
-            - The ``executable_prefix`` setting is not a list of strings.
-            - The ``executable`` setting is not a list of strings.
-
-    Notes:
-        - The ``filename`` is included in the command if the ``add_filename_to_cmd``
-          setting is enabled. (Default: ``True``)
-        -
+        ValueError: If ``task_cmd_additional_args``, ``executable_prefix``, or
+            ``executable`` is a plain string rather than a list.
     """
-    filename = os.path.basename(get_filename()) if get_setting("add_filename_to_cmd", task=task, default=True) else ""
     task_cmd_additional_args = get_setting("task_cmd_additional_args", task=task, default=[])
-
     if isinstance(task_cmd_additional_args, str):
         raise ValueError("Your specified task_cmd_additional_args needs to be a list of strings, e.g. ['--foo', 'bar']")
 
     prefix = get_setting("executable_prefix", task=task, default=[], deprecated_keys=["cmd_prefix"])
-
     if isinstance(prefix, str):
         raise ValueError("Your specified executable_prefix needs to be a list of strings, e.g. [strace]")
 
-    cmd = prefix
-
-    executable = get_setting("executable", task=task, default=[sys.executable])
-
+    executable = get_setting("executable", task=task, default=_UNSET)
+    if executable is _UNSET:
+        executable = None
     if isinstance(executable, str):
         raise ValueError("Your specified executable needs to be a list of strings, e.g. [python3]")
 
-    cmd += executable
-    cmd += [filename, "--batch-runner", "--task-id", task.task_id]
-    cmd += task_cmd_additional_args
+    use_cli = get_setting("__batch_runner_use_cli", default=False)
 
+    if use_cli:
+        cli_module = get_setting("batch_runner_cli", task=task, default="b2luigi")
+        executable_is_entrypoint = get_setting("executable_is_entrypoint", task=task, default=executable is None)
+        if executable is None:
+            executable = [cli_module] if executable_is_entrypoint else [sys.executable]
+    else:
+        executable_is_entrypoint = False
+        if executable is None:
+            executable = [sys.executable]
+
+    cmd = prefix + executable
+
+    if use_cli:
+        task_cls = type(task)
+        if task_cls.__module__ == SYNTHETIC_TASK_MODULE:
+            worker_classname = task_cls.__name__
+        else:
+            worker_classname = f"{task_cls.__module__}.{task_cls.__name__}"
+        if executable_is_entrypoint:
+            cmd += ["batch-runner", "--classname", worker_classname]
+        else:
+            cmd += ["-m", cli_module, "batch-runner", "--classname", worker_classname]
+        for param_name, param_value in task.to_str_params().items():
+            cmd += ["--param", shlex.quote(f"{param_name}={param_value}")]
+        task_file = get_setting("__batch_runner_task_file", default=False) or None
+        if task_file is not None:
+            cmd += ["--task-file", shlex.quote(task_file)]
+        params_file = get_setting("__batch_runner_params_file", default=False) or None
+        if params_file is not None:
+            cmd += ["--params-file", shlex.quote(params_file)]
+    else:
+        filename = (
+            os.path.basename(get_filename()) if get_setting("add_filename_to_cmd", task=task, default=True) else ""
+        )
+        cmd += [filename, "--batch-runner", "--task-id", task.task_id]
+
+    cmd += task_cmd_additional_args
     return cmd
 
 
@@ -671,8 +827,10 @@ def create_apptainer_command(command, task=None):
             task-specific settings.
 
     Returns:
-        list: A list of command-line arguments representing the full Apptainer
-        execution command.
+        list: A clean, unquoted argv list representing the full Apptainer
+        execution command. No element carries its own shell quoting; quoting
+        (or passing the list directly to ``subprocess.Popen`` without
+        ``shell=True``) is the caller's responsibility.
 
     Raises:
         ValueError: If the ``env_script`` is not provided.
@@ -682,7 +840,9 @@ def create_apptainer_command(command, task=None):
     Notes:
         - ``apptainer_image`` is retrieved from the task settings.
         - ``apptainer_additional_params`` is used to specify additional parameters
-          for the Apptainer command. Expecting a string.
+          for the Apptainer command. Accepts either a single string (word-split via
+          :func:`shlex.split`, e.g. ``"--cleanenv --nv"``) or a list of strings
+          (used verbatim, e.g. ``["--cleanenv", "--nv"]``).
         - ``apptainer_mounts`` is used to specify additional mount points for the
           Apptainer command. Expecting a list of strings.
         - ``apptainer_mount_defaults`` determines whether to include default
@@ -700,7 +860,10 @@ def create_apptainer_command(command, task=None):
 
     exec_command = [get_apptainer_or_singularity(task=task), "exec"]
     additional_params = get_setting("apptainer_additional_params", default="", task=task)
-    exec_command += [f" {additional_params}"] if additional_params else []
+    if additional_params:
+        exec_command += (
+            shlex.split(additional_params) if isinstance(additional_params, str) else list(additional_params)
+        )
 
     # Add apptainer mount points if given
     apptainer_mounts = get_setting("apptainer_mounts", task=task, default=None)
@@ -724,10 +887,9 @@ def create_apptainer_command(command, task=None):
 
     exec_command += [apptainer_image]
     exec_command += ["/bin/bash", "-c"]
-    exec_command += [f"'source {env_setup_script} && {command}'"]
+    exec_command += [f"source {env_setup_script} && {command}"]
 
-    # Do the shlex split for correct string interpretation
-    return shlex.split(" ".join(exec_command))
+    return exec_command
 
 
 def get_luigi_logger():
