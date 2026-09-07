@@ -36,6 +36,10 @@ class SlurmJobStatusCache(BatchJobStatusCache):
         so the scontrol command should still have the jobs information on hand.
 
         All three commands are used in order to find out the :obj:`SlurmJobStatus`.
+
+        Args:
+            job_id: The job ID to check. Can be a regular job ID (e.g., "123456") or a job array ID (e.g., "123456_1").
+                    If None, checks all jobs for the current user.
         """
         # https://slurm.schedmd.com/squeue.html
         user = getpass.getuser()
@@ -60,9 +64,15 @@ class SlurmJobStatusCache(BatchJobStatusCache):
         # If no job_id was passed, then exit
         if not job_id:
             return
+
+        # For job arrays, the job ID is in the format "123456_123".
+        # We need to check if the job_id is the base of some ids in the seen_ids set.
+        # For example, if job_id is "123456", we need to check if any id in seen_ids starts with "123456_".
+        job_id_in_seen_ids = any(id.startswith(f"{job_id}_") or id == job_id for id in seen_ids)
+
         # If the specified job can not be found in the squeue output, we need to request its history from the slurm job accounting log
         # We also check that the working Slurm server has the Slurm accounting storage active
-        if job_id not in seen_ids and not self._check_if_sacct_is_disabled_on_server():
+        if not job_id_in_seen_ids and not self._check_if_sacct_is_disabled_on_server():
             # https://slurm.schedmd.com/sacct.html
             history_cmd = [
                 "sacct",
@@ -79,17 +89,55 @@ class SlurmJobStatusCache(BatchJobStatusCache):
             self._fill_from_output(output)
 
         # If the Slurm accounting storage is disabled, we resort to the scontrol command
-        elif job_id not in seen_ids and self._check_if_sacct_is_disabled_on_server():
+        elif not job_id_in_seen_ids and self._check_if_sacct_is_disabled_on_server():
             output = subprocess.check_output(["scontrol", "show", "job", str(job_id)])
             output = output.decode()
 
+            # FIXME: If the base id of a job array is passed, the scontrol command will return the state of only the first job in the array.
             # Extract the job state from the output
             re_output = re.search(r"JobState=([A-Z_]+)", output)
             if re_output:
                 state_string = re_output.group(1)
                 self[job_id] = self._get_SlurmJobStatus_from_string(state_string)
 
-            # the specified job cannot be found on the slurm system. Return a failed.
+
+            # Parse the output to find the specific job_id we're looking for
+            # scontrol can show multiple entries for job arrays, each starting with "JobId=..."
+            job_entries = re.split(r"(?=JobId=)", output)
+
+            found = False
+            for entry in job_entries:
+                # Extract JobId from this entry
+                job_id_match = re.search(r"JobId=(\d+)", entry)
+                if job_id_match:
+                    entry_job_id = job_id_match.group(1)
+
+                    # For array jobs, we like to construct the full job ID as "ArrayJobId_ArrayTaskId"
+                    # Note the the scontrol output for array jobs contains both "ArrayJobId" and "ArrayTaskId" fields,
+                    # and the "JobId" field, which corresponds to ArrayJobId+ArrayTaskId.
+                    array_job_id_match  = re.search(r"ArrayJobId=(\d+)",  entry)
+                    array_task_id_match = re.search(r"ArrayTaskId=(\d+)", entry)
+
+                    if array_job_id_match and array_task_id_match:
+                        # This is an array task job
+                        constructed_job_id = f"{array_job_id_match.group(1)}_{array_task_id_match.group(1)}"
+                    else:
+                        # This is a regular job
+                        constructed_job_id = entry_job_id
+
+                    if constructed_job_id == str(job_id):
+                        # Found the matching job entry
+                        state_match = re.search(r"JobState=([A-Z_]+)", entry)
+                        if state_match:
+                            state_string = state_match.group(1)
+                            self[job_id] = self._get_SlurmJobStatus_from_string(state_string)
+                            found = True
+                            break
+
+            if not found:
+                # the specified job cannot be found on the slurm system. Return a failed.
+                pass
+
         else:
             self[job_id] = SlurmJobStatus.failed
 
@@ -101,6 +149,7 @@ class SlurmJobStatusCache(BatchJobStatusCache):
         Args:
             output (str): The output string from a Slurm command, expected to be
                           formatted as '<job id> <state>' per line.
+                          For job arrays, the job ID may be in the format "123456_[3-10] <state>".
 
         Returns:
             set: A set of job IDs (str) that were parsed from the output.
@@ -136,8 +185,19 @@ class SlurmJobStatusCache(BatchJobStatusCache):
             id, state_string = job_info
             # Manually cancelling jobs gives the state 'CANCELLED+'
             state_string = state_string.strip("+")
-            self[id] = self._get_SlurmJobStatus_from_string(state_string)
-            seen_ids.add(id)
+            # For job arrays, the job ID may be in the format "123456_[3-10] PENDING".
+            # We need to handle this case separately and assign the same state to all jobs in the array.
+            if "[" in id and "]" in id:
+                match = re.match(r"(\d+)_\[(\d+)-(\d+)\]", id)
+                if match:
+                    base_id, start_index, end_index = match.groups()
+                    for index in range(int(start_index), int(end_index) + 1):
+                        array_job_id = f"{base_id}_{index}"
+                        self[array_job_id] = self._get_SlurmJobStatus_from_string(state_string)
+                        seen_ids.add(array_job_id)
+            else:
+                self[id] = self._get_SlurmJobStatus_from_string(state_string)
+                seen_ids.add(id)
 
         return seen_ids
 
@@ -266,7 +326,7 @@ class SlurmProcess(BatchProcess):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-        self._batch_job_id = None
+        self._batch_job_ids = []
 
     def get_job_status(self):
         """
@@ -282,36 +342,79 @@ class SlurmProcess(BatchProcess):
         Raises:
             ValueError: If the Slurm job status is unknown or not handled.
         """
-        if not self._batch_job_id:
-            return JobStatus.aborted
-        try:
-            job_status = _batch_job_status_cache[self._batch_job_id]
-        except KeyError:
+        if not self._batch_job_ids:
             return JobStatus.aborted
 
-        # See https://slurm.schedmd.com/job_state_codes.html
-        if job_status in [SlurmJobStatus.completed]:
+        # Get status for all jobs in the list
+        job_stati = {}
+        for job_id in self._batch_job_ids:
+            try:
+                job_status = _batch_job_status_cache[job_id]
+                job_stati[job_id] = job_status
+            except KeyError:
+                # If any job is not found in cache, consider it aborted
+                return JobStatus.aborted
+
+
+        def get_job_status_from_slurm_status(slurm_status):
+            """
+            Convert a Slurm job status to a b2luigi job status (completed, running, aborted).
+            See https://slurm.schedmd.com/job_state_codes.html
+
+            Args:
+                slurm_status (SlurmJobStatus): The Slurm job status.
+
+            Returns:
+                str: The corresponding b2luigi job status.
+            """
+            if job_status in [SlurmJobStatus.completed]:
+                return "completed"
+            if job_status in [
+                SlurmJobStatus.pending,
+                SlurmJobStatus.running,
+                SlurmJobStatus.suspended,
+                SlurmJobStatus.preempted,
+                SlurmJobStatus.completing,
+                SlurmJobStatus.configuring,
+            ]:
+                return "running"
+            if job_status in [
+                SlurmJobStatus.boot_fail,
+                SlurmJobStatus.cancelled,
+                SlurmJobStatus.deadline,
+                SlurmJobStatus.node_fail,
+                SlurmJobStatus.out_of_memory,
+                SlurmJobStatus.failed,
+                SlurmJobStatus.timeout,
+            ]:
+                return "aborted"
+            raise ValueError(f"Unknown Slurm Job status: {job_status}")
+
+        # Convert Slurm job stati to b2luigi job stati
+        job_stati = {job_id: get_job_status_from_slurm_status(status) for job_id, status in job_stati.items()}
+
+        # All jobs completed successfully
+        if all(status == "completed" for status in job_stati.values()):
+            _batch_job_status_cache.remove_job_ids(job_ids=self._batch_job_ids)
             return JobStatus.successful
-        if job_status in [
-            SlurmJobStatus.pending,
-            SlurmJobStatus.running,
-            SlurmJobStatus.suspended,
-            SlurmJobStatus.preempted,
-            SlurmJobStatus.completing,
-            SlurmJobStatus.configuring,
-        ]:
+
+        # Check if any job is running
+        if any(status == "running" for status in job_stati.values()):
             return JobStatus.running
-        if job_status in [
-            SlurmJobStatus.boot_fail,
-            SlurmJobStatus.cancelled,
-            SlurmJobStatus.deadline,
-            SlurmJobStatus.node_fail,
-            SlurmJobStatus.out_of_memory,
-            SlurmJobStatus.failed,
-            SlurmJobStatus.timeout,
-        ]:
+
+        # Check if any job has failed
+        if any(status == "aborted" for status in job_stati.values()):
+            failed_job_ids = [job_id for job_id, status in job_stati.items() if status == "aborted"]
+
+            log_file_dir = get_log_file_dir(task=self.task)
+            os.makedirs(log_file_dir, exist_ok=True)
+            with open(os.path.join(log_file_dir, "failed_jobs.log"), "w") as f:
+                for job_id in failed_job_ids:
+                    # For job arrays, we might need to handle the array index format
+                    f.write(f"{job_id}\n")
+
+            _batch_job_status_cache.remove_job_ids(job_ids=self._batch_job_ids)
             return JobStatus.aborted
-        raise ValueError(f"Unknown Slurm Job status: {job_status}")
 
     def start_job(self):
         """
@@ -319,13 +422,15 @@ class SlurmProcess(BatchProcess):
 
         This method creates a Slurm submit file and submits it using the :obj:`_create_slurm_submit_file`
         method, then submits the job using the ``sbatch`` command.
-        After submission, it parses the output to extract the batch job ID.
+        After submission, it parses the output to extract the batch job ID(s).
+
+        For job arrays, multiple job IDs may be extracted and stored in _batch_job_ids.
 
         Raises:
             RuntimeError: If the batch submission fails or the job ID cannot be extracted.
 
         Attributes:
-            self._batch_job_id (str): The ID of the submitted Slurm batch job.
+            self._batch_job_ids (list): The IDs of the submitted Slurm batch jobs.
         """
         submit_file = self._create_slurm_submit_file()
 
@@ -337,19 +442,31 @@ class SlurmProcess(BatchProcess):
         match = re.search(r"[0-9]+", output)
         if not match:
             raise RuntimeError("Batch submission failed with output " + output)
-        self._batch_job_id = match.group(0)
+        self._batch_job_ids = [match.group(0)]
 
     def terminate_job(self):
         """
         Terminates a batch job if a job ID is available.
 
-        This method checks if a batch job ID is set. If it is, it executes the
-        ``scancel`` command to terminate the job associated with the given batch
-        job ID. The command's output is suppressed.
+        This method checks if batch job IDs are set. If they are, it executes the
+        ``scancel`` command to terminate the jobs associated with the given batch
+        job IDs. The command's output is suppressed.
         """
-        if not self._batch_job_id:
+        if not self._batch_job_ids:
             return
-        subprocess.run(["scancel", str(self._batch_job_id)], stdout=subprocess.DEVNULL)
+
+        # Extract cluster IDs from job IDs to handle both regular jobs and job arrays
+        cluster_ids = set()
+        for job_id in self._batch_job_ids:
+            # For job arrays like "123456" or "123456_[1-10]", extract "123456"
+            cluster_id = str(job_id).split("_")[0]
+            cluster_ids.add(cluster_id)
+
+        # Cancel all unique cluster IDs
+        if cluster_ids:
+            cancel_cmd = ["scancel"]
+            cancel_cmd.extend(list(cluster_ids))
+            subprocess.run(cancel_cmd, stdout=subprocess.DEVNULL)
 
     def _create_slurm_submit_file(self):
         """
