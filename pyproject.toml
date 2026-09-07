@@ -27,11 +27,16 @@ requires = [
 	 "jinja2",
      "setuptools",
 	 "tenacity>=8,<9",
-     "webdavclient3>=3.14.7"
-
+     "webdavclient3>=3.14.7",
+     "typer>=0.12.0",
+     "shellingham>=1.5",
+     "click>=8.0.0"
 ]
 requires-python = ">=3.11"
 description-file = "README.rst"
+
+[tool.flit.scripts]
+b2luigi = "b2luigi.cli:main"
 
 [tool.flit.metadata.requires-extra]
 # Use the same versions of sphinx and sphinx-book-theme
@@ -46,10 +51,11 @@ doc = [
     "sphinxcontrib-jsmath",
     "sphinxcontrib-qthelp",
     "sphinxcontrib-serializinghtml",
+    "sphinxcontrib-typer",
     "sphinx-gallery",
     "sphinx-autobuild",
     "sphinx-sitemap",
-    "sphinx-notfound-page"
+    "sphinx-notfound-page",
 ]
 dev = [
     "pre_commit",
