@@ -91,6 +91,26 @@ In case your script is accessible from a different location on the worker than o
 to specify where the job should run.
 Your script needs to be in this folder and every relative path (e.g. for results or log files) will be evaluated from there.
 
+.. note::
+
+    When submitting through the ``b2luigi`` command line interface, the task file is sent to the worker
+    **exactly as you gave it**: a relative path stays relative and is resolved against ``working_dir``,
+    an absolute path stays absolute.
+
+    Leave it relative (the default, ``tasks.py``) if you want a relocating ``working_dir`` to work: the
+    worker changes into ``working_dir`` and finds the task file at the same position inside the copy of
+    the project living there. Two common deployments need this — staging the project into a scratch
+    directory on the node, where the submission host's paths do not exist at all, and running jobs from
+    a production checkout while you develop in another, where an absolute path would send the worker
+    back to your development copy.
+
+    Pass an absolute ``--task-file`` when you mean a fixed location that is valid on the worker too.
+
+    The parameters file follows the same rule. The worker imports it before running the task, so a
+    ``b2luigi.set_setting(...)`` call made in ``parameters.py`` is in force on the worker exactly as
+    it is on the submission host. The ``config`` dict itself is not read there; every parameter value
+    travels on the command line.
+
 Drawbacks of the batch mode
 ---------------------------
 

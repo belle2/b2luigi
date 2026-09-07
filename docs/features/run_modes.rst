@@ -67,6 +67,10 @@ where mode can be one of:
 
 *   **remove_only**: Similar to the ``remove`` mode, but only remove the output of the given task(s).
 
+*   **tui**: Show a live terminal progress interface while tasks run.
+    Requires ``pip install b2luigi[tui]``.
+    See :ref:`progress-tui-label` for full details.
+
 Additional console arguments:
 
 *   **--scheduler-host** and **--scheduler-port**: If you have set up a central scheduler, you can pass this information
