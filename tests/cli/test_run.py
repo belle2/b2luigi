@@ -228,3 +228,37 @@ class TestRunBatchWithApptainerImage(CLITestCase):
         calls = self.apptainer_log.read_text()
         self.assertIn("--classname SimpleTask", calls)
         self.assertNotIn("SimpleTaskWrapper", calls)
+
+
+class TestRunGroupedTask(CLITestCase):
+    """
+    A grouped task must survive luigi's batching round trip through the CLI.
+
+    The scheduler batches grouped instances into a *new* task object the worker has
+    never seen and asks luigi to rebuild it from ``task_module``, so the module the
+    CLI loaded ``tasks.py`` as must be importable by name.
+    """
+
+    def setUp(self) -> None:
+        super().setUp()
+        shutil.copy(
+            os.path.join(os.path.dirname(__file__), "cli_grouped_tasks.py"),
+            os.path.join(self.tmp_dir, "tasks.py"),
+        )
+        with open(os.path.join(self.tmp_dir, "settings.json"), "w") as f:
+            json.dump({"result_dir": "results", "log_dir": "logs", "batch_system": "local"}, f)
+
+    def test_batched_task_is_rebuilt_from_the_task_module(self) -> None:
+        """
+        The batched instance must be rebuilt, not reported as unknown.
+
+        Grouping is refused on the local backend by the batch-system guard, which
+        fires *after* the reconstruction, so this asserts on luigi's batching log
+        rather than on outputs: batching must have happened (otherwise the negative
+        assertions would be vacuous), and the rebuild must not have failed.
+        """
+        _code, stdout, stderr = self._run_cli("run", ["RunAll"])
+        combined = stdout + stderr
+        self.assertIn("will load it dynamically", combined)
+        self.assertNotIn("ModuleNotFoundError", combined)
+        self.assertNotIn("Cannot find task(s) sent by scheduler", combined)

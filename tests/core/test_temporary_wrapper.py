@@ -126,3 +126,118 @@ class TestPatchedTemporaryDirectory(unittest.TestCase):
             "You do not have the permission to write to the temporary directory",
             str(ctx.exception),
         )
+
+
+class OnTemporaryFilesFlagsTestCase(B2LuigiTestCase):
+    """The ``inputs``/``outputs`` keyword arguments of :func:`b2luigi.on_temporary_files`."""
+
+    def _make_producer(self):
+        class Producer(b2luigi.Task):
+            def output(self):
+                yield self.add_to_output("input.txt")
+
+            @b2luigi.on_temporary_files
+            def run(self):
+                with open(self.get_output_file_name("input.txt"), "w") as f:
+                    f.write("Test")
+
+        producer = Producer()
+        producer.run()
+        return Producer
+
+    def _make_consumer(self, decorator):
+        Producer = self._make_producer()
+
+        @b2luigi.requires(Producer)
+        class Consumer(b2luigi.Task):
+            seen = {}
+
+            def output(self):
+                yield self.add_to_output("final.txt")
+
+            @decorator
+            def run(self):
+                self.seen["inputs"] = self.get_input_file_names("input.txt")
+                self.seen["all_inputs"] = list(self.get_all_input_file_names())
+                self.seen["output"] = self.get_output_file_name("final.txt")
+                with open(self.seen["output"], "w") as f:
+                    f.write("Done")
+
+        return Consumer()
+
+    def test_bare_decorator_stages_inputs_and_outputs(self):
+        task = self._make_consumer(b2luigi.on_temporary_files)
+        real_inputs = task.get_input_file_names("input.txt")
+        real_output = task.get_output_file_name("final.txt")
+
+        task.run()
+
+        self.assertNotEqual(task.seen["inputs"], real_inputs)
+        self.assertNotEqual(task.seen["output"], real_output)
+        self.assertTrue(os.path.exists(real_output))
+
+    def test_inputs_false_reads_inputs_in_place(self):
+        task = self._make_consumer(b2luigi.on_temporary_files(inputs=False))
+        real_inputs = task.get_input_file_names("input.txt")
+        real_all_inputs = list(task.get_all_input_file_names())
+        real_output = task.get_output_file_name("final.txt")
+
+        task.run()
+
+        self.assertEqual(task.seen["inputs"], real_inputs)
+        self.assertEqual(task.seen["all_inputs"], real_all_inputs)
+        self.assertNotEqual(task.seen["output"], real_output)
+        self.assertTrue(os.path.exists(real_output))
+
+    def test_inputs_false_still_protects_output_on_failure(self):
+        Producer = self._make_producer()
+
+        @b2luigi.requires(Producer)
+        class Consumer(b2luigi.Task):
+            def output(self):
+                yield self.add_to_output("final.txt")
+
+            @b2luigi.on_temporary_files(inputs=False)
+            def run(self):
+                with open(self.get_output_file_name("final.txt"), "w") as f:
+                    f.write("half")
+                    raise ValueError()
+
+        task = Consumer()
+        with self.assertRaises(ValueError):
+            task.run()
+
+        self.assertFalse(os.path.exists(task.get_output_file_name("final.txt")))
+
+    def test_outputs_false_writes_output_directly(self):
+        task = self._make_consumer(b2luigi.on_temporary_files(outputs=False))
+        real_inputs = task.get_input_file_names("input.txt")
+        real_output = task.get_output_file_name("final.txt")
+
+        task.run()
+
+        self.assertNotEqual(task.seen["inputs"], real_inputs)
+        self.assertEqual(task.seen["output"], real_output)
+        self.assertTrue(os.path.exists(real_output))
+
+    def test_both_false_is_a_passthrough(self):
+        task = self._make_consumer(b2luigi.on_temporary_files(inputs=False, outputs=False))
+        real_inputs = task.get_input_file_names("input.txt")
+        real_output = task.get_output_file_name("final.txt")
+
+        task.run()
+
+        self.assertEqual(task.seen["inputs"], real_inputs)
+        self.assertEqual(task.seen["output"], real_output)
+
+    def test_methods_are_restored_after_run(self):
+        task = self._make_consumer(b2luigi.on_temporary_files(inputs=False))
+
+        task.run()
+
+        self.assertIs(task.get_output_file_name.__func__, b2luigi.Task.get_output_file_name)
+        self.assertIs(task.get_input_file_names.__func__, b2luigi.Task.get_input_file_names)
+
+    def test_positional_flag_is_rejected(self):
+        with self.assertRaises(TypeError):
+            b2luigi.on_temporary_files(False)

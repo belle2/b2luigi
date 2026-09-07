@@ -47,6 +47,8 @@ Optionally, one can also set a ``scratch_dir`` which will be used to store tempo
 
 When entering this context, a temporary path will be created in the ``scratch_dir``.
 At leaving the context, the file will then be copied to the final location on the remote storage.
+Input files are copied into the ``scratch_dir`` as well when using :meth:`b2luigi.on_temporary_files`;
+pass ``inputs=False`` to the decorator to read them in place instead.
 
 A full task using :obj:`RemoteTarget`\ s could look like this:
 
