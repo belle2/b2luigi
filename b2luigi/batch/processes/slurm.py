@@ -22,7 +22,7 @@ class SlurmJobStatusCache(BatchJobStatusCache):
         wait=wait_exponential(multiplier=2, min=2, exp_base=3),  # 2, 6, 18 seconds
         reraise=True,
     )
-    def _ask_for_job_status(self, job_id: int = None):
+    def _ask_for_job_status(self, job_id: str = None):
         """
         With Slurm, you can check the progress of your jobs using the ``squeue`` command.
         If no ``jobID`` is given as argument, this command shows you the status of all queued jobs.
@@ -103,7 +103,7 @@ class SlurmJobStatusCache(BatchJobStatusCache):
                           formatted as '<job id> <state>' per line.
 
         Returns:
-            set: A set of job IDs that were parsed from the output.
+            set: A set of job IDs (str) that were parsed from the output.
 
         Raises:
             AssertionError: If a line in the output does not contain exactly two
@@ -134,7 +134,6 @@ class SlurmJobStatusCache(BatchJobStatusCache):
                 len(job_info) == 2
             ), "Unexpected behaviour has occurred whilst retrieving job information. There may be an issue with the sqeue, sacct or scontrol commands."
             id, state_string = job_info
-            id = int(id)
             # Manually cancelling jobs gives the state 'CANCELLED+'
             state_string = state_string.strip("+")
             self[id] = self._get_SlurmJobStatus_from_string(state_string)
@@ -318,14 +317,15 @@ class SlurmProcess(BatchProcess):
         """
         Starts a job by submitting the Slurm submission script.
 
-        This method creates a Slurm submit file and submits it using the ``sbatch`` command.
+        This method creates a Slurm submit file and submits it using the :obj:`_create_slurm_submit_file`
+        method, then submits the job using the ``sbatch`` command.
         After submission, it parses the output to extract the batch job ID.
 
         Raises:
             RuntimeError: If the batch submission fails or the job ID cannot be extracted.
 
         Attributes:
-            self._batch_job_id (int): The ID of the submitted Slurm batch job.
+            self._batch_job_id (str): The ID of the submitted Slurm batch job.
         """
         submit_file = self._create_slurm_submit_file()
 
@@ -337,7 +337,7 @@ class SlurmProcess(BatchProcess):
         match = re.search(r"[0-9]+", output)
         if not match:
             raise RuntimeError("Batch submission failed with output " + output)
-        self._batch_job_id = int(match.group(0))
+        self._batch_job_id = match.group(0)
 
     def terminate_job(self):
         """
