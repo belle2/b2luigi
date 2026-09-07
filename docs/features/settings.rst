@@ -44,6 +44,8 @@ General settings
     This is used when targets are created with the :meth:`b2luigi.Task.add_to_output` method. If not set, the path
     returned by ``tempfile.gettempdir()`` is used to write temporary files (very likely ``/tmp`` is used unless
     the environment variables ``TMPDIR``, ``TEMP`` or ``TMP`` are set).
+    Note that input files are copied here too by default; a task that reads many large inputs can skip
+    that with ``@b2luigi.on_temporary_files(inputs=False)``.
 
 - ``batch_system``: String
     The batch system to use when executed in batch mode. Currently, ``htcondor``, ``lsf``, ``slurm``, ``gbasf2``, ``auto`` and ``local`` are supported.
@@ -94,8 +96,10 @@ Apptainer settings
     If set to ``True``, the ``result_dir`` and ``log_dir`` are mounted into the apptainer container by default.
     Default is ``True``.
 
-- ``apptainer_additional_params``: List[String]
-    A list of additional parameters to pass to the apptainer container.
+- ``apptainer_additional_params``: String or List[String]
+    Additional parameters to pass to the apptainer container. Either a single
+    string (word-split via ``shlex.split``, e.g. ``"--cleanenv --nv"``) or a
+    list of strings (used verbatim, e.g. ``["--cleanenv", "--nv"]``) is accepted.
     If not set, no additional parameters are passed.
     Default is an empty list.
 
@@ -129,8 +133,24 @@ Batch mode specific settings
 
 - ``executable``: List[String]
     The executable to use when executing the task on a ``htcondor`` or ``lsf`` batch system.
-    It defaults to the executable used for starting the script.
-    Only change this setting if you know what you are doing.
+    Defaults to ``[sys.executable]`` (the interpreter used for starting the script), or to
+    ``[<batch_runner_cli>]`` (default ``["b2luigi"]``) when ``executable_is_entrypoint`` is in
+    effect. Only change this setting if you know what you are doing.
+
+- ``executable_is_entrypoint``: Boolean
+    When ``True``, the batch worker command invokes ``executable`` directly as the b2luigi
+    entrypoint (e.g. ``b2luigi batch-runner ...``) instead of running it as a Python
+    interpreter with ``-m <batch_runner_cli>``. Useful when the batch execution environment
+    (e.g. a container batch universe) has a different filesystem than the submission host,
+    so a submission-host-specific interpreter path baked into the executable wrapper would
+    not resolve there; a bare entrypoint name is instead resolved via ``PATH`` inside the
+    batch environment.
+
+    Defaults to ``True`` only when ``executable`` has not been explicitly set; if
+    ``executable`` is explicitly set, defaults to ``False`` so existing setups keep their
+    current ``-m`` behavior unchanged. When ``executable_is_entrypoint=True`` and ``executable``
+    is explicitly set, ``batch_runner_cli`` is silently ignored (there's no ``-m`` step for it to
+    configure). Has no effect on the legacy (pre-CLI) batch invocation path.
 
 - ``executable_prefix``: List[String]
     The prefix to use when executing the task on a ``htcondor`` or ``lsf`` batch system.

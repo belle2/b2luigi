@@ -1,4 +1,5 @@
 import os
+import shlex
 import stat
 import subprocess
 
@@ -70,9 +71,7 @@ def create_executable_wrapper(task):
     # (a) If a valid apptainer image is provided, build an apptainer command
     if apptainer_image:
         executable_wrapper_content.append(f"echo 'Will now execute the program with the image {apptainer_image}'")
-        apptainer_command_list = create_apptainer_command(command, task=task)
-        apptainer_command = " ".join(apptainer_command_list[:-1])
-        apptainer_command += f" '{apptainer_command_list[-1]}'"
+        apptainer_command = shlex.join(create_apptainer_command(command, task=task))
 
         executable_wrapper_content.append(apptainer_command)
 

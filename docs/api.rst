@@ -30,3 +30,4 @@ A few highlights are already included in the :ref:`luigi-features-label` section
     api/batch_core
     api/batch_processes
     api/basf2_helper
+    api/cli

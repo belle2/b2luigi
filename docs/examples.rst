@@ -19,4 +19,5 @@ If you know a project that should be listed here, please feel free to open a mer
 .. toctree::
     :maxdepth: 2
 
+    examples/new-cli-tutorial
     examples/basf2-examples
