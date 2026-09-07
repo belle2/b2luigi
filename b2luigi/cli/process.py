@@ -1,3 +1,7 @@
+import functools
+import luigi
+import warnings
+
 from b2luigi.cli.arguments import get_cli_arguments
 from b2luigi.cli import runner
 
@@ -156,3 +160,15 @@ def process(
         runner.run_batched(task_list, kwargs)
     else:
         runner.run_local(task_list, kwargs)
+
+
+@functools.wraps(luigi.build)
+def build(*args, **kwargs):
+    warnings.warn(
+        "You are calling the function `b2luigi.build` instead of `b2luigi.process`. "
+        "Some of the functionalities of b2luigi will not work as expected: please consider "
+        "using `b2luigi.process`.",
+        UserWarning,
+        stacklevel=2,
+    )
+    return luigi.build(*args, **kwargs)
