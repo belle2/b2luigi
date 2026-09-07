@@ -438,6 +438,23 @@ def run_local(task_list, kwargs):
     run_luigi(task_list, kwargs)
 
 
+def _ensure_multiprocessing_resource_tracker() -> None:
+    """Start the multiprocessing resource tracker while ``sys.stderr`` is still a real file.
+
+    Luigi's ``Worker.__init__`` creates a :class:`multiprocessing.Queue` from inside the
+    TUI worker thread. Under the ``spawn`` start method (the macOS default) the first
+    semaphore starts the resource tracker, which hands ``sys.stderr.fileno()`` to the
+    child process. Textual has replaced ``sys.stderr`` by then and its redirector
+    answers ``-1``, so the spawn dies with ``ValueError: bad value(s) in fds_to_keep``.
+    Starting the tracker up front, before the app takes over the terminal, avoids
+    that. A fork context (the Linux default) never registers semaphores, so this is a
+    harmless no-op there.
+    """
+    from multiprocessing import resource_tracker
+
+    resource_tracker.ensure_running()
+
+
 def run_with_tui(task_list: list, kwargs: dict, batch=False):
     """
     Run tasks with a live Textual progress TUI.
@@ -452,6 +469,7 @@ def run_with_tui(task_list: list, kwargs: dict, batch=False):
     if not batch:
         set_setting("batch_system", "local")
 
+    _ensure_multiprocessing_resource_tracker()
     factory = _TUISchedulerFactory()
 
     def _run():

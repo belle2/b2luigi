@@ -6,6 +6,9 @@ can live in the main test suite without breaking environments that have not
 installed b2luigi[tui].
 """
 
+import subprocess
+import sys
+import textwrap
 import unittest
 from unittest.mock import MagicMock, patch
 
@@ -496,3 +499,41 @@ class TestImportGuard(unittest.TestCase):
             with self.assertRaises(ImportError) as ctx:
                 runner.run_with_tui([], MagicMock(), {})
         self.assertIn("b2luigi[tui]", str(ctx.exception))
+
+
+class TestResourceTrackerStartsBeforeStderrRedirect(unittest.TestCase):
+    """The multiprocessing resource tracker must be running before Textual owns stderr.
+
+    Luigi's ``Worker.__init__`` creates a ``multiprocessing.Queue`` from inside the TUI
+    worker thread. Under the ``spawn`` start method (the macOS default) the first
+    semaphore starts the resource tracker, which passes ``sys.stderr.fileno()`` to the
+    child. Textual's redirector answers ``-1`` there, so the spawn failed with
+    ``ValueError: bad value(s) in fds_to_keep``. Starting the tracker while stderr is
+    still the real terminal sidesteps this; a fork context never registers semaphores,
+    which is why Linux never showed it.
+    """
+
+    _SCRIPT = textwrap.dedent(
+        """
+        import io, multiprocessing, sys
+        from b2luigi.cli.runner import _ensure_multiprocessing_resource_tracker
+
+        _ensure_multiprocessing_resource_tracker()
+
+        class _TextualLikeRedirect(io.TextIOBase):
+            def fileno(self):
+                return -1
+
+            def write(self, s):
+                return len(s)
+
+        sys.stderr = _TextualLikeRedirect()
+        multiprocessing.get_context("spawn").Queue()
+        print("OK")
+        """
+    )
+
+    def test_queue_after_redirect_does_not_raise(self):
+        proc = subprocess.run([sys.executable, "-c", self._SCRIPT], capture_output=True, text=True, timeout=60)
+        self.assertEqual(proc.returncode, 0, proc.stdout + proc.stderr)
+        self.assertIn("OK", proc.stdout)
