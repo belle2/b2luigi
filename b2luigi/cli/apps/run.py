@@ -138,7 +138,7 @@ def run_task(
     # the submission host's layout into the worker command, breaking a relocating
     # working_dir: the path either does not exist on the node, or on a shared
     # filesystem points back at a different checkout of the project.
-    process_task_instance(task_instance, task_file=task_filename, **kwargs)
+    process_task_instance(task_instance, task_file=task_filename, params_file=parameters_file, **kwargs)
 
 
 @run_app.callback(invoke_without_command=True)

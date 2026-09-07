@@ -106,6 +106,11 @@ Your script needs to be in this folder and every relative path (e.g. for results
 
     Pass an absolute ``--task-file`` when you mean a fixed location that is valid on the worker too.
 
+    The parameters file follows the same rule. The worker imports it before running the task, so a
+    ``b2luigi.set_setting(...)`` call made in ``parameters.py`` is in force on the worker exactly as
+    it is on the submission host. The ``config`` dict itself is not read there; every parameter value
+    travels on the command line.
+
 Drawbacks of the batch mode
 ---------------------------
 

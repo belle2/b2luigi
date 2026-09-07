@@ -587,6 +587,7 @@ def _make_get_setting(overrides=None):
         "batch_runner_cli": "b2luigi",
         "__batch_runner_use_cli": False,
         "__batch_runner_task_file": None,
+        "__batch_runner_params_file": None,
         "add_filename_to_cmd": True,
     }
     if overrides:
@@ -648,6 +649,27 @@ class TestCreateCmdFromTask(TestCase):
         mock_gs.side_effect = _make_get_setting({"__batch_runner_use_cli": True, "__batch_runner_task_file": None})
         cmd = create_cmd_from_task(_mock_task())
         self.assertNotIn("--task-file", cmd)
+
+    @patch("b2luigi.core.utils.get_setting")
+    def test_new_cli_mode_appends_params_file_as_given(self, mock_gs):
+        """--params-file is appended verbatim when __batch_runner_params_file is set.
+
+        Same convention as --task-file: a relative path stays relative so it
+        resolves against working_dir on the worker; the encoder never absolutises.
+        """
+        mock_gs.side_effect = _make_get_setting(
+            {"__batch_runner_use_cli": True, "__batch_runner_params_file": "conf/sweep.py"}
+        )
+        cmd = create_cmd_from_task(_mock_task())
+        self.assertIn("--params-file", cmd)
+        self.assertEqual(cmd[cmd.index("--params-file") + 1], "conf/sweep.py")
+
+    @patch("b2luigi.core.utils.get_setting")
+    def test_new_cli_mode_no_params_file_when_unset(self, mock_gs):
+        """--params-file is absent when __batch_runner_params_file is None."""
+        mock_gs.side_effect = _make_get_setting({"__batch_runner_use_cli": True, "__batch_runner_params_file": None})
+        cmd = create_cmd_from_task(_mock_task())
+        self.assertNotIn("--params-file", cmd)
 
     @patch("b2luigi.core.utils.get_filename", return_value="/abs/path/myscript.py")
     @patch("b2luigi.core.utils.get_setting")

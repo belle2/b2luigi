@@ -831,24 +831,38 @@ def get_root_tasks(task_list: List) -> List:
     return [t for t in task_list if t.task_id not in required_ids]
 
 
-def process_task_instance(task_instance: Any, task_file: str | None = None, **kwargs) -> None:
+def process_task_instance(
+    task_instance: Any, task_file: str | None = None, params_file: str | None = None, **kwargs
+) -> None:
     """Arm internal batch-runner settings and dispatch the task via :func:`b2luigi.process`.
 
     Sets ``__batch_runner_use_cli`` so that :func:`~b2luigi.core.utils.create_cmd_from_task`
     emits the new ``batch-runner --classname`` format when submitting to a batch system.
     When *task_file* is given, also sets ``__batch_runner_task_file`` so the worker command
     includes ``--task-file <path>`` and the batch-runner app can locate the task class.
+    Likewise *params_file* sets ``__batch_runner_params_file`` so the worker command
+    includes ``--params-file <path>`` and the worker imports the same parameters file the
+    submission host did, keeping its side effects (``set_setting`` calls) in force there.
+
+    Both paths are forwarded exactly as given: an absolute path stays absolute, a relative
+    one resolves against ``working_dir`` on the worker.
 
     :param task_instance: The task instance to execute.
-    :param task_file: Absolute path to the task-definitions file.  Pass the result of
-        ``os.path.abspath(task_filename)`` from the calling CLI app.  ``None`` suppresses
-        ``--task-file`` in the worker command (batch-runner falls back to ``tasks.py``).
+    :param task_file: Path to the task-definitions file as the user gave it.  ``None``
+        suppresses ``--task-file`` in the worker command (batch-runner falls back to
+        ``tasks.py``).
     :type task_file: str | None
+    :param params_file: Path to the parameters file as the user gave it.  ``None``
+        suppresses ``--params-file`` in the worker command (batch-runner falls back to
+        ``parameters.py``, which is optional).
+    :type params_file: str | None
     :param kwargs: Additional keyword arguments forwarded to :func:`b2luigi.process`.
     """
     set_setting("__batch_runner_use_cli", True)
     if task_file is not None:
         set_setting("__batch_runner_task_file", task_file)
+    if params_file is not None:
+        set_setting("__batch_runner_params_file", params_file)
     b2luigi.process(task_instance, ignore_additional_command_line_args=True, **kwargs)
 
 

@@ -3,10 +3,11 @@ from typing import Annotated, List, Optional
 import typer
 
 import b2luigi
-from b2luigi.cli.options import TaskFile
+from b2luigi.cli.options import ParamsFile, TaskFile
 from b2luigi.cli.runner import _build_fast_req_task, _build_fast_task
 from b2luigi.cli.utils import (
     cli_error_boundary,
+    load_parameters,
     load_task_class,
     process_task_instance,
     resolve_defaults,
@@ -26,6 +27,7 @@ def batch_runner(
         typer.Option("--classname", "-c", help="The task class name (task family)."),
     ] = None,
     task_filename: TaskFile = None,
+    params_filename: ParamsFile = None,
     params: Annotated[
         Optional[List[str]],
         typer.Option(
@@ -92,6 +94,10 @@ def batch_runner(
 
     :param classname: The fully-qualified task class name to instantiate (normal mode).
     :param task_filename: Path to the task definitions file.
+    :param params_filename: Path to the parameters file (normal mode).  Imported for its side
+        effects only, so ``set_setting`` calls made there apply on the worker as they do on
+        the submission host; its ``config`` is not used, the task is fully specified by
+        ``--param``.  Optional, like on the submission host.
     :param params: Serialised ``key=value`` parameter strings (normal mode).
     :param script: Path to the Python script to execute (test mode).
     :param output_file: Output filename key passed to :meth:`add_to_output` (test mode).
@@ -123,8 +129,12 @@ def batch_runner(
         process_task_instance(FastTask(), batch_runner=True)
     elif classname is not None:
         with cli_error_boundary():
-            d = resolve_defaults(task_filename, None)
+            d = resolve_defaults(task_filename, params_filename)
             TaskClass = load_task_class(classname, d.task_file)
+            # The submission host imported this file before instantiating the task; the
+            # worker must too, or any set_setting() it makes (result_dir, ...) is silently
+            # missing here. The config dict itself is irrelevant: --param carries the values.
+            load_parameters(d.params_file)
         task_instance = TaskClass.from_str_params(split_kv_params(params or []))
         process_task_instance(task_instance, batch_runner=True)
     else:

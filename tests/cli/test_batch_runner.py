@@ -133,3 +133,76 @@ class TestBatchRunnerParamRoundTrip(CLITestCase):
     def test_plain_string_is_unaffected(self) -> None:
         """Control: a non-JSON value already round-trips correctly today."""
         self._assert_value_preserved("plain")
+
+
+class TestBatchRunnerLoadsParametersFile(CLITestCase):
+    """The worker imports ``parameters.py`` so its side effects apply on the node.
+
+    ``b2luigi run`` imports the parameters file on the submission host, so a
+    ``set_setting`` call in it takes effect there. The worker rebuilds the task
+    from ``--classname``/``--param`` and used to import only the task file, so
+    the same ``set_setting`` never ran on the node: ``get_setting`` raised and
+    ``add_to_output`` silently fell back to the worker's cwd.
+    """
+
+    TASKS = (
+        "import b2luigi\n"
+        "\n"
+        "\n"
+        "class SettingTask(b2luigi.Task):\n"
+        "    number = b2luigi.IntParameter()\n"
+        "\n"
+        "    def output(self):\n"
+        "        yield self.add_to_output('out.txt')\n"
+        "\n"
+        "    def run(self):\n"
+        "        marker = b2luigi.get_setting('marker', task=self)\n"
+        "        with open(self.get_output_file_name('out.txt'), 'w') as f:\n"
+        "            f.write(marker)\n"
+    )
+
+    def _write(self, name: str, content: str) -> None:
+        pathlib.Path(os.path.join(self.tmp_dir, name)).write_text(content)
+
+    def setUp(self) -> None:
+        super().setUp()
+        self._write("tasks.py", self.TASKS)
+        self._write("settings.json", '{"log_dir": "logs"}')
+
+    def _assert_worker_wrote(self, extra_args: list[str], relative_result: str) -> None:
+        rc, stdout, stderr = self._run_cli(
+            "batch-runner",
+            ["--classname", "tasks.SettingTask", "--param", "number=1", *extra_args],
+        )
+        self.assertEqual(rc, 0, stdout + stderr)
+        out = pathlib.Path(self.tmp_dir, relative_result, "number=1", "out.txt")
+        self.assertTrue(out.exists(), f"missing {out}\n{stdout}\n{stderr}")
+        self.assertEqual(out.read_text(), "from-parameters-py")
+        self.assertFalse(pathlib.Path(self.tmp_dir, "number=1").exists(), "output leaked into the worker cwd")
+
+    def test_default_parameters_file_is_imported(self) -> None:
+        """A ``set_setting`` in ``parameters.py`` is in effect when the task runs on the worker."""
+        self._write(
+            "parameters.py",
+            "import b2luigi\n"
+            "b2luigi.set_setting('result_dir', 'results')\n"
+            "b2luigi.set_setting('marker', 'from-parameters-py')\n"
+            "config = {'number': 1}\n",
+        )
+        self._assert_worker_wrote([], "results")
+
+    def test_explicit_params_file_is_honoured(self) -> None:
+        """``--params-file`` names the file the worker imports, as forwarded by ``run``."""
+        self._write(
+            "sweep.py",
+            "import b2luigi\n"
+            "b2luigi.set_setting('result_dir', 'elsewhere')\n"
+            "b2luigi.set_setting('marker', 'from-parameters-py')\n"
+            "config = {'number': 1}\n",
+        )
+        self._assert_worker_wrote(["--params-file", "sweep.py"], "elsewhere")
+
+    def test_missing_parameters_file_is_not_an_error(self) -> None:
+        """A project without ``parameters.py`` still runs; the file is optional on the worker too."""
+        self._write("settings.json", '{"log_dir": "logs", "result_dir": "results", "marker": "from-parameters-py"}')
+        self._assert_worker_wrote([], "results")
