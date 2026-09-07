@@ -161,6 +161,10 @@ def run(
         bool,
         typer.Option("--batch", "-b", help="Submit tasks to the configured batch system instead of running locally."),
     ] = False,
+    tui: Annotated[
+        bool,
+        typer.Option("--tui", help=r"Show a live progress TUI while running tasks. Requires b2luigi\[tui]."),
+    ] = False,
     scheduler_host: Annotated[
         Optional[str],
         typer.Option(
@@ -186,6 +190,7 @@ def run(
     :param params: Key=value parameter overrides (repeatable).
     :param dry_run: If ``True``, print which tasks would run without executing them.
     :param batch: If ``True``, submit to the configured batch system.
+    :param tui: If ``True``, show a live progress TUI while running tasks.
     :param scheduler_host: Host of a central Luigi scheduler.
     :param scheduler_port: Port of a central Luigi scheduler.
     :param workers: Number of parallel luigi workers to use, or None to fall back to the 'workers' setting (default 1).
@@ -205,6 +210,7 @@ def run(
             overrides=overrides,
             dry_run=dry_run,
             batch=batch,
+            progress_tui=tui,
             scheduler_host=scheduler_host,
             scheduler_port=scheduler_port,
             **extra_kwargs,

@@ -62,6 +62,12 @@ def get_cli_arguments(ignore_additional_command_line_args=False):
     )
     parser.add_argument("-y", "--yes", action="store_true", help="Automatically confirm removal without prompting")
 
+    parser.add_argument(
+        "--tui",
+        help="Show a live progress TUI while running tasks. Requires b2luigi[tui].",
+        action="store_true",
+    )
+
     parser.add_argument("--task-id", help="EXPERT.", default="")
 
     if not ignore_additional_command_line_args:

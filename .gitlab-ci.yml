@@ -66,6 +66,19 @@ test:
       - coverage/
     expose_as: 'test result and coverage'
 
+test-tui:
+  stage: test
+  script:
+    - flit install -s --deps=develop
+    - pip install "textual>=8.0.0"
+    - pytest -v --junitxml=$ARTIFACTS_TEST_PATH tests/cli/test_tui.py
+  artifacts:
+    reports:
+      junit: $ARTIFACTS_TEST_PATH
+    paths:
+      - junit/test-results.xml
+    expose_as: 'TUI test results'
+
 docs:
   stage: docs
   needs:

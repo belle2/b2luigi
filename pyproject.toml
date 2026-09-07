@@ -39,6 +39,9 @@ description-file = "README.rst"
 b2luigi = "b2luigi.cli:main"
 
 [tool.flit.metadata.requires-extra]
+tui = [
+    "textual>=8.0.0",
+]
 # Use the same versions of sphinx and sphinx-book-theme
 # as in the latest version of the basf2 externals
 # (see https://github.com/belle2/externals)
