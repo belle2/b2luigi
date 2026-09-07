@@ -4,6 +4,7 @@
     parameter parsing, classname validation, and task discovery.
 """
 
+import importlib
 import os
 import shutil
 import sys
@@ -13,6 +14,7 @@ from unittest import TestCase
 import b2luigi
 from b2luigi.cli.errors import CliUserError
 from b2luigi.cli.utils import (
+    import_from_file,
     TaskIndex,
     build_task_index,
     parse_classnames,
@@ -405,3 +407,29 @@ class TestParseKvParamsStillTypes(TestCase):
             parse_kv_params(["n=5", "flag=true", "xs=[1,2]", "s=plain"]),
             {"n": 5, "flag": True, "xs": [1, 2], "s": "plain"},
         )
+
+
+class TestImportFromFileRegistersModule(TestCase):
+    """
+    :func:`import_from_file` must register the loaded module in ``sys.modules``.
+
+    luigi rebuilds batched tasks with ``load_task``, which imports ``task_module`` by
+    name; a module that was executed but never registered cannot be found that way.
+    """
+
+    def test_module_is_importable_by_name_after_loading(self) -> None:
+        tmp_dir = tempfile.mkdtemp()
+        try:
+            with open(os.path.join(tmp_dir, "tasks.py"), "w") as f:
+                f.write("MARKER = 42\n")
+            old_cwd = os.getcwd()
+            os.chdir(tmp_dir)
+            try:
+                module = import_from_file("tasks.py", "b2luigi_test_registered_module")
+            finally:
+                os.chdir(old_cwd)
+            self.assertIs(sys.modules.get("b2luigi_test_registered_module"), module)
+            self.assertEqual(importlib.import_module("b2luigi_test_registered_module").MARKER, 42)
+        finally:
+            sys.modules.pop("b2luigi_test_registered_module", None)
+            shutil.rmtree(tmp_dir)
