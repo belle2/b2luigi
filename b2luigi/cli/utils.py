@@ -205,8 +205,10 @@ def check_param_applicability(
 def import_from_file(filename: str, module_name: str) -> Any:
     """Load a module from a file and ensure its directory is importable.
 
-    Loads the file as *module_name* and guarantees the file's directory is on
-    ``sys.path`` so ``tasks.py`` can import sibling packages.
+    Loads the file as *module_name*, registers it in ``sys.modules`` under that
+    name (so luigi can re-import it when it rebuilds a batched task), and
+    guarantees the file's directory is on ``sys.path`` so ``tasks.py`` can
+    import sibling packages.
 
     :param filename: Path (relative to ``os.getcwd()``) of the module file.
     :type filename: str
@@ -232,7 +234,16 @@ def import_from_file(filename: str, module_name: str) -> Any:
         sys.path.insert(0, module_dir)
 
     module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
+    # Register before executing, as the import system does. luigi rebuilds a *batched*
+    # (parameter-grouped) task on the worker with ``load_task``, which imports
+    # ``task_module`` by name; a module that was executed but never registered is
+    # unreachable that way and every grouped task fails with ``ModuleNotFoundError``.
+    sys.modules[module_name] = module
+    try:
+        spec.loader.exec_module(module)
+    except BaseException:
+        sys.modules.pop(module_name, None)
+        raise
     return module
 
 
