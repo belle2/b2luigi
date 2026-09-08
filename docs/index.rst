@@ -94,6 +94,7 @@ Content
     api
     faq
     development
+    comparison_dagster
 
 
 The name
