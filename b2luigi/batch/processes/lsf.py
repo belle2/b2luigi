@@ -6,7 +6,13 @@ from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_ex
 
 import luigi.scheduler
 
-from b2luigi.batch.processes import BatchProcess, JobStatus, aggregate_job_status, expand_grouped_task
+from b2luigi.batch.processes import (
+    BatchProcess,
+    JobStatus,
+    aggregate_job_status,
+    expand_grouped_task,
+    write_failed_jobs_log,
+)
 from b2luigi.batch.cache import BatchJobStatusCache
 from b2luigi.core.utils import get_log_file_dir
 from b2luigi.core.executable import create_executable_wrapper
@@ -91,6 +97,8 @@ class LSFProcess(BatchProcess):
         # One id per submitted job: a single entry for a plain task, one per scalar
         # sub-task for a parameter-grouped task (see :obj:`expand_grouped_task`).
         self._batch_job_ids: list[str] = []
+        # Log directory of every submitted job, keyed by job id, for ``failed_jobs.log``.
+        self._job_log_dirs: dict[str, str] = {}
 
     def get_job_status(self) -> JobStatus:
         """
@@ -99,6 +107,8 @@ class LSFProcess(BatchProcess):
         A plain task has exactly one job. A parameter-grouped task has one job per
         scalar sub-task, and their statuses are combined with :obj:`aggregate_job_status`:
         running while any job runs, aborted if any job failed, successful only when all did.
+        When the task is aborted, a ``failed_jobs.log`` listing the failed job ids and their log
+        directories is written into the task's log directory (see :obj:`write_failed_jobs_log`).
 
         Returns:
             JobStatus: The aggregated status, or :meth:`JobStatus.aborted <b2luigi.process.JobStatus.aborted>`
@@ -106,7 +116,18 @@ class LSFProcess(BatchProcess):
         """
         if not self._batch_job_ids:
             return JobStatus.aborted
-        return aggregate_job_status(self._get_job_status_for_id(job_id) for job_id in self._batch_job_ids)
+        job_statuses = {job_id: self._get_job_status_for_id(job_id) for job_id in self._batch_job_ids}
+        status = aggregate_job_status(job_statuses.values())
+        if status == JobStatus.aborted:
+            write_failed_jobs_log(
+                self.task,
+                {
+                    job_id: self._job_log_dirs.get(job_id, "")
+                    for job_id, job_status in job_statuses.items()
+                    if job_status == JobStatus.aborted
+                },
+            )
+        return status
 
     @staticmethod
     def _get_job_status_for_id(job_id: str) -> JobStatus:
@@ -159,7 +180,9 @@ class LSFProcess(BatchProcess):
             return
 
         for sub_task in sub_tasks:
-            self._batch_job_ids.append(self._submit_task(sub_task))
+            job_id = self._submit_task(sub_task)
+            self._batch_job_ids.append(job_id)
+            self._job_log_dirs[job_id] = get_log_file_dir(sub_task)
 
     @staticmethod
     def _submit_task(task) -> str:

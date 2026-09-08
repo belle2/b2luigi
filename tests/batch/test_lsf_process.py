@@ -10,6 +10,7 @@ import luigi
 import b2luigi
 from b2luigi.batch.processes import JobStatus
 from b2luigi.batch.processes.lsf import LSFProcess, _batch_job_status_cache
+from b2luigi.core.utils import get_log_file_dir
 
 from ..helpers import B2LuigiTestCase
 from .batch_task_1 import MyTask
@@ -121,6 +122,30 @@ class TestLSFGroupedSubmission(B2LuigiTestCase):
     def test_status_without_job_ids_is_aborted(self):
         process = self._make_process(MyGroupedTask(plain=0, grouped=(0, 1)))
         self.assertEqual(process.get_job_status(), JobStatus.aborted)
+
+    @mock.patch("subprocess.check_output")
+    def test_aborted_group_writes_failed_jobs_log_in_group_log_dir(self, check_output):
+        """
+        ``on_failure`` points the user at the *group* task's log directory, but every sub-task
+        logs into its own scalar directory. The aborted branch must leave a ``failed_jobs.log``
+        in the group directory that names the failed job ids and their log directories.
+        """
+        check_output.side_effect = [self._bsub_output(101), self._bsub_output(102), self._bsub_output(103)]
+        task = MyGroupedTask(plain=0, grouped=(0, 1, 2))
+        process = self._make_process(task)
+        process.start_job()
+
+        _batch_job_status_cache["101"] = "DONE"
+        _batch_job_status_cache["102"] = "EXIT"
+        _batch_job_status_cache["103"] = "DONE"
+        self.assertEqual(process.get_job_status(), JobStatus.aborted)
+
+        failed_jobs_log = os.path.join(get_log_file_dir(task), "failed_jobs.log")
+        self.assertTrue(os.path.isfile(failed_jobs_log), failed_jobs_log)
+        with open(failed_jobs_log) as f:
+            lines = f.read().splitlines()
+        self.assertEqual(len(lines), 1)
+        self.assertEqual(lines[0], f"102: {get_log_file_dir(task.clone(None, grouped=1))}")
 
     @mock.patch("subprocess.run")
     def test_terminate_kills_every_job(self, run):

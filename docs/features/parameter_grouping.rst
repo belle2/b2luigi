@@ -75,6 +75,11 @@ If one or more tasks within a group fail:
 - Only the failed tasks are resubmitted to the batch system.
 - Completed tasks in the same group are not rerun.
 
+The failure message printed by b2luigi names the log directory of the *group*, whose path is built from the tuple of
+grouped values. The jobs themselves log into the directory of their own scalar value, so the group directory only holds a
+``failed_jobs.log`` listing every failed batch job id together with the log directory of that job. Start there to find
+the ``stdout``/``stderr`` of the member that failed.
+
 Choosing an appropriate ``max_grouping_size`` therefore involves a trade-off:
 
 **Larger values**

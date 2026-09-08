@@ -1,10 +1,11 @@
 import enum
+import os
 import time
 
 import luigi
 import luigi.scheduler
 
-from b2luigi.core.utils import on_failure, get_luigi_logger
+from b2luigi.core.utils import get_log_file_dir, on_failure, get_luigi_logger
 
 
 logger = get_luigi_logger()
@@ -46,6 +47,29 @@ def expand_grouped_task(task: luigi.Task) -> list[luigi.Task]:
             continue
         sub_tasks.append(sub_task)
     return sub_tasks
+
+
+def write_failed_jobs_log(task: luigi.Task, failed_jobs: dict) -> str:
+    """
+    Record which jobs of a (possibly grouped) task failed, in the task's own log directory.
+
+    :obj:`on_failure <b2luigi.core.utils.on_failure>` points the user at
+    :obj:`get_log_file_dir(task) <b2luigi.core.utils.get_log_file_dir>`. For a parameter-grouped
+    task (see :ref:`parameter-grouping-label`) that is the directory of the *group*, while every
+    sub-task writes its ``stdout``/``stderr`` into its own scalar directory, so without this file
+    the advertised directory would not even exist. Mirrors the ``failed_jobs.log`` HTCondor writes.
+
+    :param task: The task the batch process was created for (the group, if grouped).
+    :param failed_jobs: Mapping of every failed batch job id to the log directory of the job.
+    :return: The path of the written ``failed_jobs.log``.
+    """
+    log_file_dir = get_log_file_dir(task)
+    os.makedirs(log_file_dir, exist_ok=True)
+    failed_jobs_log = os.path.join(log_file_dir, "failed_jobs.log")
+    with open(failed_jobs_log, "w") as f:
+        for job_id, job_log_dir in failed_jobs.items():
+            f.write(f"{job_id}: {job_log_dir}\n")
+    return failed_jobs_log
 
 
 def aggregate_job_status(statuses) -> JobStatus:
