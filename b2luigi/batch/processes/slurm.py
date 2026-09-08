@@ -511,12 +511,11 @@ class SlurmProcess(BatchProcess):
         job_name = get_setting("job_name", task=self.task, default=False)
         if job_name is not False:
             general_settings.setdefault("job-name", job_name)
-        # FIXME: Handle job-name of the group.
 
         # Ask for a property submission_type. This is a custom property that can be used to specify
-        # the type of submission ("single", "array", ).
+        # the type of submission ("single", "array", "mpi").
         # If not provided, it defaults to "single".
-        # TODO: Add "mpi". Need to have additional attributes, which now something about the cluster setup.
+        # TODO: Add "mpi". Need to have additional attribute "tasks_per_node", which specifies how many tasks can be run on each node.
         submission_type = get_setting("submission_type", task=self.task, default="single")
         # if submission_type != "single":
         #     general_settings.setdefault("submission_type", submission_type)
@@ -529,14 +528,10 @@ class SlurmProcess(BatchProcess):
 
         if len(grouped_params) == 0:
             # No grouping - single job
-            if submission_type == "array":
-                submit_file_content.append(f"#SBATCH --{array}=0")
             executable_file = create_executable_wrapper(self.task)
             submit_file_content.append(f"exec {pathlib.Path(executable_file).resolve()}")
         elif not isinstance(self.task.param_kwargs[grouped_params[0]], tuple):
             # Grouped parameter but not a tuple (single value) - single job
-            if submission_type == "array":
-                submit_file_content.append(f"#SBATCH --{array}=0")
             executable_file = create_executable_wrapper(self.task)
             submit_file_content.append(f"exec {pathlib.Path(executable_file).resolve()}")
         else:
@@ -544,7 +539,19 @@ class SlurmProcess(BatchProcess):
             len_combinations = len(self.task.param_kwargs[grouped_params[0]])
 
             if submission_type == "array":
-                submit_file_content.append(f"#SBATCH --{array}=0-{len_combinations - 1}")
+                submit_file_content.append(f"#SBATCH --array=0-{len_combinations - 1}")
+            elif submission_type == "mpi":
+                raise NotImplementedError("MPI submission type is not yet implemented.")
+                # TODO: Add MPI support.
+                # # For MPI submission, we need to calculate the number of nodes and tasks per node based on the number of combinations.
+                # # We will use the setting "tasks_per_node" to determine how many tasks can be run on each node.
+                # tasks_per_node = get_setting("tasks_per_node", task=self.task, default=64)
+                # nnodes = len_combinations // tasks_per_node
+                # if len_combinations % tasks_per_node != 0:
+                #     nnodes += 1
+                # submit_file_content.append(f"#SBATCH --nodes={nnodes}")
+                # submit_file_content.append(f"#SBATCH --ntasks={len_combinations}")
+
 
             grouped_param_dicts = [
                 {param: value[i] for param, value in self.task.param_kwargs.items() if param in grouped_params}
@@ -560,27 +567,24 @@ class SlurmProcess(BatchProcess):
                 if sub_task.complete():
                     continue
 
-                # Create executable wrapper with unique name
-                old_path = create_executable_wrapper(task=sub_task)
-                executable_file_dir = os.path.dirname(old_path)
-                executable_wrapper_new_name = f"executable_wrapper_{idx}.sh"
-
-                # Rename the executable wrapper
-                new_path = os.path.join(executable_file_dir, executable_wrapper_new_name)
-
-                # Only rename if the file exists (it should, but let's be safe)
-                if os.path.exists(old_path):
-                    os.rename(old_path, new_path)
-
-                executable_wrappers.append(new_path)
+                # Specify the executable
+                executable_file = create_executable_wrapper(task=sub_task)
+                # Add the path to the list of executable wrappers
+                executable_wrappers.append(executable_file)
 
             # If no tasks need to be submitted, mark as terminated
             if len(executable_wrappers) == 0:
                 self._put_to_result_queue(status=luigi.scheduler.DONE, explanation="")
                 self._terminated = True
             else:
-                # Add case statement for efficient execution based on SLURM_ARRAY_TASK_ID
-                procid="SLURM_ARRAY_TASK_ID"  # TODO: For MPI jobs change to "SLURM_PROCID".
+                if submission_type == "array":
+                    # The SLURM_ARRAY_TASK_ID environment variable is used to determine which task in the array is being executed.
+                    procid="SLURM_ARRAY_TASK_ID"
+                elif submission_type == "mpi":
+                    # The SLURM_PROCID environment variable is used to determine which task in the MPI job is being executed.
+                    raise NotImplementedError("MPI submission type is not yet implemented.")
+                    # TODO: Add MPI support.
+                    # procid="SLURM_PROCID"
                 submit_file_content.append(f"case ${procid} in")
                 for idx, wrapper_path in enumerate(executable_wrappers):
                     submit_file_content.append(f"  {idx})")
