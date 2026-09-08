@@ -2,6 +2,7 @@ import subprocess
 import pathlib
 import re
 import getpass
+import os
 from enum import StrEnum
 from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_exponential
 
@@ -510,13 +511,86 @@ class SlurmProcess(BatchProcess):
         job_name = get_setting("job_name", task=self.task, default=False)
         if job_name is not False:
             general_settings.setdefault("job-name", job_name)
+        # FIXME: Handle job-name of the group.
+
+        # Ask for a property submission_type. This is a custom property that can be used to specify
+        # the type of submission ("single", "array", ).
+        # If not provided, it defaults to "single".
+        # TODO: Add "mpi". Need to have additional attributes, which now something about the cluster setup.
+        submission_type = get_setting("submission_type", task=self.task, default="single")
+        # if submission_type != "single":
+        #     general_settings.setdefault("submission_type", submission_type)
 
         for key, item in general_settings.items():
             submit_file_content.append(f"#SBATCH --{key}={item}")
 
-        # Specify the executable
-        executable_file = create_executable_wrapper(self.task)
-        submit_file_content.append(f"exec {pathlib.Path(executable_file).resolve()}")
+        # Check for grouped parameters
+        grouped_params = self.task.grouped_param_names()
+
+        if len(grouped_params) == 0:
+            # No grouping - single job
+            if submission_type == "array":
+                submit_file_content.append(f"#SBATCH --{array}=0")
+            executable_file = create_executable_wrapper(self.task)
+            submit_file_content.append(f"exec {pathlib.Path(executable_file).resolve()}")
+        elif not isinstance(self.task.param_kwargs[grouped_params[0]], tuple):
+            # Grouped parameter but not a tuple (single value) - single job
+            if submission_type == "array":
+                submit_file_content.append(f"#SBATCH --{array}=0")
+            executable_file = create_executable_wrapper(self.task)
+            submit_file_content.append(f"exec {pathlib.Path(executable_file).resolve()}")
+        else:
+            # Grouped parameters with tuple values - multiple jobs
+            len_combinations = len(self.task.param_kwargs[grouped_params[0]])
+
+            if submission_type == "array":
+                submit_file_content.append(f"#SBATCH --{array}=0-{len_combinations - 1}")
+
+            grouped_param_dicts = [
+                {param: value[i] for param, value in self.task.param_kwargs.items() if param in grouped_params}
+                for i in range(len_combinations)
+            ]
+
+            # Create executable wrappers for each grouped task
+            executable_wrappers = []
+            for idx, param_dict in enumerate(grouped_param_dicts):
+                sub_task = self.task.clone(None, **param_dict)
+
+                # If a sub_task was already successful do not resubmit it
+                if sub_task.complete():
+                    continue
+
+                # Create executable wrapper with unique name
+                old_path = create_executable_wrapper(task=sub_task)
+                executable_file_dir = os.path.dirname(old_path)
+                executable_wrapper_new_name = f"executable_wrapper_{idx}.sh"
+
+                # Rename the executable wrapper
+                new_path = os.path.join(executable_file_dir, executable_wrapper_new_name)
+
+                # Only rename if the file exists (it should, but let's be safe)
+                if os.path.exists(old_path):
+                    os.rename(old_path, new_path)
+
+                executable_wrappers.append(new_path)
+
+            # If no tasks need to be submitted, mark as terminated
+            if len(executable_wrappers) == 0:
+                self._put_to_result_queue(status=luigi.scheduler.DONE, explanation="")
+                self._terminated = True
+            else:
+                # Add case statement for efficient execution based on SLURM_ARRAY_TASK_ID
+                procid="SLURM_ARRAY_TASK_ID"  # TODO: For MPI jobs change to "SLURM_PROCID".
+                submit_file_content.append(f"case ${procid} in")
+                for idx, wrapper_path in enumerate(executable_wrappers):
+                    submit_file_content.append(f"  {idx})")
+                    submit_file_content.append(f"    exec {pathlib.Path(wrapper_path).resolve()}")
+                    submit_file_content.append("    ;;")
+                submit_file_content.append("  *)")
+                submit_file_content.append(f"    echo \"Invalid {procid}: ${procid}\" >&2")
+                submit_file_content.append("    exit 1")
+                submit_file_content.append("    ;;")
+                submit_file_content.append("esac")
 
         # Now we can write the submit file
         output_path = pathlib.Path(get_task_file_dir(self.task))
