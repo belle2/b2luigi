@@ -89,6 +89,9 @@ class Basf2PathTask(Basf2Task):
 
     @b2luigi.on_temporary_files
     def process(self):
+        self._process()
+        
+    def _process(self):
         """
         Executes the processing task using the ``basf2`` framework.
 
