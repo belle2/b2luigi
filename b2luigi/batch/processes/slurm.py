@@ -6,6 +6,7 @@ import os
 from enum import StrEnum
 from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_exponential
 
+import luigi
 from luigi.parameter import _no_value
 from b2luigi.core.settings import get_setting
 from b2luigi.batch.processes import BatchProcess, JobStatus
@@ -368,9 +369,9 @@ class SlurmProcess(BatchProcess):
             Returns:
                 str: The corresponding b2luigi job status.
             """
-            if job_status in [SlurmJobStatus.completed]:
+            if slurm_status in [SlurmJobStatus.completed]:
                 return "completed"
-            if job_status in [
+            if slurm_status in [
                 SlurmJobStatus.pending,
                 SlurmJobStatus.running,
                 SlurmJobStatus.suspended,
@@ -379,7 +380,7 @@ class SlurmProcess(BatchProcess):
                 SlurmJobStatus.configuring,
             ]:
                 return "running"
-            if job_status in [
+            if slurm_status in [
                 SlurmJobStatus.boot_fail,
                 SlurmJobStatus.cancelled,
                 SlurmJobStatus.deadline,
@@ -389,7 +390,7 @@ class SlurmProcess(BatchProcess):
                 SlurmJobStatus.timeout,
             ]:
                 return "aborted"
-            raise ValueError(f"Unknown Slurm Job status: {job_status}")
+            raise ValueError(f"Unknown Slurm Job status: {slurm_status}")
 
         # Convert Slurm job stati to b2luigi job stati
         job_stati = {job_id: get_job_status_from_slurm_status(status) for job_id, status in job_stati.items()}
@@ -443,7 +444,13 @@ class SlurmProcess(BatchProcess):
         match = re.search(r"[0-9]+", output)
         if not match:
             raise RuntimeError("Batch submission failed with output " + output)
-        self._batch_job_ids = [match.group(0)]
+        job_id = match.group(0)
+        # For job arrays, the job ID is in the format "123456_1", "123456_2", etc..
+        # However, when submitting the job array, Slurm returns only the base job ID (e.g., "123456") and the array indices
+        # are specified in the submit file.
+        # FIXME: Is the following working?
+        self._batch_job_ids = [job_id]
+        _batch_job_status_cache.add_job_ids(self._batch_job_ids)
 
     def terminate_job(self):
         """
@@ -508,6 +515,7 @@ class SlurmProcess(BatchProcess):
         if task_slurm_settings != _no_value:
             general_settings.update(task_slurm_settings)
 
+
         job_name = get_setting("job_name", task=self.task, default=False)
         if job_name is not False:
             general_settings.setdefault("job-name", job_name)
@@ -534,24 +542,12 @@ class SlurmProcess(BatchProcess):
             # Grouped parameter but not a tuple (single value) - single job
             executable_file = create_executable_wrapper(self.task)
             submit_file_content.append(f"exec {pathlib.Path(executable_file).resolve()}")
+        elif submission_type not in ["array", "mpi"]:
+            executable_file = create_executable_wrapper(self.task)
+            submit_file_content.append(f"exec {pathlib.Path(executable_file).resolve()}")
         else:
             # Grouped parameters with tuple values - multiple jobs
             len_combinations = len(self.task.param_kwargs[grouped_params[0]])
-
-            if submission_type == "array":
-                submit_file_content.append(f"#SBATCH --array=0-{len_combinations - 1}")
-            elif submission_type == "mpi":
-                raise NotImplementedError("MPI submission type is not yet implemented.")
-                # TODO: Add MPI support.
-                # # For MPI submission, we need to calculate the number of nodes and tasks per node based on the number of combinations.
-                # # We will use the setting "tasks_per_node" to determine how many tasks can be run on each node.
-                # tasks_per_node = get_setting("tasks_per_node", task=self.task, default=64)
-                # nnodes = len_combinations // tasks_per_node
-                # if len_combinations % tasks_per_node != 0:
-                #     nnodes += 1
-                # submit_file_content.append(f"#SBATCH --nodes={nnodes}")
-                # submit_file_content.append(f"#SBATCH --ntasks={len_combinations}")
-
 
             grouped_param_dicts = [
                 {param: value[i] for param, value in self.task.param_kwargs.items() if param in grouped_params}
@@ -560,6 +556,7 @@ class SlurmProcess(BatchProcess):
 
             # Create executable wrappers for each grouped task
             executable_wrappers = []
+            n_submitted_tasks = 0
             for idx, param_dict in enumerate(grouped_param_dicts):
                 sub_task = self.task.clone(None, **param_dict)
 
@@ -567,6 +564,7 @@ class SlurmProcess(BatchProcess):
                 if sub_task.complete():
                     continue
 
+                n_submitted_tasks += 1
                 # Specify the executable
                 executable_file = create_executable_wrapper(task=sub_task)
                 # Add the path to the list of executable wrappers
@@ -578,13 +576,27 @@ class SlurmProcess(BatchProcess):
                 self._terminated = True
             else:
                 if submission_type == "array":
+                    submit_file_content.append(f"#SBATCH --array=0-{n_submitted_tasks - 1}")
+
                     # The SLURM_ARRAY_TASK_ID environment variable is used to determine which task in the array is being executed.
                     procid="SLURM_ARRAY_TASK_ID"
                 elif submission_type == "mpi":
-                    # The SLURM_PROCID environment variable is used to determine which task in the MPI job is being executed.
                     raise NotImplementedError("MPI submission type is not yet implemented.")
                     # TODO: Add MPI support.
+                    # # For MPI submission, we need to calculate the number of nodes and tasks per node based on the number of combinations.
+                    # # We will use the setting "tasks_per_node" to determine how many tasks can be run on each node.
+                    # tasks_per_node = get_setting("tasks_per_node", task=self.task, default=64)
+                    # nnodes = n_submitted_tasks // tasks_per_node
+                    # if n_submitted_tasks % tasks_per_node != 0:
+                    #     nnodes += 1
+                    # submit_file_content.append(f"#SBATCH --nodes={nnodes}")
+                    # submit_file_content.append(f"#SBATCH --ntasks={n_submitted_tasks}")
+
+                    # The SLURM_PROCID environment variable is used to determine which task in the MPI job is being executed.
                     # procid="SLURM_PROCID"
+                else:
+                    raise ValueError(f"Unknown submission type: {submission_type}")
+
                 submit_file_content.append(f"case ${procid} in")
                 for idx, wrapper_path in enumerate(executable_wrappers):
                     submit_file_content.append(f"  {idx})")
