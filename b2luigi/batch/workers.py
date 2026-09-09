@@ -106,11 +106,6 @@ class SendJobWorker(luigi.worker.Worker):
                 logging.warning(
                     "Grouping of tasks is currently an experimental feature and should be treated with care!"
                 )
-            else:
-                logging.info(
-                    "Slurm process detected. If you want to use the grouping feature, please set the 'grouping' attribute of the BatchIntParameter to True."
-                )
-                raise AttributeError()
         elif batch_system == BatchSystems.gbasf2:
             process_class = Gbasf2Process
         elif batch_system == BatchSystems.test:

@@ -67,10 +67,8 @@ class SlurmJobStatusCache(BatchJobStatusCache):
         if not job_id:
             return
 
-        # For job arrays, the job ID is in the format "123456_123".
-        # We need to check if the job_id is the base of some ids in the seen_ids set.
-        # For example, if job_id is "123456", we need to check if any id in seen_ids starts with "123456_".
-        job_id_in_seen_ids = any(id.startswith(f"{job_id}_") or id == job_id for id in seen_ids)
+        # The cache stores one aggregate status under the scheduler-level ID.
+        job_id_in_seen_ids = str(job_id) in seen_ids
 
         # If the specified job can not be found in the squeue output, we need to request its history from the slurm job accounting log
         # We also check that the working Slurm server has the Slurm accounting storage active
@@ -140,8 +138,6 @@ class SlurmJobStatusCache(BatchJobStatusCache):
                 # the specified job cannot be found on the slurm system. Return a failed.
                 pass
 
-        else:
-            self[job_id] = SlurmJobStatus.failed
 
     def _fill_from_output(self, output: str) -> set:
         """
@@ -174,6 +170,7 @@ class SlurmJobStatusCache(BatchJobStatusCache):
             return seen_ids
 
         # If no jobs exist then output=='' and this loop does not see any id's
+        temporary_job_id_stats = {}
         for job_info_str in output.split("\n"):
             if not job_info_str:
                 continue  # When splitting by \n, the final entry of the list is likely an empty string
@@ -187,40 +184,35 @@ class SlurmJobStatusCache(BatchJobStatusCache):
             id, state_string = job_info
             # Manually cancelling jobs gives the state 'CANCELLED+'
             state_string = state_string.strip("+")
-            # For job arrays, the job ID may be in the format "123456_[3-10] PENDING".
-            # We need to handle this case separately and assign the same state to all jobs in the array.
-            if "[" in id and "]" in id:
-                match = re.match(r"(\d+)_\[(\d+)-(\d+)\]", id)
-                if match:
-                    base_id, start_index, end_index = match.groups()
-                    for index in range(int(start_index), int(end_index) + 1):
-                        array_job_id = f"{base_id}_{index}"
-                        self[array_job_id] = self._get_SlurmJobStatus_from_string(state_string)
-                        seen_ids.add(array_job_id)
+            # For job arrays, the job ID may be in the format "123456_<array>".
+            id = id.split("_")[0]  # Get the base job ID (before the underscore)
+            # There are therefor multiple job stati for each base job id.
+            # The following rules are used to determine the overall status of the base job id:
+            # any element failed     -> aborted
+            # any element running    -> running
+            # all elements completed -> successful
+            if id in temporary_job_id_stats:
+                # If the job ID is already in the temporary dictionary, we need to update its status based on the new state_string
+                current_status = temporary_job_id_stats[id]
+                new_status = SlurmJobStatus.get_job_status(state_string)
+
+                # Determine the overall status based on the rules
+                if new_status == "aborted" or current_status == "aborted":
+                    temporary_job_id_stats[id] = "aborted"
+                elif new_status == "running" or current_status == "running":
+                    temporary_job_id_stats[id] = "running"
+                else:
+                    temporary_job_id_stats[id] = "completed"
+
             else:
-                self[id] = self._get_SlurmJobStatus_from_string(state_string)
-                seen_ids.add(id)
+                temporary_job_id_stats[id] = SlurmJobStatus.get_job_status(state_string)
+
+        # Update the cache with the final statuses for each job ID
+        for id, status in temporary_job_id_stats.items():
+            self[id] = status
+            seen_ids.add(id)
 
         return seen_ids
-
-    def _get_SlurmJobStatus_from_string(self, state_string: str) -> str:
-        """
-        Converts a state string into a :obj:`SlurmJobStatus` enumeration value.
-
-        Args:
-            state_string (str): The state string to be converted.
-
-        Returns:
-            str: The corresponding :obj:`SlurmJobStatus` value.
-
-        Raises:
-            KeyError: If the provided state string does not match any valid :obj:`SlurmJobStatus`.
-        """
-        try:
-            state = SlurmJobStatus(state_string)
-        except KeyError:
-            raise KeyError(f"The state {state_string} could not be found in the SlurmJobStatus states")
-        return state
 
     def _check_if_sacct_is_disabled_on_server(self) -> bool:
         """
@@ -285,6 +277,68 @@ class SlurmJobStatus(StrEnum):
     out_of_memory = "OUT_OF_MEMORY"
     failed = "FAILED"
     timeout = "TIMEOUT"
+
+    @staticmethod
+    def get_job_status(state_string):
+        """
+        Converts a Slurm job state string to a b2luigi job status (completed, running, aborted).
+        """
+        return SlurmJobStatus._get_job_status_from_slurm_status(SlurmJobStatus(state_string))
+
+    @staticmethod
+    def _get_job_status_from_slurm_status(slurm_status):
+        """
+        Convert a Slurm job status to a b2luigi job status (completed, running, aborted).
+        See https://slurm.schedmd.com/job_state_codes.html
+
+        Args:
+            slurm_status (SlurmJobStatus): The Slurm job status.
+
+        Returns:
+            str: The corresponding b2luigi job status.
+        """
+        if slurm_status in [SlurmJobStatus.completed]:
+            return "completed"
+        if slurm_status in [
+            SlurmJobStatus.pending,
+            SlurmJobStatus.running,
+            SlurmJobStatus.suspended,
+            SlurmJobStatus.preempted,
+            SlurmJobStatus.completing,
+            SlurmJobStatus.configuring,
+        ]:
+            return "running"
+        if slurm_status in [
+            SlurmJobStatus.boot_fail,
+            SlurmJobStatus.cancelled,
+            SlurmJobStatus.deadline,
+            SlurmJobStatus.node_fail,
+            SlurmJobStatus.out_of_memory,
+            SlurmJobStatus.failed,
+            SlurmJobStatus.timeout,
+        ]:
+            return "aborted"
+        raise ValueError(f"Unknown Slurm Job status: {slurm_status}")
+
+    @classmethod
+    def _get_SlurmJobStatus_from_string(cls, state_string: str) -> str:
+        """
+        Converts a state string into a :obj:`SlurmJobStatus` enumeration value.
+
+        Args:
+            state_string (str): The state string to be converted.
+
+        Returns:
+            str: The corresponding :obj:`SlurmJobStatus` value.
+
+        Raises:
+            KeyError: If the provided state string does not match any valid :obj:`SlurmJobStatus`.
+        """
+        try:
+            state = cls(state_string)
+        except KeyError:
+            raise KeyError(f"The state {state_string} could not be found in the SlurmJobStatus states")
+        return state
 
 
 _batch_job_status_cache = SlurmJobStatusCache()
@@ -351,49 +405,11 @@ class SlurmProcess(BatchProcess):
         job_stati = {}
         for job_id in self._batch_job_ids:
             try:
-                job_status = _batch_job_status_cache[job_id]
-                job_stati[job_id] = job_status
+                job_stati[job_id] = str(_batch_job_status_cache[job_id])
             except KeyError:
                 # If any job is not found in cache, consider it aborted
                 return JobStatus.aborted
 
-
-        def get_job_status_from_slurm_status(slurm_status):
-            """
-            Convert a Slurm job status to a b2luigi job status (completed, running, aborted).
-            See https://slurm.schedmd.com/job_state_codes.html
-
-            Args:
-                slurm_status (SlurmJobStatus): The Slurm job status.
-
-            Returns:
-                str: The corresponding b2luigi job status.
-            """
-            if slurm_status in [SlurmJobStatus.completed]:
-                return "completed"
-            if slurm_status in [
-                SlurmJobStatus.pending,
-                SlurmJobStatus.running,
-                SlurmJobStatus.suspended,
-                SlurmJobStatus.preempted,
-                SlurmJobStatus.completing,
-                SlurmJobStatus.configuring,
-            ]:
-                return "running"
-            if slurm_status in [
-                SlurmJobStatus.boot_fail,
-                SlurmJobStatus.cancelled,
-                SlurmJobStatus.deadline,
-                SlurmJobStatus.node_fail,
-                SlurmJobStatus.out_of_memory,
-                SlurmJobStatus.failed,
-                SlurmJobStatus.timeout,
-            ]:
-                return "aborted"
-            raise ValueError(f"Unknown Slurm Job status: {slurm_status}")
-
-        # Convert Slurm job stati to b2luigi job stati
-        job_stati = {job_id: get_job_status_from_slurm_status(status) for job_id, status in job_stati.items()}
 
         # All jobs completed successfully
         if all(status == "completed" for status in job_stati.values()):
