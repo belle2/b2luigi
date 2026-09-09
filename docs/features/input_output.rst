@@ -25,6 +25,13 @@ This method always returns the full path of the output file.
 To find out more about the task and its methods, check the :class:`b2luigi.Task` documentation.
 The temporary file decorator is documented in the :ref:`Temporary File Context Manager <api-on-temporary-label>` section.
 
+.. note::
+    :class:`b2luigi.basf2_helper.tasks.Basf2PathTask` and :class:`b2luigi.basf2_helper.tasks.MergerTask` apply
+    :meth:`b2luigi.on_temporary_files` to their ``process`` method with the default ``inputs=True, outputs=True``
+    settings. Their actual processing logic lives in a ``_process`` method, so if you need a different temporary-file
+    behavior (e.g. leaving large inputs in place), override ``process`` in your subclass and call ``self._process()``
+    from within your own ``@b2luigi.on_temporary_files(...)``-decorated version.
+
 Inputs
 ------
 
