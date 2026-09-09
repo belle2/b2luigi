@@ -89,6 +89,20 @@ class Basf2PathTask(Basf2Task):
 
     @b2luigi.on_temporary_files
     def process(self):
+        """
+        Runs :meth:`_process <b2luigi.basf2_helper.tasks.Basf2PathTask._process>` wrapped in
+        :meth:`b2luigi.on_temporary_files` (with its default ``inputs=True, outputs=True`` settings).
+
+        Override this method in a subclass if a different temporary-file behavior is needed, e.g.::
+
+            class MyTask(Basf2PathTask):
+                @b2luigi.on_temporary_files(inputs=False)
+                def process(self):
+                    self._process()
+
+        The actual processing logic lives in :meth:`_process <b2luigi.basf2_helper.tasks.Basf2PathTask._process>`
+        so it does not have to be duplicated when only the wrapper needs to change.
+        """
         self._process()
 
     def _process(self):
@@ -200,6 +214,21 @@ class MergerTask(Basf2Task):
 
     @b2luigi.on_temporary_files
     def process(self):
+        """
+        Runs :meth:`_process <b2luigi.basf2_helper.tasks.MergerTask._process>` wrapped in
+        :meth:`b2luigi.on_temporary_files` (with its default ``inputs=True, outputs=True`` settings).
+
+        Override this method in a subclass to change the temporary-file behavior, e.g. to avoid
+        copying a large number of input files into ``scratch_dir`` before merging them::
+
+            class MyMergerTask(MergerTask):
+                @b2luigi.on_temporary_files(inputs=False)
+                def process(self):
+                    self._process()
+
+        The actual processing logic lives in :meth:`_process <b2luigi.basf2_helper.tasks.MergerTask._process>`
+        so it does not have to be duplicated when only the wrapper needs to change.
+        """
         self._process()
 
     def _process(self):

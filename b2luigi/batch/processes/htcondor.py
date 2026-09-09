@@ -258,6 +258,7 @@ class HTCondorProcess(BatchProcess):
     def get_job_status(self):
         job_status_list = [self.get_job_status_for_id(job_id=job_id) for job_id in self._batch_job_ids]
         if any([s == JobStatus.running for s in job_status_list]):
+            self.task.set_progress_percentage(sum(s == JobStatus.successful for s in job_status_list)/len(job_status_list))
             return JobStatus.running
         elif any([s == JobStatus.aborted for s in job_status_list]):
             aborted_job_ids = [
