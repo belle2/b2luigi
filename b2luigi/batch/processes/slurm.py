@@ -298,8 +298,6 @@ class SlurmProcess(BatchProcess):
             JobStatus: The aggregated status, or :meth:`JobStatus.aborted <b2luigi.process.JobStatus.aborted>`
             if no job was submitted.
         """
-        if not self._batch_job_ids:
-            return JobStatus.aborted
         job_statuses = {job_id: self._get_job_status_for_id(job_id) for job_id in self._batch_job_ids}
         status = aggregate_job_status(job_statuses.values())
         if status == JobStatus.aborted:

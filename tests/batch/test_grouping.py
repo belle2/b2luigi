@@ -59,5 +59,5 @@ class TestAggregateJobStatus(B2LuigiTestCase):
     def test_one_aborted_aborts_the_group_once_nothing_runs(self):
         self.assertEqual(aggregate_job_status([JobStatus.successful, JobStatus.aborted]), JobStatus.aborted)
 
-    def test_empty_list_is_successful(self):
-        self.assertEqual(aggregate_job_status([]), JobStatus.successful)
+    def test_empty_list_is_aborted(self):
+        self.assertEqual(aggregate_job_status([]), JobStatus.aborted)

@@ -77,11 +77,14 @@ def aggregate_job_status(statuses) -> JobStatus:
     Collapse the statuses of the jobs of one (possibly grouped) task into a single status.
 
     :param statuses: An iterable of :obj:`JobStatus` values, one per submitted job.
-    :return: :attr:`JobStatus.running` while any job still runs, otherwise
-        :attr:`JobStatus.aborted` if any job failed, otherwise :attr:`JobStatus.successful`.
-        A group is only successful when every member is.
+    :return: :attr:`JobStatus.aborted` if no job was submitted at all, :attr:`JobStatus.running`
+        while any job still runs, otherwise :attr:`JobStatus.aborted` if any job failed, otherwise
+        :attr:`JobStatus.successful`. A group is only successful when every member is, and an
+        empty group has nothing to be successful about, so it fails closed.
     """
     statuses = list(statuses)
+    if not statuses:
+        return JobStatus.aborted
     if any(status == JobStatus.running for status in statuses):
         return JobStatus.running
     if any(status == JobStatus.aborted for status in statuses):
