@@ -200,6 +200,9 @@ class MergerTask(Basf2Task):
 
     @b2luigi.on_temporary_files
     def process(self):
+        self._process()
+        
+    def _process(self):
         """
         Processes input files and generates output files by executing a command.
 
