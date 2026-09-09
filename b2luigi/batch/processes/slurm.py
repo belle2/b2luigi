@@ -442,7 +442,8 @@ class SlurmProcess(BatchProcess):
         method, then submits the job using the ``sbatch`` command.
         After submission, it parses the output to extract the batch job ID(s).
 
-        For job arrays, multiple job IDs may be extracted and stored in _batch_job_ids.
+        For grouped non-array submissions, one job ID is stored for each submitted task.
+        This has to be done like that, since grouped tasks cannot be ungrouped later on.
 
         Raises:
             RuntimeError: If the batch submission fails or the job ID cannot be extracted.
@@ -450,22 +451,41 @@ class SlurmProcess(BatchProcess):
         Attributes:
             self._batch_job_ids (list): The IDs of the submitted Slurm batch jobs.
         """
-        submit_file = self._create_slurm_submit_file()
+        grouped_params = self.task.grouped_param_names()
+        grouped_values = self.task.param_kwargs[grouped_params[0]] if grouped_params else None
+        submission_type = get_setting("submission_type", task=self.task, default="single")
 
-        # Slurm submit needs to be called in the folder of the submit file
-        path = pathlib.Path(submit_file)
-        output = subprocess.check_output(["sbatch", path.name], cwd=path.parent)
+        if isinstance(grouped_values, tuple) and submission_type == "single":
+            submit_files = []
+            for index in range(len(grouped_values)):
+                param_dict = {
+                    param: values[index]
+                    for param, values in self.task.param_kwargs.items()
+                    if param in grouped_params
+                }
+                sub_task = self.task.clone(None, **param_dict)
+                if not sub_task.complete():
+                    submit_files.append(self._create_slurm_submit_file(task=sub_task))
+        else:
+            submit_files = [self._create_slurm_submit_file()]
 
-        output = output.decode()
-        match = re.search(r"[0-9]+", output)
-        if not match:
-            raise RuntimeError("Batch submission failed with output " + output)
-        job_id = match.group(0)
-        # For job arrays, the job ID is in the format "123456_1", "123456_2", etc..
-        # However, when submitting the job array, Slurm returns only the base job ID (e.g., "123456") and the array indices
-        # are specified in the submit file.
-        # FIXME: Is the following working?
-        self._batch_job_ids = [job_id]
+        if not submit_files:
+            self._put_to_result_queue(status=luigi.scheduler.DONE, explanation="")
+            self._terminated = True
+            return
+
+        self._batch_job_ids = []
+        for submit_file in submit_files:
+            # Slurm submit needs to be called in the folder of the submit file
+            path = pathlib.Path(submit_file)
+            output = subprocess.check_output(["sbatch", path.name], cwd=path.parent)
+
+            output = output.decode()
+            match = re.search(r"[0-9]+", output)
+            if not match:
+                raise RuntimeError("Batch submission failed with output " + output)
+            self._batch_job_ids.append(match.group(0))
+
         _batch_job_status_cache.add_job_ids(self._batch_job_ids)
 
     def terminate_job(self):
@@ -492,7 +512,7 @@ class SlurmProcess(BatchProcess):
             cancel_cmd.extend(list(cluster_ids))
             subprocess.run(cancel_cmd, stdout=subprocess.DEVNULL)
 
-    def _create_slurm_submit_file(self):
+    def _create_slurm_submit_file(self, task=None):
         """
         Creates a Slurm submit file for the current task.
 
@@ -509,10 +529,11 @@ class SlurmProcess(BatchProcess):
             - The executable is created with :obj:`create_executable_wrapper`.
             - The submit file is named `slurm_parameters.sh` and is created in the task's output directory (:obj:`get_task_file_dir`).
         """
+        task = task or self.task
         submit_file_content = ["#!/usr/bin/bash"]
 
         # Specify where to write the log to
-        log_file_dir = pathlib.Path(get_log_file_dir(self.task))
+        log_file_dir = pathlib.Path(get_log_file_dir(task))
         log_file_dir.mkdir(parents=True, exist_ok=True)
 
         stdout_log_file = (log_file_dir / "stdout").resolve()
@@ -527,12 +548,12 @@ class SlurmProcess(BatchProcess):
         if general_settings == _no_value:
             general_settings = {}
 
-        task_slurm_settings = get_setting("slurm_settings", task=self.task, default=_no_value)
+        task_slurm_settings = get_setting("slurm_settings", task=task, default=_no_value)
         if task_slurm_settings != _no_value:
             general_settings.update(task_slurm_settings)
 
 
-        job_name = get_setting("job_name", task=self.task, default=False)
+        job_name = get_setting("job_name", task=task, default=False)
         if job_name is not False:
             general_settings.setdefault("job-name", job_name)
 
@@ -540,33 +561,31 @@ class SlurmProcess(BatchProcess):
         # the type of submission ("single", "array", "mpi").
         # If not provided, it defaults to "single".
         # TODO: Add "mpi". Need to have additional attribute "tasks_per_node", which specifies how many tasks can be run on each node.
-        submission_type = get_setting("submission_type", task=self.task, default="single")
-        # if submission_type != "single":
-        #     general_settings.setdefault("submission_type", submission_type)
+        submission_type = get_setting("submission_type", task=task, default="single")
 
         for key, item in general_settings.items():
             submit_file_content.append(f"#SBATCH --{key}={item}")
 
         # Check for grouped parameters
-        grouped_params = self.task.grouped_param_names()
+        grouped_params = task.grouped_param_names()
 
         if len(grouped_params) == 0:
             # No grouping - single job
-            executable_file = create_executable_wrapper(self.task)
+            executable_file = create_executable_wrapper(task)
             submit_file_content.append(f"exec {pathlib.Path(executable_file).resolve()}")
-        elif not isinstance(self.task.param_kwargs[grouped_params[0]], tuple):
+        elif not isinstance(task.param_kwargs[grouped_params[0]], tuple):
             # Grouped parameter but not a tuple (single value) - single job
-            executable_file = create_executable_wrapper(self.task)
+            executable_file = create_executable_wrapper(task)
             submit_file_content.append(f"exec {pathlib.Path(executable_file).resolve()}")
         elif submission_type not in ["array", "mpi"]:
-            executable_file = create_executable_wrapper(self.task)
+            executable_file = create_executable_wrapper(task)
             submit_file_content.append(f"exec {pathlib.Path(executable_file).resolve()}")
         else:
             # Grouped parameters with tuple values - multiple jobs
-            len_combinations = len(self.task.param_kwargs[grouped_params[0]])
+            len_combinations = len(task.param_kwargs[grouped_params[0]])
 
             grouped_param_dicts = [
-                {param: value[i] for param, value in self.task.param_kwargs.items() if param in grouped_params}
+                {param: value[i] for param, value in task.param_kwargs.items() if param in grouped_params}
                 for i in range(len_combinations)
             ]
 
@@ -574,7 +593,7 @@ class SlurmProcess(BatchProcess):
             executable_wrappers = []
             n_submitted_tasks = 0
             for idx, param_dict in enumerate(grouped_param_dicts):
-                sub_task = self.task.clone(None, **param_dict)
+                sub_task = task.clone(None, **param_dict)
 
                 # If a sub_task was already successful do not resubmit it
                 if sub_task.complete():
@@ -625,7 +644,7 @@ class SlurmProcess(BatchProcess):
                 submit_file_content.append("esac")
 
         # Now we can write the submit file
-        output_path = pathlib.Path(get_task_file_dir(self.task))
+        output_path = pathlib.Path(get_task_file_dir(task))
         submit_file_path = output_path / "slurm_parameters.sh"
 
         output_path.mkdir(parents=True, exist_ok=True)
