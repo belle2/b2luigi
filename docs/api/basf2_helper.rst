@@ -9,6 +9,7 @@ basf2\_helper package
 .. automodule:: b2luigi.basf2_helper.tasks
     :members:
     :undoc-members:
+    :private-members: _process
     :show-inheritance:
 
 .. automodule:: b2luigi.basf2_helper.utils
