@@ -64,6 +64,7 @@ class SlurmJobStatusCache(BatchJobStatusCache):
 
         output = output.decode()
         seen_ids = self._fill_from_output(output)
+
         # If no job_id was passed, then exit
         if not job_id:
             return
