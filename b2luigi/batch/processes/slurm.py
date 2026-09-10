@@ -7,7 +7,14 @@ from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_ex
 
 from luigi.parameter import _no_value
 from b2luigi.core.settings import get_setting
-from b2luigi.batch.processes import BatchProcess, JobStatus
+import luigi.scheduler
+from b2luigi.batch.processes import (
+    BatchProcess,
+    JobStatus,
+    aggregate_job_status,
+    expand_grouped_task,
+    write_failed_jobs_log,
+)
 from b2luigi.batch.cache import BatchJobStatusCache
 from b2luigi.core.utils import get_log_file_dir, get_task_file_dir
 from b2luigi.core.executable import create_executable_wrapper
@@ -249,6 +256,10 @@ class SlurmProcess(BatchProcess):
       submission file. For an overview of possible settings refer to the `Slurm documentation
       <https://slurm.schedmd.com/sbatch.html#>_` and the documentation of the cluster you are using.
 
+    * Parameter grouping (see :ref:`parameter-grouping-label`) is supported: a grouped task is
+      submitted as one ``sbatch`` call per scalar sub-task, and the task is only reported
+      successful once every one of these jobs has finished successfully.
+
     * Same as for the :ref:`lsf` and :ref:`htcondor`, the ``job_name`` setting allows giving a meaningful
       name to a group of jobs. If you want to be task-instance-specific, you can provide the ``job-name``
       as an entry in the ``slurm_settings`` dict, which will override the global ``job_name`` setting.
@@ -267,11 +278,43 @@ class SlurmProcess(BatchProcess):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-        self._batch_job_id = None
+        # One id per submitted job: a single entry for a plain task, one per scalar
+        # sub-task for a parameter-grouped task (see :obj:`expand_grouped_task`).
+        self._batch_job_ids: list[int] = []
+        # Log directory of every submitted job, keyed by job id, for ``failed_jobs.log``.
+        self._job_log_dirs: dict[int, str] = {}
 
-    def get_job_status(self):
+    def get_job_status(self) -> JobStatus:
         """
-        Determine the status of a batch job based on its Slurm job status.
+        Determine the status of the task from the Slurm status of all its jobs.
+
+        A plain task has exactly one job. A parameter-grouped task has one job per
+        scalar sub-task, and their statuses are combined with :obj:`aggregate_job_status`:
+        running while any job runs, aborted if any job failed, successful only when all did.
+        When the task is aborted, a ``failed_jobs.log`` listing the failed job ids and their log
+        directories is written into the task's log directory (see :obj:`write_failed_jobs_log`).
+
+        Returns:
+            JobStatus: The aggregated status, or :meth:`JobStatus.aborted <b2luigi.process.JobStatus.aborted>`
+            if no job was submitted.
+        """
+        job_statuses = {job_id: self._get_job_status_for_id(job_id) for job_id in self._batch_job_ids}
+        status = aggregate_job_status(job_statuses.values())
+        if status == JobStatus.aborted:
+            write_failed_jobs_log(
+                self.task,
+                {
+                    job_id: self._job_log_dirs.get(job_id, "")
+                    for job_id, job_status in job_statuses.items()
+                    if job_status == JobStatus.aborted
+                },
+            )
+        return status
+
+    @staticmethod
+    def _get_job_status_for_id(job_id: int) -> JobStatus:
+        """
+        Determine the status of one batch job based on its Slurm job status.
 
         Returns:
             JobStatus: The status of the job, which can be one of the following:
@@ -283,10 +326,8 @@ class SlurmProcess(BatchProcess):
         Raises:
             ValueError: If the Slurm job status is unknown or not handled.
         """
-        if not self._batch_job_id:
-            return JobStatus.aborted
         try:
-            job_status = _batch_job_status_cache[self._batch_job_id]
+            job_status = _batch_job_status_cache[job_id]
         except KeyError:
             return JobStatus.aborted
 
@@ -321,42 +362,59 @@ class SlurmProcess(BatchProcess):
         This method creates a Slurm submit file and submits it using the ``sbatch`` command.
         After submission, it parses the output to extract the batch job ID.
 
+        For a parameter-grouped task (see :ref:`parameter-grouping-label`) one submit file is
+        created and submitted per scalar sub-task that is not complete yet. If every sub-task
+        is already complete, nothing is submitted and the task is reported as done.
+
         Raises:
             RuntimeError: If the batch submission fails or the job ID cannot be extracted.
 
         Attributes:
-            self._batch_job_id (int): The ID of the submitted Slurm batch job.
+            self._batch_job_ids (list[int]): The IDs of the submitted Slurm batch jobs.
         """
-        submit_file = self._create_slurm_submit_file()
+        sub_tasks = expand_grouped_task(self.task)
+        if not sub_tasks:
+            self._put_to_result_queue(status=luigi.scheduler.DONE, explanation="")
+            self._terminated = True
+            return
 
-        # Slurm submit needs to be called in the folder of the submit file
-        path = pathlib.Path(submit_file)
-        output = subprocess.check_output(["sbatch", path.name], cwd=path.parent)
+        for sub_task in sub_tasks:
+            submit_file = self._create_slurm_submit_file(sub_task)
 
-        output = output.decode()
-        match = re.search(r"[0-9]+", output)
-        if not match:
-            raise RuntimeError("Batch submission failed with output " + output)
-        self._batch_job_id = int(match.group(0))
+            # Slurm submit needs to be called in the folder of the submit file
+            path = pathlib.Path(submit_file)
+            output = subprocess.check_output(["sbatch", path.name], cwd=path.parent)
+
+            output = output.decode()
+            match = re.search(r"[0-9]+", output)
+            if not match:
+                raise RuntimeError("Batch submission failed with output " + output)
+            job_id = int(match.group(0))
+            self._batch_job_ids.append(job_id)
+            self._job_log_dirs[job_id] = get_log_file_dir(sub_task)
 
     def terminate_job(self):
         """
-        Terminates a batch job if a job ID is available.
+        Terminates all batch jobs of this task if any were submitted.
 
-        This method checks if a batch job ID is set. If it is, it executes the
-        ``scancel`` command to terminate the job associated with the given batch
-        job ID. The command's output is suppressed.
+        This method executes a single ``scancel`` command with every submitted job ID
+        (one for a plain task, several for a parameter-grouped task). The command's
+        output is suppressed.
         """
-        if not self._batch_job_id:
+        if not self._batch_job_ids:
             return
-        subprocess.run(["scancel", str(self._batch_job_id)], stdout=subprocess.DEVNULL)
+        subprocess.run(["scancel", *(str(job_id) for job_id in self._batch_job_ids)], stdout=subprocess.DEVNULL)
 
-    def _create_slurm_submit_file(self):
+    def _create_slurm_submit_file(self, task=None):
         """
-        Creates a Slurm submit file for the current task.
+        Creates a Slurm submit file for a task.
 
         This method generates a Slurm batch script that specifies the necessary
         configurations for submitting a job to a Slurm workload manager.
+
+        Args:
+            task: The task to write the submit file for. Defaults to ``self.task``; a
+                parameter-grouped task passes each scalar sub-task in turn.
 
         Returns:
             pathlib.Path: The path to the generated Slurm submit file.
@@ -368,10 +426,13 @@ class SlurmProcess(BatchProcess):
             - The executable is created with :obj:`create_executable_wrapper`.
             - The submit file is named `slurm_parameters.sh` and is created in the task's output directory (:obj:`get_task_file_dir`).
         """
+        if task is None:
+            task = self.task
+
         submit_file_content = ["#!/usr/bin/bash"]
 
         # Specify where to write the log to
-        log_file_dir = pathlib.Path(get_log_file_dir(self.task))
+        log_file_dir = pathlib.Path(get_log_file_dir(task))
         log_file_dir.mkdir(parents=True, exist_ok=True)
 
         stdout_log_file = (log_file_dir / "stdout").resolve()
@@ -386,11 +447,11 @@ class SlurmProcess(BatchProcess):
         if general_settings == _no_value:
             general_settings = {}
 
-        task_slurm_settings = get_setting("slurm_settings", task=self.task, default=_no_value)
+        task_slurm_settings = get_setting("slurm_settings", task=task, default=_no_value)
         if task_slurm_settings != _no_value:
             general_settings.update(task_slurm_settings)
 
-        job_name = get_setting("job_name", task=self.task, default=False)
+        job_name = get_setting("job_name", task=task, default=False)
         if job_name is not False:
             general_settings.setdefault("job-name", job_name)
 
@@ -398,11 +459,11 @@ class SlurmProcess(BatchProcess):
             submit_file_content.append(f"#SBATCH --{key}={item}")
 
         # Specify the executable
-        executable_file = create_executable_wrapper(self.task)
+        executable_file = create_executable_wrapper(task)
         submit_file_content.append(f"exec {pathlib.Path(executable_file).resolve()}")
 
         # Now we can write the submit file
-        output_path = pathlib.Path(get_task_file_dir(self.task))
+        output_path = pathlib.Path(get_task_file_dir(task))
         submit_file_path = output_path / "slurm_parameters.sh"
 
         output_path.mkdir(parents=True, exist_ok=True)

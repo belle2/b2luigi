@@ -52,3 +52,29 @@ class TestSendJobWorker(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TestGroupingGuard(unittest.TestCase):
+    """``_create_task_process`` must reject grouping on batch systems that cannot expand a group."""
+
+    def setUp(self):
+        self.worker = SendJobWorker()
+
+    @staticmethod
+    def _grouped_task(batch_system):
+        task = Mock()
+        task.batch_system = batch_system
+        task.has_grouped_params.return_value = True
+        task.max_grouping_size = 5
+        return task
+
+    def test_gbasf2_rejects_grouping(self):
+        with self.assertRaises(RuntimeError) as ctx:
+            self.worker._create_task_process(self._grouped_task("gbasf2"))
+        self.assertIn("gbasf2", str(ctx.exception))
+
+    def test_lsf_slurm_htcondor_accept_grouping(self):
+        for batch_system in ("lsf", "slurm", "htcondor"):
+            with self.subTest(batch_system=batch_system):
+                process = self.worker._create_task_process(self._grouped_task(batch_system))
+                self.assertEqual(process.task.batch_system, batch_system)

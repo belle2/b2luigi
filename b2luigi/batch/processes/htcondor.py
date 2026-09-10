@@ -11,7 +11,7 @@ import luigi
 from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_exponential
 
 from b2luigi.core.settings import get_setting
-from b2luigi.batch.processes import BatchProcess, JobStatus
+from b2luigi.batch.processes import BatchProcess, JobStatus, aggregate_job_status, expand_grouped_task
 from b2luigi.batch.cache import BatchJobStatusCache
 from b2luigi.core.utils import get_log_file_dir, get_luigi_logger, get_task_file_dir
 from b2luigi.core.executable import create_executable_wrapper
@@ -198,6 +198,10 @@ class HTCondorProcess(BatchProcess):
       submission file. For an overview of possible settings refer to the `HTCondor documentation
       <https://htcondor.readthedocs.io/en/latest/users-manual/submitting-a-job.html#>`_.
 
+    * Parameter grouping (see :ref:`parameter-grouping-label`) is supported: a grouped task is
+      expanded into one ``queue 1`` block per scalar sub-task in a single submit file, and the
+      task is only reported successful once every one of these jobs has finished successfully.
+
     * Same as for the :ref:`lsf`, the ``job_name`` setting allows giving a meaningful name to a
       group of jobs. If you want to be htcondor-specific, you can provide the ``JobBatchName`` as an
       entry in the ``htcondor_settings`` dict, which will override the global ``job_name`` setting.
@@ -257,9 +261,10 @@ class HTCondorProcess(BatchProcess):
 
     def get_job_status(self):
         job_status_list = [self.get_job_status_for_id(job_id=job_id) for job_id in self._batch_job_ids]
-        if any([s == JobStatus.running for s in job_status_list]):
+        job_status = aggregate_job_status(job_status_list)
+        if job_status == JobStatus.running:
             return JobStatus.running
-        elif any([s == JobStatus.aborted for s in job_status_list]):
+        elif job_status == JobStatus.aborted:
             aborted_job_ids = [
                 job_id for job_id, status in zip(self._batch_job_ids, job_status_list) if status == JobStatus.aborted
             ]
@@ -412,28 +417,9 @@ class HTCondorProcess(BatchProcess):
         os.makedirs(output_path, exist_ok=True)
         submit_file_path = os.path.join(output_path, "job.submit")
 
-        grouped_params = self.task.grouped_param_names()
-        if len(grouped_params) == 0:
-            submit_file_contents.extend(self._create_submit_file_content(task=self.task))
-        elif not isinstance(self.task.param_kwargs[grouped_params[0]], tuple):
-            submit_file_contents.extend(self._create_submit_file_content(task=self.task))
-        else:
-            len_combinations = len(self.task.param_kwargs[grouped_params[0]])
-
-            grouped_param_dicts = [
-                {param: value[i] for param, value in self.task.param_kwargs.items() if param in grouped_params}
-                for i in range(len_combinations)
-            ]
-
-            for param_dict in grouped_param_dicts:
-                sub_task = self.task.clone(None, **param_dict)
-
-                # If a sub_task was already successful do not resubmit it
-                if sub_task.complete():
-                    continue
-
-                submit_file_content = self._create_submit_file_content(task=sub_task)
-                submit_file_contents.extend(submit_file_content)
+        # One ``queue 1`` block per scalar sub-task; a plain task is its own single sub-task.
+        for sub_task in expand_grouped_task(self.task):
+            submit_file_contents.extend(self._create_submit_file_content(task=sub_task))
 
         if len(submit_file_contents) == 0:
             self._put_to_result_queue(status=luigi.scheduler.DONE, explanation="")

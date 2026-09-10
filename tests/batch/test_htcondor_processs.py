@@ -11,8 +11,13 @@ from unittest import mock
 import luigi
 
 import b2luigi
-from b2luigi.batch.processes.htcondor import HTCondorJobStatusCache, HTCondorProcess
-from b2luigi.batch.workers import BatchSystems, SendJobWorker
+from b2luigi.batch.processes import JobStatus
+from b2luigi.batch.processes.htcondor import (
+    HTCondorJobStatus,
+    HTCondorJobStatusCache,
+    HTCondorProcess,
+    _batch_job_status_cache,
+)
 from b2luigi.core.utils import get_task_file_dir
 
 from ..helpers import B2LuigiTestCase
@@ -153,6 +158,18 @@ class TestHTCondorGroupedSubmitFile(B2LuigiTestCase):
     per element of that tuple, each describing a single scalar sub-task.
     """
 
+    def setUp(self):
+        super().setUp()
+        # Sub-task wrappers and logs must land in the temp dir: the defaults resolve relative to
+        # the "main script", which under pytest on CI is a read-only externals installation.
+        b2luigi.set_setting("log_dir", os.path.join(self.test_dir, "logs"))
+        b2luigi.set_setting("task_file_dir", os.path.join(self.test_dir, "task_files"))
+
+    def tearDown(self):
+        b2luigi.clear_setting("log_dir")
+        b2luigi.clear_setting("task_file_dir")
+        super().tearDown()
+
     def _make_process(self, task):
         """
         Build a mock stand-in for :obj:`HTCondorProcess` around *task*.
@@ -176,6 +193,13 @@ class TestHTCondorGroupedSubmitFile(B2LuigiTestCase):
         HTCondorProcess._create_htcondor_submit_file(process)
         with open(os.path.join(self.test_dir, "job.submit"), "r") as submit_file:
             return submit_file.read()
+
+    @staticmethod
+    def _mark_complete(task):
+        output_file_name = task.get_output_file_name("grouped.txt")
+        os.makedirs(os.path.dirname(output_file_name), exist_ok=True)
+        with open(output_file_name, "w") as f:
+            f.write("already done")
 
     def test_grouped_task_gets_one_queue_block_per_value(self):
         """A tuple of three grouped values must expand into three separate jobs."""
@@ -209,10 +233,7 @@ class TestHTCondorGroupedSubmitFile(B2LuigiTestCase):
         """Only the sub-tasks whose output is still missing may reach the submit file."""
         task = MyGroupedTask(plain=0, grouped=(0, 1, 2))
         done = task.clone(None, grouped=1)
-        output_file_name = done.get_output_file_name("grouped.txt")
-        os.makedirs(os.path.dirname(output_file_name), exist_ok=True)
-        with open(output_file_name, "w") as f:
-            f.write("already done")
+        self._mark_complete(done)
         self.assertTrue(done.complete())
 
         submit_file_string = self._submit_file_string(task)
@@ -229,10 +250,7 @@ class TestHTCondorGroupedSubmitFile(B2LuigiTestCase):
         """
         task = MyGroupedTask(plain=0, grouped=(0, 1))
         for value in (0, 1):
-            output_file_name = task.clone(None, grouped=value).get_output_file_name("grouped.txt")
-            os.makedirs(os.path.dirname(output_file_name), exist_ok=True)
-            with open(output_file_name, "w") as f:
-                f.write("already done")
+            self._mark_complete(task.clone(None, grouped=value))
 
         process = self._make_process(task)
         HTCondorProcess._create_htcondor_submit_file(process)
@@ -268,24 +286,29 @@ class TestHTCondorGroupedSubmitFile(B2LuigiTestCase):
             self.assertIn("--param plain=0", command)
 
 
-class TestGroupingIsHTCondorOnly(B2LuigiTestCase):
-    """Grouping is only implemented for HTCondor; every other batch system must refuse it."""
+class TestHTCondorGroupedJobStatus(B2LuigiTestCase):
+    def setUp(self):
+        super().setUp()
+        _batch_job_status_cache.clear()
 
-    def _create_process(self, task, batch_system):
-        worker = mock.Mock()
-        worker.detect_batch_system = lambda task: BatchSystems(batch_system)
-        # BatchProcess.__init__ does arithmetic on the timeout, so it cannot be a Mock.
-        worker._config.timeout = None
-        return SendJobWorker._create_task_process(worker, task)
+    def tearDown(self):
+        _batch_job_status_cache.clear()
+        super().tearDown()
 
-    def test_grouping_on_a_non_htcondor_system_raises(self):
-        task = MyGroupedTask(plain=0, grouped=(0, 1))
-        with self.assertRaises(RuntimeError) as context:
-            self._create_process(task, "slurm")
-        self.assertIn("only implemented for HTCondor", str(context.exception))
+    def test_status_is_aggregated_over_all_jobs(self):
+        process = HTCondorProcess(
+            task=MyGroupedTask(plain=0, grouped=(0, 1, 2)),
+            scheduler=mock.Mock(),
+            result_queue=mock.Mock(),
+            worker_timeout=None,
+        )
+        process._batch_job_ids = [101, 102, 103]
+        _batch_job_status_cache.add_job_ids(process._batch_job_ids)
 
-    def test_grouping_on_htcondor_is_accepted(self):
-        """Negative control: the same task must pass the guard on HTCondor."""
-        task = MyGroupedTask(plain=0, grouped=(0, 1))
-        process = self._create_process(task, "htcondor")
-        self.assertIsInstance(process, HTCondorProcess)
+        _batch_job_status_cache[101] = (HTCondorJobStatus.completed, "log")
+        _batch_job_status_cache[102] = (HTCondorJobStatus.running, "log")
+        _batch_job_status_cache[103] = (HTCondorJobStatus.failed, "log")
+        self.assertEqual(process.get_job_status(), JobStatus.running)
+
+        _batch_job_status_cache[102] = (HTCondorJobStatus.completed, "log")
+        self.assertEqual(process.get_job_status(), JobStatus.aborted)
