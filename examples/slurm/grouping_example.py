@@ -13,8 +13,14 @@ class MySubTask(b2luigi.Task):
                      }
 
     max_grouping_size = 10
+
+    # Use "single", "array" or "mpi", depending on the cluster settings.
     submission_type = "single"
+
     # submission_type = "array"
+
+    # submission_type = "mpi"
+    # tasks_per_node = 64
 
     def output(self):
         yield self.add_to_output("MySubTask.txt")

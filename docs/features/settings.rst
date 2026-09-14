@@ -189,6 +189,16 @@ Slurm specific settings
 - ``slurm_settings``: Dict
     A dictionary of settings used for the submit file.
 
+- ``submission_type``: String
+    Controls how tasks with grouped, tuple-valued parameters are submitted: ``"single"``
+    (default, one ``sbatch`` submission per sub-task), ``"array"`` (a single Slurm job array), or
+    ``"mpi"`` (a single Slurm job spanning multiple nodes). See
+    :class:`SlurmProcess <b2luigi.batch.processes.slurm.SlurmProcess>`.
+
+- ``tasks_per_node``: Int
+    Only used when ``submission_type`` is ``"mpi"``. The number of sub-tasks that may be packed
+    onto a single node; used to compute how many nodes to request. Defaults to ``64``.
+
 
 ``gbasf2`` specific settings
 ++++++++++++++++++++++++++++

@@ -2,6 +2,7 @@ import subprocess
 import pathlib
 import re
 import getpass
+import math
 import os
 from enum import StrEnum
 from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_exponential
@@ -373,6 +374,18 @@ class SlurmProcess(BatchProcess):
 
         squeue --name <job name>
 
+    * When a task has a grouped, tuple-valued parameter (see :ref:`parameter-grouping-label`),
+      the ``submission_type`` setting controls how the resulting sub-tasks are submitted:
+
+      - ``"single"`` (default): one independent ``sbatch`` submission per sub-task.
+      - ``"array"``: all sub-tasks are submitted as a single Slurm job array
+        (``#SBATCH --array=...``), dispatched by ``$SLURM_ARRAY_TASK_ID``.
+      - ``"mpi"``: all sub-tasks are submitted as a single Slurm job spanning multiple nodes,
+        dispatched by ``$SLURM_PROCID`` after being launched via ``srun``. Use the
+        ``tasks_per_node`` setting to tell b2luigi how many sub-tasks may be packed onto a single
+        node (defaults to 64); b2luigi does not query the cluster's hardware configuration, so
+        this must match your cluster's partition.
+
     Example:
 
         .. literalinclude:: ../../examples/slurm/slurm_example.py
@@ -528,6 +541,10 @@ class SlurmProcess(BatchProcess):
             - The ``job_name`` setting can be used to specify a meaningful name for the job.
             - The executable is created with :obj:`create_executable_wrapper`.
             - The submit file is named `slurm_parameters.sh` and is created in the task's output directory (:obj:`get_task_file_dir`).
+            - For ``submission_type`` ``"array"`` or ``"mpi"``, the ``$SLURM_ARRAY_TASK_ID``/``$SLURM_PROCID`` dispatch
+              logic is written to a separate `slurm_dispatch.sh` file in the same directory, which the submit file
+              executes (directly for ``"array"``, via ``srun`` for ``"mpi"``, since ``sbatch`` only starts the submit
+              script once and ``$SLURM_PROCID`` is only set inside an ``srun``-launched step).
         """
         task = task or self.task
         submit_file_content = ["#!/usr/bin/bash"]
@@ -560,7 +577,6 @@ class SlurmProcess(BatchProcess):
         # Ask for a property submission_type. This is a custom property that can be used to specify
         # the type of submission ("single", "array", "mpi").
         # If not provided, it defaults to "single".
-        # TODO: Add "mpi". Need to have additional attribute "tasks_per_node", which specifies how many tasks can be run on each node.
         submission_type = get_setting("submission_type", task=task, default="single")
 
         for key, item in general_settings.items():
@@ -613,35 +629,55 @@ class SlurmProcess(BatchProcess):
                 if submission_type == "array":
                     submit_file_content.append(f"#SBATCH --array=0-{n_submitted_tasks - 1}")
 
-                    # The SLURM_ARRAY_TASK_ID environment variable is used to determine which task in the array is being executed.
-                    procid="SLURM_ARRAY_TASK_ID"
+                    # The SLURM_ARRAY_TASK_ID environment variable is used to determine which task
+                    # in the array is being executed. Slurm starts one independent job instance
+                    # per array index, each already having SLURM_ARRAY_TASK_ID set, so the
+                    # dispatch file below can simply be executed directly.
+                    procid = "SLURM_ARRAY_TASK_ID"
+                    dispatch_launcher = ["exec", "bash"]
                 elif submission_type == "mpi":
-                    raise NotImplementedError("MPI submission type is not yet implemented.")
-                    # TODO: Add MPI support.
-                    # # For MPI submission, we need to calculate the number of nodes and tasks per node based on the number of combinations.
-                    # # We will use the setting "tasks_per_node" to determine how many tasks can be run on each node.
-                    # tasks_per_node = get_setting("tasks_per_node", task=self.task, default=64)
-                    # nnodes = n_submitted_tasks // tasks_per_node
-                    # if n_submitted_tasks % tasks_per_node != 0:
-                    #     nnodes += 1
-                    # submit_file_content.append(f"#SBATCH --nodes={nnodes}")
-                    # submit_file_content.append(f"#SBATCH --ntasks={n_submitted_tasks}")
+                    # For MPI submission, we calculate the number of nodes based on the number of
+                    # combinations and the "tasks_per_node" setting, which specifies how many tasks
+                    # can be run on each node. b2luigi does not query the cluster's hardware itself,
+                    # so this setting has to be provided by the user to match the target partition.
+                    tasks_per_node = get_setting("tasks_per_node", task=task, default=64)
+                    if tasks_per_node < 1:
+                        raise ValueError(f"tasks_per_node must be >= 1, got {tasks_per_node}")
 
-                    # The SLURM_PROCID environment variable is used to determine which task in the MPI job is being executed.
-                    # procid="SLURM_PROCID"
+                    nnodes = math.ceil(n_submitted_tasks / tasks_per_node)
+                    submit_file_content.append(f"#SBATCH --nodes={nnodes}")
+                    submit_file_content.append(f"#SBATCH --ntasks={n_submitted_tasks}")
+
+                    # Unlike an array job, sbatch only starts this job's batch step once, and the
+                    # SLURM_PROCID environment variable is only set inside a job step started via
+                    # srun. The dispatch file therefore has to be launched through srun to get one
+                    # instance per task, each with its own SLURM_PROCID.
+                    procid = "SLURM_PROCID"
+                    dispatch_launcher = ["exec", "srun", "bash"]
                 else:
                     raise ValueError(f"Unknown submission type: {submission_type}")
 
-                submit_file_content.append(f"case ${procid} in")
+                # The dispatch logic (selecting which task to run based on ${procid}) lives in its
+                # own file rather than being inlined into the submit script, so it can simply be
+                # executed once per task instance with the right ${procid} already set in its
+                # environment.
+                dispatch_file_content = ["#!/usr/bin/bash", f"case ${procid} in"]
                 for idx, wrapper_path in enumerate(executable_wrappers):
-                    submit_file_content.append(f"  {idx})")
-                    submit_file_content.append(f"    exec {pathlib.Path(wrapper_path).resolve()}")
-                    submit_file_content.append("    ;;")
-                submit_file_content.append("  *)")
-                submit_file_content.append(f"    echo \"Invalid {procid}: ${procid}\" >&2")
-                submit_file_content.append("    exit 1")
-                submit_file_content.append("    ;;")
-                submit_file_content.append("esac")
+                    dispatch_file_content.append(f"  {idx})")
+                    dispatch_file_content.append(f"    exec {pathlib.Path(wrapper_path).resolve()}")
+                    dispatch_file_content.append("    ;;")
+                dispatch_file_content.append("  *)")
+                dispatch_file_content.append(f"    echo \"Invalid {procid}: ${procid}\" >&2")
+                dispatch_file_content.append("    exit 1")
+                dispatch_file_content.append("    ;;")
+                dispatch_file_content.append("esac")
+
+                dispatch_file_path = pathlib.Path(get_task_file_dir(task)) / "slurm_dispatch.sh"
+                dispatch_file_path.parent.mkdir(parents=True, exist_ok=True)
+                with open(dispatch_file_path, "w") as dispatch_file:
+                    dispatch_file.write("\n".join(dispatch_file_content))
+
+                submit_file_content.append(" ".join(dispatch_launcher + [str(dispatch_file_path.resolve())]))
 
         # Now we can write the submit file
         output_path = pathlib.Path(get_task_file_dir(task))
