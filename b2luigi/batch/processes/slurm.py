@@ -137,7 +137,7 @@ class SlurmJobStatusCache(BatchJobStatusCache):
 
             if not found:
                 # the specified job cannot be found on the slurm system. Return a failed.
-                pass
+                self[job_id] = SlurmJobStatus.failed
 
 
     def _fill_from_output(self, output: str) -> set:
