@@ -1,4 +1,5 @@
 import enum
+import functools
 import shutil
 import logging
 
@@ -29,6 +30,81 @@ class BatchSystems(enum.Enum):
     custom = "custom"
 
 
+#: Batch systems whose process classes expand a grouped task into one job per group element.
+GROUPING_CAPABLE_BATCH_SYSTEMS = (BatchSystems.htcondor, BatchSystems.slurm)
+
+#: Batch systems for which grouping is silently skipped instead of being an error.
+#: Their tasks simply run one by one, exactly as if no parameter had ``grouping=True``.
+UNGROUPED_BATCH_SYSTEMS = (BatchSystems.local,)
+
+
+def detect_batch_system(task) -> BatchSystems:
+    """
+    Detects the batch system to be used for task execution.
+
+    This function determines the batch system setting based on the provided task
+    or automatically detects the available batch system on the system if the
+    setting is ``auto``. The detection checks for the presence of specific
+    commands associated with known batch systems (e.g., ``bsub`` for LSF,
+    ``condor_submit`` for HTCondor, ``sbatch`` for SLURM). If no known batch system
+    is detected, it defaults to ``local``.
+
+    Args:
+        task: The task for which the batch system is being determined.
+
+    Returns:
+        BatchSystems: An instance of the :obj:`BatchSystems` enumeration representing
+        the detected or configured batch system.
+    """
+    batch_system_setting = get_setting("batch_system", default="auto", task=task)
+    if batch_system_setting == "auto":
+        if shutil.which("bsub"):
+            batch_system_setting = "lsf"
+        elif shutil.which("condor_submit"):
+            batch_system_setting = "htcondor"
+        elif shutil.which("sbatch"):
+            batch_system_setting = "slurm"
+        else:
+            batch_system_setting = "local"
+
+    return BatchSystems(batch_system_setting)
+
+
+def supports_grouping(task) -> bool:
+    """
+    Check whether the task may be grouped, i.e. whether whoever executes it is able to
+    expand a group back into its individual tasks again.
+
+    Grouping is built on top of the ``luigi`` batching mechanism, which *combines* the
+    parameter values of several tasks into a single task and leaves it to that task to
+    deal with the combined value. Only the grouping capable batch systems undo this
+    packing, by submitting one job per group element. Everywhere else a group would
+    reach an unsuspecting ``run()`` as a tuple, so the group must not be formed in the
+    first place. See :meth:`b2luigi.Task.batchable`.
+
+    Args:
+        task: The task that is about to be scheduled.
+
+    Returns:
+        bool: ``False`` if grouping has to be skipped for this task.
+    """
+    # In test mode every task is run in-process by a plain luigi worker, which knows
+    # nothing about batch systems and therefore cannot expand a group either.
+    if get_setting("_dispatch_local_execution", default=False):
+        return False
+
+    return detect_batch_system(task) not in UNGROUPED_BATCH_SYSTEMS
+
+
+@functools.cache
+def _warn_grouping_skipped(task_family: str, batch_system: BatchSystems) -> None:
+    """Warn once per task family that its grouped parameters are being ignored."""
+    logging.warning(
+        f"The task {task_family} has grouped parameters, but grouping is not implemented for the "
+        f"{batch_system.value} batch system. The tasks are run individually instead."
+    )
+
+
 class SendJobWorker(luigi.worker.Worker):
     """
     A custom ``luigi`` worker that determines the appropriate batch system for a task
@@ -39,12 +115,7 @@ class SendJobWorker(luigi.worker.Worker):
         """
         Detects the batch system to be used for task execution.
 
-        This method determines the batch system setting based on the provided task
-        or automatically detects the available batch system on the system if the
-        setting is ``auto``. The detection checks for the presence of specific
-        commands associated with known batch systems (e.g., ``bsub`` for LSF,
-        ``condor_submit`` for HTCondor, ``sbatch`` for SLURM). If no known batch system
-        is detected, it defaults to ``local``.
+        Thin wrapper around :obj:`detect_batch_system`, see there.
 
         Args:
             task: The task for which the batch system is being determined.
@@ -53,18 +124,7 @@ class SendJobWorker(luigi.worker.Worker):
             BatchSystems: An instance of the :obj:`BatchSystems` enumeration representing
             the detected or configured batch system.
         """
-        batch_system_setting = get_setting("batch_system", default="auto", task=task)
-        if batch_system_setting == "auto":
-            if shutil.which("bsub"):
-                batch_system_setting = "lsf"
-            elif shutil.which("condor_submit"):
-                batch_system_setting = "htcondor"
-            elif shutil.which("sbatch"):
-                batch_system_setting = "slurm"
-            else:
-                batch_system_setting = "local"
-
-        return BatchSystems(batch_system_setting)
+        return detect_batch_system(task)
 
     def _create_task_process(self, task):
         """
@@ -86,26 +146,29 @@ class SendJobWorker(luigi.worker.Worker):
         """
         batch_system = self.detect_batch_system(task)
 
-        # fail if grouping is used on other tasks then htcondor tasks
-        if task.has_grouped_params() and task.max_grouping_size > 1 and batch_system not in [BatchSystems.htcondor, BatchSystems.slurm]:
+        # Only the grouping capable batch systems know how to expand a group again. Tasks
+        # going to a batch system in UNGROUPED_BATCH_SYSTEMS are never grouped in the first
+        # place (see b2luigi.Task.batchable), so they cannot arrive here carrying a group.
+        if task.is_grouped() and batch_system not in GROUPING_CAPABLE_BATCH_SYSTEMS:
             raise RuntimeError(
-                f"The grouping of tasks is currently only implemented for HTCondor and Slurm processes and not for {batch_system}!"
+                "The grouping of tasks is currently only implemented for HTCondor and Slurm processes "
+                f"and not for {batch_system.value}!"
             )
+
+        if task.has_grouped_params():
+            if batch_system in GROUPING_CAPABLE_BATCH_SYSTEMS:
+                logging.warning(
+                    "Grouping of tasks is currently an experimental feature and should be treated with care!"
+                )
+            elif batch_system in UNGROUPED_BATCH_SYSTEMS:
+                _warn_grouping_skipped(task.get_task_family(), batch_system)
 
         if batch_system == BatchSystems.lsf:
             process_class = LSFProcess
         elif batch_system == BatchSystems.htcondor:
             process_class = HTCondorProcess
-            if task.has_grouped_params():
-                logging.warning(
-                    "Grouping of tasks is currently an experimental feature and should be treated with care!"
-                )
         elif batch_system == BatchSystems.slurm:
             process_class = SlurmProcess
-            if task.has_grouped_params():
-                logging.warning(
-                    "Grouping of tasks is currently an experimental feature and should be treated with care!"
-                )
         elif batch_system == BatchSystems.gbasf2:
             process_class = Gbasf2Process
         elif batch_system == BatchSystems.test:

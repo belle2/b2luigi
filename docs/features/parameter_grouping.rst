@@ -7,7 +7,7 @@ Parameter Grouping
    This is an experimental feature and may change in the future. Please report any issues you encounter when using it.
 
 .. warning::
-   This feature currently only works with the HTCondor batch system, but we plan to extend it to other batch systems in the future.
+   This feature currently only works with the HTCondor and Slurm batch systems, but we plan to extend it to other batch systems in the future.
    Help is very welcome here, so if you want to contribute, please check out the :ref:`development-label`.
 
 Overview
@@ -49,6 +49,42 @@ In the example above, when running 100 tasks of the type ``MyTask``, b2luigi wou
 Consequently, only 10 workers are consumed instead of 100.
 
 A complete example can be found in the code examples in the ``examples/htcondor/grouping_example.py`` file.
+
+Running Grouped Tasks Locally
+-----------------------------
+
+Whether a group can be formed depends on whether anyone is able to take it apart again.
+Only the HTCondor and Slurm processes do so, by submitting one job per task in the group.
+
+On the ``local`` batch system there is no such step, so grouping is **skipped automatically**:
+the group is never formed and the tasks simply run one after another, exactly as if no parameter
+had ``grouping=True``. A warning is emitted once per task, and nothing else changes — in particular
+the output paths are the normal per-value ones, not the hashed group path.
+
+This means a task can keep ``grouping=True`` permanently and still be run locally for debugging,
+without having to edit the task:
+
+.. code-block:: python
+
+    class MyTask(b2luigi.Task):
+        my_parameter = b2luigi.Parameter(grouping=True)
+
+        max_grouping_size = 10
+
+        # Grouped on Slurm, silently ungrouped when this is "local".
+        @property
+        def batch_system(self):
+            return "local" if debugging else "slurm"
+
+The decision is made per task, not per task class, so a workflow may mix grouped Slurm tasks
+and ungrouped local tasks of the same class in a single run.
+
+The same applies in test mode (``b2luigi.process(..., test=True)``), which runs every task
+in process.
+
+On the remaining batch systems (``lsf``, ``gbasf2``, ``test`` and ``custom``) grouping is still
+an error rather than being skipped, so that a custom process class implementing grouping itself
+is not silently bypassed.
 
 Failure Semantics and Resubmission
 ----------------------------------
