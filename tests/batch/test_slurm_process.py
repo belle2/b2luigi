@@ -10,9 +10,11 @@ from unittest import mock
 
 import b2luigi
 from b2luigi.batch.processes.slurm import SlurmJobStatusCache, SlurmProcess, SlurmJobStatus
+from b2luigi.batch.workers import BatchSystems, SendJobWorker
 
 from ..helpers import B2LuigiTestCase
 from .batch_task_1 import MyTask
+from .batch_task_grouped import MyGroupedTask
 
 
 class TestSlurmCreateSubmitFile(B2LuigiTestCase):
@@ -191,6 +193,25 @@ class TestSlurmJobStatusCache(unittest.TestCase):
         self.slurm_job_status_cache._ask_for_job_status(job_id=12344)
         self.assertEqual(mock_check_output.call_count, 2)
         self.assertEqual(self.slurm_job_status_cache[12344].value, "COMPLETED")
+
+
+class TestGroupingIsAcceptedOnSlurm(B2LuigiTestCase):
+    """
+    Slurm is one of the batch systems that may be handed a task carrying a group: it
+    expands the group into one job per element, either as separate submissions or as a
+    job array. Slurm gained that support after the guard was first written.
+    """
+
+    def test_grouping_on_slurm_is_accepted(self):
+        worker = mock.Mock()
+        worker.detect_batch_system = lambda task: BatchSystems.slurm
+        # BatchProcess.__init__ does arithmetic on the timeout, so it cannot be a Mock.
+        worker._config.timeout = None
+
+        task = MyGroupedTask(plain=0, grouped=(0, 1))
+        process = SendJobWorker._create_task_process(worker, task)
+
+        self.assertIsInstance(process, SlurmProcess)
 
 
 class TestSlurmJobStatus:

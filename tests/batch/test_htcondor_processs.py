@@ -268,8 +268,8 @@ class TestHTCondorGroupedSubmitFile(B2LuigiTestCase):
             self.assertIn("--param plain=0", command)
 
 
-class TestGroupingIsHTCondorOnly(B2LuigiTestCase):
-    """Grouping is only implemented for HTCondor; every other batch system must refuse it."""
+class TestGroupingIsAcceptedOnHTCondor(B2LuigiTestCase):
+    """HTCondor is one of the batch systems that may be handed a task carrying a group."""
 
     def _create_process(self, task, batch_system):
         worker = mock.Mock()
@@ -278,14 +278,16 @@ class TestGroupingIsHTCondorOnly(B2LuigiTestCase):
         worker._config.timeout = None
         return SendJobWorker._create_task_process(worker, task)
 
-    def test_grouping_on_a_non_htcondor_system_raises(self):
-        task = MyGroupedTask(plain=0, grouped=(0, 1))
-        with self.assertRaises(RuntimeError) as context:
-            self._create_process(task, "slurm")
-        self.assertIn("only implemented for HTCondor", str(context.exception))
-
     def test_grouping_on_htcondor_is_accepted(self):
-        """Negative control: the same task must pass the guard on HTCondor."""
         task = MyGroupedTask(plain=0, grouped=(0, 1))
         process = self._create_process(task, "htcondor")
         self.assertIsInstance(process, HTCondorProcess)
+
+    def test_grouping_on_a_system_that_cannot_unpack_raises(self):
+        """Negative control: a batch system that cannot expand a group must refuse it."""
+        task = MyGroupedTask(plain=0, grouped=(0, 1))
+        with self.assertRaises(RuntimeError) as context:
+            self._create_process(task, "lsf")
+        message = str(context.exception)
+        self.assertIn("only implemented for HTCondor and Slurm", message)
+        self.assertIn("not for lsf", message)
