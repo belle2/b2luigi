@@ -6,14 +6,13 @@ import warnings
 from luigi import *
 from luigi.util import copies
 
-# version must be defined after importing the luigi namespace,
-# otherwise the b2luigi.__version__ gets overwritten by the one from luigi
-from importlib.metadata import PackageNotFoundError, version as _get_version
+from importlib.metadata import version as _get_version
 
-try:
-    __version__ = _get_version("b2luigi")
-except PackageNotFoundError:
-    __version__ = "unknown"
+# version must be defined after importing the luigi namespace,
+# otherwise the b2luigi.__version__ gets overwritten by the one from luigi.
+# The single source of the version is pyproject.toml; an uninstalled checkout
+# raises PackageNotFoundError here on purpose (run `pip install -e .`).
+__version__ = _get_version("b2luigi")
 
 # Warn users if they're using an untested Python version
 min_python_version = (3, 11)
