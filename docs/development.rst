@@ -53,20 +53,23 @@ You want to help developing ``b2luigi``? Great! Here are some first steps to hel
 
     If you are a Belle II collaborator, you can also use the `b2venv`_ command to create a virtual environment.
 
-3.  ``b2luigi`` uses `uv`_ for dependency management and building.
+3.  ``b2luigi`` uses `uv`_ for dependency management, building and publishing.
     Install it via
 
     .. code-block:: bash
 
-        curl -LsSf https://astral.sh/uv/install.sh | sh
+        pip3 [ --user ] install uv
 
-    You can now install ``b2luigi`` from the cloned git repository in development mode:
+    You can now install ``b2luigi`` from the cloned git repository in development mode,
+    together with the test and documentation tooling:
 
     .. code-block:: bash
 
-        uv sync --dev
+        uv sync --group dev --extra tui
 
-    Now you can start hacking and your changes will be immediately available to you.
+    This creates a ``.venv`` in the repository (or fills the active virtual environment
+    with ``--active``) and installs ``b2luigi`` in editable mode, so your changes are
+    immediately available to you.
 
 4.  Automatically check your code with `pre-commit`_:
 
@@ -84,7 +87,7 @@ You want to help developing ``b2luigi``? Great! Here are some first steps to hel
 
     .. code-block:: bash
 
-        pytest -v b2luigi tests
+        uv run pytest -v tests
 
     in the root of ``b2luigi`` repository. If you add some functionality, try to add some tests for it.
 
@@ -93,7 +96,7 @@ You want to help developing ``b2luigi``? Great! Here are some first steps to hel
 
     .. code-block:: bash
 
-        sphinx-autobuild docs build
+        uv run sphinx-autobuild docs build
 
     The autobuild will rebuild the project whenever you change something. It displays a URL where to find
     the created docs now (most likely http://127.0.0.1:8000).
@@ -103,18 +106,24 @@ You want to help developing ``b2luigi``? Great! Here are some first steps to hel
 
     a.  Make sure all changes are committed and merged on main
 
-    b.  Use uv to bump the version in `pyproject.toml`. The version is
-        read automatically from the package metadata, so no other file
-        needs to be updated.
+    b.  Bump the version in ``pyproject.toml`` (the single source; ``b2luigi.__version__``
+        reads it from the installed metadata):
 
         .. code-block:: bash
 
             uv version --bump [patch|minor|major]
 
-        This also updates the ``uv.lock`` file. To preview the change
-        without modifying anything, use ``--dry-run``.
+        ``uv version`` updates ``pyproject.toml`` and ``uv.lock`` but does not commit or tag,
+        so do that yourself:
 
-    c.  Push the new commit and the tags
+        .. code-block:: bash
+
+            git commit -am "Bump version: <old> → <new>"
+            git tag v<new>
+
+        Use ``uv version --bump minor --dry-run`` to preview the change.
+
+    c.  Push the new commit and the tag
 
         .. code-block:: bash
 
@@ -124,15 +133,14 @@ You want to help developing ``b2luigi``? Great! Here are some first steps to hel
 	    For `GitHub <https://github.com/belle2/b2luigi/releases>`_ create a release and copy the content from GitLab.
 
     e.  Check that the new release had been published to PyPI, which should happen automatically via
-        GitLab `pipeline`_. Alternatively, you can also manually publish a release. Install the dependencies with
+        GitLab `pipeline`_. Alternatively, you can also manually publish a release:
 
         .. code-block:: bash
 
-            uv build && uv publish
+            uv build && UV_PUBLISH_TOKEN=<pypi-token> uv publish
 
-        To test the publishing process first, you can publish to the
-        TestPyPI instance (configured as the ``testpypi`` index in
-        ``pyproject.toml``):
+        To rehearse the publishing process, publish to TestPyPI first (configured as the
+        ``testpypi`` index in ``pyproject.toml``); the pipeline offers this as a manual job:
 
         .. code-block:: bash
 
