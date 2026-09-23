@@ -75,7 +75,8 @@ def pip_environment(install_args: list[str]) -> Callable[[Path, str], Pip]:
     """Factory for a fresh venv per revision, installing the revision with ``install_args``."""
     return Pip.factory(
         venv=Path(".venv"),
-        creator=VenvWrapper(),
+        # `pip install --group` needs pip >= 25.1, newer than what many base images bundle
+        creator=VenvWrapper(upgrade_deps=True),
         temporary=True,
         args=[*install_args, "sphinx-polyversion"],
         env={
