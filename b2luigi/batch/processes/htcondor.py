@@ -268,7 +268,11 @@ class HTCondorProcess(BatchProcess):
             aborted_job_ids = [
                 job_id for job_id, status in zip(self._batch_job_ids, job_status_list) if status == JobStatus.aborted
             ]
-            aborted_log_files = [(job_id, _batch_job_status_cache[job_id][1]) for job_id in aborted_job_ids]
+            # A job HTCondor does not know about is aborted but not cached; ``get`` does not query HTCondor
+            # again (and raise ``KeyError``) the way indexing would.
+            aborted_log_files = [
+                (job_id, _batch_job_status_cache.get(job_id, (None, "<No user log>"))[1]) for job_id in aborted_job_ids
+            ]
 
             log_file_dir = get_log_file_dir(task=self.task)
             os.makedirs(log_file_dir, exist_ok=True)
