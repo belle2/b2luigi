@@ -53,18 +53,18 @@ You want to help developing ``b2luigi``? Great! Here are some first steps to hel
 
     If you are a Belle II collaborator, you can also use the `b2venv`_ command to create a virtual environment.
 
-3.  ``b2luigi`` is not using ``setuptools`` but the newer (and better) `flit`_ as a a builder.
+3.  ``b2luigi`` uses `uv`_ for dependency management and building.
     Install it via
 
     .. code-block:: bash
 
-        pip3 [ --user ] install flit
+        curl -LsSf https://astral.sh/uv/install.sh | sh
 
     You can now install ``b2luigi`` from the cloned git repository in development mode:
 
     .. code-block:: bash
 
-        flit install -s --deps develop
+        uv sync --dev
 
     Now you can start hacking and your changes will be immediately available to you.
 
@@ -103,12 +103,16 @@ You want to help developing ``b2luigi``? Great! Here are some first steps to hel
 
     a.  Make sure all changes are committed and merged on main
 
-    b.  Use the `bump-my-version`_ package to update the version in `b2luigi/__init__.py`,
-	`.bumpversion.cfg` as well as the git tag. ``flit`` will automatically use this.
+    b.  Use uv to bump the version in `pyproject.toml`. The version is
+        read automatically from the package metadata, so no other file
+        needs to be updated.
 
         .. code-block:: bash
 
-            bump-my-version bump --no-commit [patch|minor|major]
+            uv version --bump [patch|minor|major]
+
+        This also updates the ``uv.lock`` file. To preview the change
+        without modifying anything, use ``--dry-run``.
 
     c.  Push the new commit and the tags
 
@@ -124,13 +128,15 @@ You want to help developing ``b2luigi``? Great! Here are some first steps to hel
 
         .. code-block:: bash
 
-            python -m pip install -U [ --user ] setuptools wheel twine
+            uv build && uv publish
 
-        and publish via
+        To test the publishing process first, you can publish to the
+        TestPyPI instance (configured as the ``testpypi`` index in
+        ``pyproject.toml``):
 
         .. code-block:: bash
 
-            flit publish
+            UV_PUBLISH_TOKEN=<test-token> uv publish --index testpypi
 
 
 Open TODOs
@@ -142,7 +148,7 @@ For the Belle II collaborators: for a list of potential features, improvements a
 
 .. _GitLab: https://gitlab.desy.de/belle2/software/b2luigi
 .. _b2venv: https://software.belle2.org/development/sphinx/build/tools_doc/b2venv.html
-.. _flit: https://pypi.org/project/flit/
+.. _uv: https://docs.astral.sh/uv/
 .. _gitlab issues: https://gitlab.desy.de/belle2/software/b2luigi/-/issues
 .. _pytest: https://docs.pytest.org/
 .. _b2luigi.belle2.org: https://b2luigi.belle2.org
@@ -151,7 +157,6 @@ For the Belle II collaborators: for a list of potential features, improvements a
 .. _PEP 8: https://www.python.org/dev/peps/pep-0008/
 .. _Pylint: https://pylint.pycqa.org/en/latest/
 .. _flake8: https://flake8.pycqa.org/en/latest/
-.. _bump-my-version: https://github.com/callowayproject/bump-my-version
 .. _release: https://github.com/belle2/b2luigi/releases
 .. _pipeline: https://github.com/belle2/b2luigi/blob/main/.gitlab-ci.yml
 .. _Keep a Changelog: https://keepachangelog.com/en/1.0.0/

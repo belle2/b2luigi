@@ -8,7 +8,12 @@ from luigi.util import copies
 
 # version must be defined after importing the luigi namespace,
 # otherwise the b2luigi.__version__ gets overwritten by the one from luigi
-__version__ = "1.2.9"
+from importlib.metadata import PackageNotFoundError, version as _get_version
+
+try:
+    __version__ = _get_version("b2luigi")
+except PackageNotFoundError:
+    __version__ = "unknown"
 
 # Warn users if they're using an untested Python version
 min_python_version = (3, 11)
