@@ -238,3 +238,13 @@ if os.getenv("READTHEDOCS"):
 
     subprocess.check_call(["pip", "install", "flit"])
     subprocess.check_call(["flit", "install", "-s"], cwd="../")
+
+
+# -- Versioned documentation -------------------------------------------------
+
+# The version switcher and the settings it needs live in a separate file so that
+# docs/_polyversion/prepare.sh can append the same file to the conf.py of older
+# tags. It only changes the build when it runs under sphinx-polyversion
+# (see docs/poly.py).
+with open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "_polyversion", "switcher_conf.py")) as _f:
+    exec(compile(_f.read(), _f.name, "exec"))

@@ -86,7 +86,7 @@ docs:
       artifacts: false
   script:
     - flit install -s --deps=develop
-    - sphinx-build docs/ $ARTIFACTS_DOCS_PATH
+    - sphinx-polyversion docs/poly.py --local -o OUTPUT_DIR=$ARTIFACTS_DOCS_PATH
   artifacts:
     paths:
       - docs-build/

@@ -88,7 +88,7 @@ You want to help developing ``b2luigi``? Great! Here are some first steps to hel
 
     in the root of ``b2luigi`` repository. If you add some functionality, try to add some tests for it.
 
-6.  The documentation is hosted on `b2luigi.belle2.org`_ and build automatically on every commit to main.
+6.  The documentation is hosted on `b2luigi.belle2.org`_ and built automatically.
     You can (and should) also build the documentation locally:
 
     .. code-block:: bash
@@ -98,6 +98,20 @@ You want to help developing ``b2luigi``? Great! Here are some first steps to hel
     The autobuild will rebuild the project whenever you change something. It displays a URL where to find
     the created docs now (most likely http://127.0.0.1:8000).
     Please make sure the documentation looks fine before creating a pull request.
+
+    The published documentation is versioned: the website serves the newest release at its root, the
+    development version of ``main`` under ``/dev/`` and older releases under ``/vX.Y.Z/``, with a
+    version switcher in the sidebar. `sphinx-polyversion`_ builds every published version from a
+    checkout of ``main``; which versions are published is decided in ``docs/_polyversion/policy.py``.
+    To build the complete website locally and serve it:
+
+    .. code-block:: bash
+
+        sphinx-polyversion docs/poly.py -o BASE_URL=http://localhost:8000/
+        python -m http.server -d _docs_build 8000
+
+    ``sphinx-polyversion docs/poly.py --local`` builds only your working tree (as ``dev``), which is
+    what the CI pipeline does.
 
 7.  If you are a core developer and want to release a new version:
 
@@ -142,6 +156,7 @@ For the Belle II collaborators: for a list of potential features, improvements a
 
 .. _GitLab: https://gitlab.desy.de/belle2/software/b2luigi
 .. _b2venv: https://software.belle2.org/development/sphinx/build/tools_doc/b2venv.html
+.. _sphinx-polyversion: https://real-yfprojects.github.io/sphinx-polyversion/
 .. _flit: https://pypi.org/project/flit/
 .. _gitlab issues: https://gitlab.desy.de/belle2/software/b2luigi/-/issues
 .. _pytest: https://docs.pytest.org/
