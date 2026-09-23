@@ -43,13 +43,13 @@ To install the requirements with in a ``b2venv`` for this tutorial run:
 
 .. code-block:: bash
 
-    pip install b2luigi
+    pip install b2luigi  (or: uv pip install b2luigi)
 
 If you use a clear ``venv``, you can install the requirements with:
 
 .. code-block:: bash
 
-    pip install b2luigi pandas pyarrow uproot matplotlib plothist
+    pip install b2luigi pandas pyarrow uproot matplotlib plothist  (or: uv pip install b2luigi pandas pyarrow uproot matplotlib plothist)
 
 If you copied the examples from the Git repository, you can install the requirements with:
 

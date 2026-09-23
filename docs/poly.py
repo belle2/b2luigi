@@ -17,8 +17,10 @@ Options can be overridden on the command line, e.g. to serve a build locally::
     sphinx-polyversion docs/poly.py -o BASE_URL=http://localhost:8000/
 """
 
+import asyncio
 import shutil
 import sys
+from collections.abc import Callable, Iterable
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -28,6 +30,7 @@ from sphinx_polyversion.pyvenv import Pip, VenvWrapper
 from sphinx_polyversion.sphinx import Placeholder, SphinxBuilder
 
 HERE = Path(__file__).parent.resolve()
+ROOT = Git.root(HERE)
 sys.path.insert(0, str(HERE / "_polyversion"))
 import policy  # noqa: E402
 
@@ -68,25 +71,13 @@ def copy_newest_release_to_root(output_dir: Path) -> None:
     shutil.copytree(output_dir / newest, output_dir, dirs_exist_ok=True)
 
 
-vcs = PublishedGit(
-    branch_regex=f"^{policy.DEVELOPMENT_BRANCH}$",
-    tag_regex=policy.TAG_PATTERN.pattern,
-)
-
-driver = DefaultDriver(
-    Git.root(HERE),
-    OUTPUT_DIR,
-    vcs=vcs,
-    builder=SphinxBuilder(
-        SOURCE_DIR,
-        args=["-q"],
-        pre_cmd=["bash", str(POLYVERSION_DIR / "prepare.sh"), Placeholder.SOURCE_DIR],
-    ),
-    env=Pip.factory(
+def pip_environment(install_args: list[str]) -> Callable[[Path, str], Pip]:
+    """Factory for a fresh venv per revision, installing the revision with ``install_args``."""
+    return Pip.factory(
         venv=Path(".venv"),
         creator=VenvWrapper(),
         temporary=True,
-        args=[".[doc]", "sphinx-polyversion"],
+        args=[*install_args, "sphinx-polyversion"],
         env={
             # old tags still declare the flit 3 metadata table
             "PIP_CONSTRAINT": str(POLYVERSION_DIR / "pip-constraints.txt"),
@@ -94,7 +85,46 @@ driver = DefaultDriver(
             # a preview build lists only itself and must work wherever it is served from
             "B2LUIGI_DOCS_SWITCHER_URL": "switcher.json" if MOCK else f"{BASE_URL}switcher.json",
         },
+    )
+
+
+async def select_environment(ref: GitRef, keys: Iterable[str]) -> str:
+    """
+    Pick how a revision's documentation dependencies are installed.
+
+    Since the migration to uv they are a ``docs`` dependency group (PEP 735); tags up to
+    v1.2.9 still declare them as a ``doc`` extra of the flit metadata.
+    """
+    if not ref.obj:  # the mocked local revision: the working tree
+        pyproject = (ROOT / "pyproject.toml").read_text()
+    else:
+        proc = await asyncio.create_subprocess_exec(
+            "git", "show", f"{ref.obj}:pyproject.toml", stdout=asyncio.subprocess.PIPE, cwd=ROOT
+        )
+        stdout, _ = await proc.communicate()
+        pyproject = stdout.decode()
+    return "dependency-groups" if "[dependency-groups]" in pyproject else "extras"
+
+
+vcs = PublishedGit(
+    branch_regex=f"^{policy.DEVELOPMENT_BRANCH}$",
+    tag_regex=policy.TAG_PATTERN.pattern,
+)
+
+driver = DefaultDriver(
+    ROOT,
+    OUTPUT_DIR,
+    vcs=vcs,
+    builder=SphinxBuilder(
+        SOURCE_DIR,
+        args=["-q"],
+        pre_cmd=["bash", str(POLYVERSION_DIR / "prepare.sh"), Placeholder.SOURCE_DIR],
     ),
+    env={
+        "dependency-groups": pip_environment(["--group", "docs", "."]),
+        "extras": pip_environment([".[doc]"]),
+    },
+    selector=select_environment,
     namer=lambda ref: policy.published_name(ref.name),
     root_data_factory=root_data,
     template_dir=POLYVERSION_DIR / "templates",

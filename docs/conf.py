@@ -190,16 +190,6 @@ texinfo_documents = [
     ),
 ]
 
-# Cheating around read the docs: we need to install our project which is not possible because we
-# have no setup.py. But this should work...
-
-if os.getenv("READTHEDOCS"):
-    import subprocess
-
-    subprocess.check_call(["pip", "install", "flit"])
-    subprocess.check_call(["flit", "install", "-s"], cwd="../")
-
-
 # -- Versioned documentation -------------------------------------------------
 
 # The version switcher and the settings it needs live in a separate file so that
