@@ -120,7 +120,7 @@ test = [
 
 [package.metadata]
 requires-dist = [
-    { name = "cachetools", specifier = ">=2.1.0" },
+    { name = "cachetools", specifier = ">=5.0.0" },
     { name = "click", specifier = ">=8.0.0" },
     { name = "colorama", specifier = ">=0.3.9" },
     { name = "gitpython", specifier = ">=2.1.11" },

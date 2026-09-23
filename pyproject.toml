@@ -27,7 +27,7 @@ dependencies = [
     "parse>=1.8.4",
     "GitPython>=2.1.11",
     "colorama>=0.3.9",
-    "cachetools>=2.1.0",
+    "cachetools>=5.0.0",
     "jinja2",
     "tenacity>=8,<9",
     "webdavclient3>=3.14.7",

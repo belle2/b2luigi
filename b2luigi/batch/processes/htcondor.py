@@ -312,11 +312,8 @@ class HTCondorProcess(BatchProcess):
         self._batch_job_ids.extend(new_job_ids)
         _batch_job_status_cache.add_job_ids(self._batch_job_ids)
 
-        # Seed the cache with the new jobs as idle. Otherwise the first status check of every newly submitted
-        # job misses the cache and triggers a full condor_q, i.e. one query per job turnover instead of one
-        # query per cache TTL. The real status replaces this entry with the next condor_q.
-        for job_id in new_job_ids:
-            _batch_job_status_cache[job_id] = (HTCondorJobStatus.idle, "<No user log>")
+        # Avoid a full condor_q for the first status check of every new job
+        _batch_job_status_cache.seed_submitted(new_job_ids, (HTCondorJobStatus.idle, "<No user log>"))
 
     def terminate_job(self):
         """
