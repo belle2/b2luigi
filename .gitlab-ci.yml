@@ -95,6 +95,7 @@ publish:
       artifacts: false
   variables:
     UV_PUBLISH_TOKEN: $FLIT_PASSWORD
+    UV_NO_CACHE: "1"  # the cache lives under the project dir; keep it out of the build
   script:
     - uv build
     - uv publish
@@ -110,6 +111,7 @@ publish_testpypi:
       artifacts: false
   variables:
     UV_PUBLISH_TOKEN: $TESTPYPI_TOKEN
+    UV_NO_CACHE: "1"  # the cache lives under the project dir; keep it out of the build
   script:
     - uv build
     - uv publish --index testpypi
