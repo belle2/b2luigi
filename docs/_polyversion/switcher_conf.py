@@ -20,12 +20,15 @@ except Exception:  # not a sphinx-polyversion build
 
 if _current_name is not None:
     _base_url = _os.environ.get("B2LUIGI_DOCS_BASE_URL", "https://b2luigi.belle2.org/")
+    # A relative URL is resolved by the theme against the root of this version, which lets a
+    # local or CI preview build carry its own switcher.json (see docs/poly.py).
+    _switcher_url = _os.environ.get("B2LUIGI_DOCS_SWITCHER_URL", f"{_base_url}switcher.json")
     _name = "dev" if _current_name == "main" else _current_name
     _here = _os.path.dirname(_os.path.abspath(__file__))
 
     version = release = _name
     html_baseurl = f"{_base_url}{_name}/"
-    html_theme_options["switcher"] = {"json_url": f"{_base_url}switcher.json", "version_match": _name}
+    html_theme_options["switcher"] = {"json_url": _switcher_url, "version_match": _name}
     html_static_path = list(globals().get("html_static_path", [])) + [_os.path.join(_here, "_polyversion", "static")]
     html_css_files = list(globals().get("html_css_files", [])) + ["version-switcher.css"]
     templates_path = list(globals().get("templates_path", [])) + [

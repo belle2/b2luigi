@@ -91,6 +91,8 @@ driver = DefaultDriver(
             # old tags still declare the flit 3 metadata table
             "PIP_CONSTRAINT": str(POLYVERSION_DIR / "pip-constraints.txt"),
             "B2LUIGI_DOCS_BASE_URL": BASE_URL,
+            # a preview build lists only itself and must work wherever it is served from
+            "B2LUIGI_DOCS_SWITCHER_URL": "switcher.json" if MOCK else f"{BASE_URL}switcher.json",
         },
     ),
     namer=lambda ref: policy.published_name(ref.name),
@@ -102,5 +104,8 @@ driver = DefaultDriver(
     },
 )
 driver.run(MOCK, SEQUENTIAL)
-if not MOCK:
+if MOCK:
+    # the preview build fetches the switcher list relative to its own root
+    shutil.copy(Path(OUTPUT_DIR) / "switcher.json", Path(OUTPUT_DIR) / "local" / "switcher.json")
+else:
     copy_newest_release_to_root(Path(OUTPUT_DIR))
