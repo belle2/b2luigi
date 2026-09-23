@@ -180,6 +180,8 @@ class LSFProcess(BatchProcess):
         for sub_task in sub_tasks:
             job_id = self._submit_task(sub_task)
             self._batch_job_ids.append(job_id)
+            # Avoid a full bjobs for the first status check of every new job
+            _batch_job_status_cache.seed_submitted([job_id], "PEND")
             self._job_log_dirs[job_id] = get_log_file_dir(sub_task)
 
     @staticmethod

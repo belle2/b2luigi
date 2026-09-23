@@ -119,6 +119,18 @@ class TestLSFGroupedSubmission(B2LuigiTestCase):
         _batch_job_status_cache["103"] = "DONE"
         self.assertEqual(process.get_job_status(), JobStatus.successful)
 
+    @mock.patch("subprocess.check_output")
+    def test_new_job_status_is_served_from_cache(self, check_output):
+        """A freshly submitted job is seeded as pending, so its first status check must not call ``bjobs``."""
+        check_output.return_value = self._bsub_output(7)
+        process = self._make_process(MyGroupedTask(plain=0, grouped=7))
+
+        process.start_job()
+
+        self.assertEqual(process.get_job_status(), JobStatus.running)
+        check_output.assert_called_once()
+        self.assertEqual(check_output.call_args.args[0][0], "bsub")
+
     def test_status_without_job_ids_is_aborted(self):
         process = self._make_process(MyGroupedTask(plain=0, grouped=(0, 1)))
         self.assertEqual(process.get_job_status(), JobStatus.aborted)

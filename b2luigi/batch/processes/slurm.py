@@ -391,6 +391,8 @@ class SlurmProcess(BatchProcess):
                 raise RuntimeError("Batch submission failed with output " + output)
             job_id = int(match.group(0))
             self._batch_job_ids.append(job_id)
+            # Avoid a full squeue for the first status check of every new job
+            _batch_job_status_cache.seed_submitted([job_id], SlurmJobStatus.pending)
             self._job_log_dirs[job_id] = get_log_file_dir(sub_task)
 
     def terminate_job(self):
