@@ -308,8 +308,15 @@ class HTCondorProcess(BatchProcess):
         if not match:
             raise RuntimeError("Batch submission failed with output " + output)
 
-        self._batch_job_ids.extend(int(m[:-1]) for m in match)
+        new_job_ids = [int(m[:-1]) for m in match]
+        self._batch_job_ids.extend(new_job_ids)
         _batch_job_status_cache.add_job_ids(self._batch_job_ids)
+
+        # Seed the cache with the new jobs as idle. Otherwise the first status check of every newly submitted
+        # job misses the cache and triggers a full condor_q, i.e. one query per job turnover instead of one
+        # query per cache TTL. The real status replaces this entry with the next condor_q.
+        for job_id in new_job_ids:
+            _batch_job_status_cache[job_id] = (HTCondorJobStatus.idle, "<No user log>")
 
     def terminate_job(self):
         """
