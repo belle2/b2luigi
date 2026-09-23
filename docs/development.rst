@@ -58,7 +58,7 @@ You want to help developing ``b2luigi``? Great! Here are some first steps to hel
 
     .. code-block:: bash
 
-        pip3 [ --user ] install uv
+        curl -LsSf https://astral.sh/uv/install.sh | sh
 
     You can now install ``b2luigi`` from the cloned git repository in development mode,
     together with the test and documentation tooling:
