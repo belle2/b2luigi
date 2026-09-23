@@ -53,20 +53,23 @@ You want to help developing ``b2luigi``? Great! Here are some first steps to hel
 
     If you are a Belle II collaborator, you can also use the `b2venv`_ command to create a virtual environment.
 
-3.  ``b2luigi`` is not using ``setuptools`` but the newer (and better) `flit`_ as a a builder.
+3.  ``b2luigi`` uses `uv`_ for dependency management, building and publishing.
     Install it via
 
     .. code-block:: bash
 
-        pip3 [ --user ] install flit
+        curl -LsSf https://astral.sh/uv/install.sh | sh
 
-    You can now install ``b2luigi`` from the cloned git repository in development mode:
+    You can now install ``b2luigi`` from the cloned git repository in development mode,
+    together with the test and documentation tooling:
 
     .. code-block:: bash
 
-        flit install -s --deps develop
+        uv sync --group dev --extra tui
 
-    Now you can start hacking and your changes will be immediately available to you.
+    This creates a ``.venv`` in the repository (or fills the active virtual environment
+    with ``--active``) and installs ``b2luigi`` in editable mode, so your changes are
+    immediately available to you.
 
 4.  Automatically check your code with `pre-commit`_:
 
@@ -84,7 +87,7 @@ You want to help developing ``b2luigi``? Great! Here are some first steps to hel
 
     .. code-block:: bash
 
-        pytest -v b2luigi tests
+        uv run pytest -v tests
 
     in the root of ``b2luigi`` repository. If you add some functionality, try to add some tests for it.
 
@@ -93,7 +96,7 @@ You want to help developing ``b2luigi``? Great! Here are some first steps to hel
 
     .. code-block:: bash
 
-        sphinx-autobuild docs build
+        uv run sphinx-autobuild docs build
 
     The autobuild will rebuild the project whenever you change something. It displays a URL where to find
     the created docs now (most likely http://127.0.0.1:8000).
@@ -103,14 +106,24 @@ You want to help developing ``b2luigi``? Great! Here are some first steps to hel
 
     a.  Make sure all changes are committed and merged on main
 
-    b.  Use the `bump-my-version`_ package to update the version in `b2luigi/__init__.py`,
-	`.bumpversion.cfg` as well as the git tag. ``flit`` will automatically use this.
+    b.  Bump the version in ``pyproject.toml`` (the single source; ``b2luigi.__version__``
+        reads it from the installed metadata):
 
         .. code-block:: bash
 
-            bump-my-version bump --no-commit [patch|minor|major]
+            uv version --bump [patch|minor|major]
 
-    c.  Push the new commit and the tags
+        ``uv version`` updates ``pyproject.toml`` and ``uv.lock`` but does not commit or tag,
+        so do that yourself:
+
+        .. code-block:: bash
+
+            git commit -am "Bump version: <old> → <new>"
+            git tag v<new>
+
+        Use ``uv version --bump minor --dry-run`` to preview the change.
+
+    c.  Push the new commit and the tag
 
         .. code-block:: bash
 
@@ -120,17 +133,18 @@ You want to help developing ``b2luigi``? Great! Here are some first steps to hel
 	    For `GitHub <https://github.com/belle2/b2luigi/releases>`_ create a release and copy the content from GitLab.
 
     e.  Check that the new release had been published to PyPI, which should happen automatically via
-        GitLab `pipeline`_. Alternatively, you can also manually publish a release. Install the dependencies with
+        GitLab `pipeline`_. Alternatively, you can also manually publish a release:
 
         .. code-block:: bash
 
-            python -m pip install -U [ --user ] setuptools wheel twine
+            uv build && UV_PUBLISH_TOKEN=<pypi-token> uv publish
 
-        and publish via
+        To rehearse the publishing process, publish to TestPyPI first (configured as the
+        ``testpypi`` index in ``pyproject.toml``); the pipeline offers this as a manual job:
 
         .. code-block:: bash
 
-            flit publish
+            UV_PUBLISH_TOKEN=<test-token> uv publish --index testpypi
 
 
 Open TODOs
@@ -142,7 +156,7 @@ For the Belle II collaborators: for a list of potential features, improvements a
 
 .. _GitLab: https://gitlab.desy.de/belle2/software/b2luigi
 .. _b2venv: https://software.belle2.org/development/sphinx/build/tools_doc/b2venv.html
-.. _flit: https://pypi.org/project/flit/
+.. _uv: https://docs.astral.sh/uv/
 .. _gitlab issues: https://gitlab.desy.de/belle2/software/b2luigi/-/issues
 .. _pytest: https://docs.pytest.org/
 .. _b2luigi.belle2.org: https://b2luigi.belle2.org
@@ -151,7 +165,6 @@ For the Belle II collaborators: for a list of potential features, improvements a
 .. _PEP 8: https://www.python.org/dev/peps/pep-0008/
 .. _Pylint: https://pylint.pycqa.org/en/latest/
 .. _flake8: https://flake8.pycqa.org/en/latest/
-.. _bump-my-version: https://github.com/callowayproject/bump-my-version
 .. _release: https://github.com/belle2/b2luigi/releases
 .. _pipeline: https://github.com/belle2/b2luigi/blob/main/.gitlab-ci.yml
 .. _Keep a Changelog: https://keepachangelog.com/en/1.0.0/

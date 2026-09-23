@@ -5,14 +5,11 @@ stages:
   - publish
 
 variables:
-  FLIT_ROOT_INSTALL: "1"
   ARTIFACTS_TEST_PATH: "junit/test-results.xml"
   ARTIFACTS_DOCS_PATH: "docs-build"
   ARTIFACTS_COV_PATH: "coverage/"
-  GITLAB_BELLE2_TOOLS_B2SETUP: "/cvmfs/belle.cern.ch/tools/b2setup"
-  FLIT_INDEX_URL: "https://upload.pypi.org/legacy/"
-  FLIT_USERNAME: __token__
-  BASF2_RELEASE_VERSION: "light-2604-jellyfish"
+  PYTHON_VERSION: "3.12"
+  UV_CACHE_DIR: "$CI_PROJECT_DIR/.uv-cache"
 
 workflow:
   rules:
@@ -22,39 +19,35 @@ workflow:
     - if: $GITLAB_FORCE_RUNNING_PIPELINE == 'yes'
 
 default:
-  image: belle2/belle2-base-ubuntu2404
+  image: python:${PYTHON_VERSION}
   tags:
     - gitlab-runner12
   before_script:
-    # Preliminary operations with Git
-    - git config user.email "something@something.com"
-    - git config user.name "someone"
-    - git config --global --add safe.directory $(dirname ${GITLAB_BELLE2_TOOLS_B2SETUP})
-    # Setup of basf2
-    - source ${GITLAB_BELLE2_TOOLS_B2SETUP}
-    - echo ${BASF2_RELEASE_VERSION}
-    - b2venv ${BASF2_RELEASE_VERSION}
-    - source venv/bin/activate
-    - pip install flit "flit_core<4"
+    - pip install "uv~=0.12.18"
+  cache:
+    key:
+      files:
+        - uv.lock
+    paths:
+      - .uv-cache
   interruptible: true  # All the jobs can be interrupted by newer pipelines
 
 pre_commit:
   stage: pre_commit
   script:
-    - pip install pre-commit
-    - pre-commit run --all-files
+    - uvx pre-commit run --all-files
 
 test:
   stage: test
   script:
-    - flit install -s --deps=develop
+    - uv sync --locked --group test
     - echo "Running tests"
-    - pytest -v --cov b2luigi --junitxml=$ARTIFACTS_TEST_PATH --cov-report=xml --cov-report=html --cov-report=term tests
+    - uv run pytest -v --cov b2luigi --junitxml=$ARTIFACTS_TEST_PATH --cov-report=xml --cov-report=html --cov-report=term tests
     - mv htmlcov $ARTIFACTS_COV_PATH
   coverage: '/(?i)total.*? (100(?:\.0+)?\%|[1-9]?\d(?:\.\d+)?\%)$/'
   parallel:
     matrix:
-      - BASF2_RELEASE_VERSION: [$BASF2_PYTHON311_RELEASE, $BASF2_PYTHON312_RELEASE]
+      - PYTHON_VERSION: ["3.11", "3.12"]
   artifacts:
     reports:
       junit: $ARTIFACTS_TEST_PATH
@@ -69,9 +62,8 @@ test:
 test-tui:
   stage: test
   script:
-    - flit install -s --deps=develop
-    - pip install "textual>=8.0.0"
-    - pytest -v --junitxml=$ARTIFACTS_TEST_PATH tests/cli/test_tui.py
+    - uv sync --locked --group test --extra tui
+    - uv run pytest -v --junitxml=$ARTIFACTS_TEST_PATH tests/cli/test_tui.py
   artifacts:
     reports:
       junit: $ARTIFACTS_TEST_PATH
@@ -85,8 +77,8 @@ docs:
     - job: test
       artifacts: false
   script:
-    - flit install -s --deps=develop
-    - sphinx-build docs/ $ARTIFACTS_DOCS_PATH
+    - uv sync --locked --group docs
+    - uv run sphinx-build docs/ $ARTIFACTS_DOCS_PATH
   artifacts:
     paths:
       - docs-build/
@@ -101,19 +93,36 @@ publish:
       artifacts: false
     - job: docs
       artifacts: false
+  variables:
+    UV_PUBLISH_TOKEN: $FLIT_PASSWORD
+    UV_NO_CACHE: "1"  # the cache lives under the project dir; keep it out of the build
   script:
-    - pip install setuptools wheel twine
-    - flit publish
-  only:
-    - tags
+    - uv build
+    - uv publish
+  rules:
+    - if: '$CI_COMMIT_TAG =~ /^v?\d+\.\d+\.\d+$/'
+
+publish_testpypi:
+  stage: publish
+  needs:
+    - job: test
+      artifacts: false
+    - job: docs
+      artifacts: false
+  variables:
+    UV_PUBLISH_TOKEN: $TESTPYPI_TOKEN
+    UV_NO_CACHE: "1"  # the cache lives under the project dir; keep it out of the build
+  script:
+    - uv build
+    - uv publish --index testpypi
+  when: manual
 
 prepare_release:
   stage: publish
   rules:
   - if: '$CI_COMMIT_TAG =~ /^v?\d+\.\d+\.\d+$/'
   script:
-    - yum install -y jq
-    - 'curl --header "JOB-TOKEN: ${CI_JOB_TOKEN}" "$CI_API_V4_URL/projects/$CI_PROJECT_ID/repository/changelog?version=$CI_COMMIT_TAG" | jq -r .notes > release_notes.md'
+    - 'curl --header "JOB-TOKEN: ${CI_JOB_TOKEN}" "$CI_API_V4_URL/projects/$CI_PROJECT_ID/repository/changelog?version=$CI_COMMIT_TAG" | python3 -c "import json, sys; print(json.load(sys.stdin)[\"notes\"])" > release_notes.md'
   artifacts:
     paths:
     - release_notes.md

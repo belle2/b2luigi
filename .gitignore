@@ -113,3 +113,6 @@ venv.bak/
 # Claude Code tooling
 CLAUDE.md
 .claude/
+
+# uv
+.uv-cache/

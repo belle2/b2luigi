@@ -229,12 +229,3 @@ texinfo_documents = [
         "Miscellaneous",
     ),
 ]
-
-# Cheating around read the docs: we need to install our project which is not possible because we
-# have no setup.py. But this should work...
-
-if os.getenv("READTHEDOCS"):
-    import subprocess
-
-    subprocess.check_call(["pip", "install", "flit"])
-    subprocess.check_call(["flit", "install", "-s"], cwd="../")

@@ -1,14 +1,18 @@
 [build-system]
-requires = ["flit_core>=3.11,<4"]
-build-backend = "flit_core.buildapi"
+requires = ["uv_build>=0.12.18,<0.13"]
+build-backend = "uv_build"
 
 [project]
 name = "b2luigi"
-dynamic = ["version", "description"]
+version = "1.2.9"
+description = "b2luigi - bringing batch 2 luigi"
+readme = "README.rst"
+requires-python = ">=3.11"
+license = "GPL-3.0-or-later"
+license-files = ["LICENSE"]
 authors = [
     {name = "Nils Braun, Michael Eliachevitch, The Belle II Collaboration", email = "software-b2luigi@belle2.org"},
 ]
-license = "GPL-3.0-or-later"
 keywords = ["luigi", "workflow management", "belle2"]
 classifiers = [
     "Development Status :: 5 - Production/Stable",
@@ -25,7 +29,6 @@ dependencies = [
     "colorama>=0.3.9",
     "cachetools>=2.1.0",
     "jinja2",
-    "setuptools",
     "tenacity>=8,<9",
     "webdavclient3>=3.14.7",
     "xrootd>=5.7.0",
@@ -33,8 +36,6 @@ dependencies = [
     "shellingham>=1.5",
     "click>=8.0.0"
 ]
-requires-python = ">=3.11"
-readme = "README.rst"
 
 [project.scripts]
 b2luigi = "b2luigi.cli:main"
@@ -43,10 +44,23 @@ b2luigi = "b2luigi.cli:main"
 tui = [
     "textual>=8.0.0",
 ]
+
+[project.urls]
+Homepage = "https://github.com/belle2/b2luigi"
+Documentation = "https://b2luigi.belle2.org/"
+"Bug Tracker" = "https://gitlab.desy.de/belle2/software/b2luigi/-/issues"
+Changelog = "https://gitlab.desy.de/belle2/software/b2luigi/-/releases"
+
+[dependency-groups]
+test = [
+    "pytest",
+    "pytest-cov",
+    "python-coveralls",
+]
 # Use the same versions of sphinx and sphinx-book-theme
 # as in the latest version of the basf2 externals
 # (see https://github.com/belle2/externals)
-doc = [
+docs = [
     "sphinx",
     "sphinx-book-theme",
     "sphinxcontrib-applehelp",
@@ -63,15 +77,18 @@ doc = [
 ]
 dev = [
     "pre_commit",
-    "pytest",
-    "pytest-cov",
-    "python-coveralls",
-    "bump-my-version"
+    {include-group = "test"},
+    {include-group = "docs"},
 ]
 
-[project.urls]
-Homepage = "https://github.com/belle2/b2luigi"
-Documentation = "https://b2luigi.belle2.org/"
+[tool.uv.build-backend]
+module-root = "."
+
+[[tool.uv.index]]
+name = "testpypi"
+url = "https://test.pypi.org/simple/"
+publish-url = "https://test.pypi.org/legacy/"
+explicit = true
 
 [tool.ruff]
 line-length = 120
