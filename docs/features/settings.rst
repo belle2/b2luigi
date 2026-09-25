@@ -113,6 +113,15 @@ Batch mode specific settings
     For LSF, the ``-J`` flag is set to this value.
     By default it is not set.
 
+- ``batch_status_cache_ttl``: Number
+    How many seconds a job status fetched from the ``htcondor``, ``lsf`` or ``slurm`` batch system stays cached.
+    All jobs are queried at once (e.g. a single ``condor_q``) when a cached status expires, so this sets how
+    often the batch system is queried and how long it can take until a job status change is noticed.
+    Lower values notice finished or failed jobs sooner but query the batch system more often.
+    Keep it well above the time one status query takes. Must be positive. Querying the job status often can
+    put a strain on the systems, check your batch system documentation or talk to the respective admins if
+    you want to use lower values. Defaults to ``120``.
+
 - ``shell``: String
     Which shell to to start the executable wrapper with.
     Defaults to ``bash`` and only this shell is tested.

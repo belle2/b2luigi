@@ -312,3 +312,26 @@ class TestHTCondorGroupedJobStatus(B2LuigiTestCase):
 
         _batch_job_status_cache[102] = (HTCondorJobStatus.completed, "log")
         self.assertEqual(process.get_job_status(), JobStatus.aborted)
+
+    @mock.patch("subprocess.check_output", return_value=b"Submitting job(s).\n1 job(s) submitted to cluster 301.\n")
+    def test_new_job_status_is_served_from_cache(self, mock_check_output):
+        """
+        A freshly submitted job is seeded into the cache, so its first status check must not query HTCondor
+        (only ``condor_submit`` is called).
+        """
+        process = HTCondorProcess(
+            task=MyTask("seeded_job"),
+            scheduler=mock.Mock(),
+            result_queue=mock.Mock(),
+            worker_timeout=None,
+        )
+        process._create_htcondor_submit_file = lambda: os.path.join(self.test_dir, "job.submit")
+        try:
+            process.start_job()
+
+            self.assertEqual(process._batch_job_ids, [301])
+            self.assertEqual(process.get_job_status(), JobStatus.running)
+            mock_check_output.assert_called_once()
+            self.assertEqual(mock_check_output.call_args.args[0][0], "condor_submit")
+        finally:
+            _batch_job_status_cache.remove_job_ids(process._batch_job_ids)

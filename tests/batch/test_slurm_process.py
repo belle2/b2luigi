@@ -291,6 +291,18 @@ class TestSlurmGroupedSubmission(B2LuigiTestCase):
         self.assertFalse(any("grouped=1" in cwd for cwd in cwds))
 
     @mock.patch("subprocess.check_output")
+    def test_new_job_status_is_served_from_cache(self, check_output):
+        """A freshly submitted job is seeded as pending, so its first status check must not call ``squeue``."""
+        check_output.return_value = b"Submitted batch job 7"
+        process = self._make_process(MyGroupedTask(plain=0, grouped=7))
+
+        process.start_job()
+
+        self.assertEqual(process.get_job_status(), JobStatus.running)
+        check_output.assert_called_once()
+        self.assertEqual(check_output.call_args.args[0][0], "sbatch")
+
+    @mock.patch("subprocess.check_output")
     def test_fully_complete_group_reports_done_without_submitting(self, check_output):
         task = MyGroupedTask(plain=0, grouped=(0, 1))
         for value in (0, 1):

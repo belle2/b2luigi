@@ -308,8 +308,12 @@ class HTCondorProcess(BatchProcess):
         if not match:
             raise RuntimeError("Batch submission failed with output " + output)
 
-        self._batch_job_ids.extend(int(m[:-1]) for m in match)
+        new_job_ids = [int(m[:-1]) for m in match]
+        self._batch_job_ids.extend(new_job_ids)
         _batch_job_status_cache.add_job_ids(self._batch_job_ids)
+
+        # Avoid a full condor_q for the first status check of every new job
+        _batch_job_status_cache.seed_submitted(new_job_ids, (HTCondorJobStatus.idle, "<No user log>"))
 
     def terminate_job(self):
         """
