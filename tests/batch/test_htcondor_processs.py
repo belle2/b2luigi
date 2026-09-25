@@ -18,7 +18,7 @@ from b2luigi.batch.processes.htcondor import (
     HTCondorProcess,
     _batch_job_status_cache,
 )
-from b2luigi.core.utils import get_task_file_dir
+from b2luigi.core.utils import get_log_file_dir, get_task_file_dir
 
 from ..helpers import B2LuigiTestCase
 from .batch_task_1 import MyTask
@@ -335,3 +335,29 @@ class TestHTCondorGroupedJobStatus(B2LuigiTestCase):
             self.assertEqual(mock_check_output.call_args.args[0][0], "condor_submit")
         finally:
             _batch_job_status_cache.remove_job_ids(process._batch_job_ids)
+
+    @mock.patch("time.sleep")
+    @mock.patch("subprocess.check_output", return_value=b"")
+    def test_job_unknown_to_htcondor_is_reported_aborted(self, mock_check_output, mock_sleep):
+        """
+        A job that neither ``condor_q`` nor ``condor_history`` knows about counts as aborted. Reporting it
+        must not look the job up in the cache a second time, which would raise ``KeyError``.
+        """
+        b2luigi.set_setting("log_dir", os.path.join(self.test_dir, "logs"))
+        try:
+            process = HTCondorProcess(
+                task=MyTask("unknown_job"),
+                scheduler=mock.Mock(),
+                result_queue=mock.Mock(),
+                worker_timeout=None,
+            )
+            process._batch_job_ids = [201]
+            _batch_job_status_cache.add_job_ids(process._batch_job_ids)
+
+            self.assertEqual(process.get_job_status(), JobStatus.aborted)
+
+            with open(os.path.join(get_log_file_dir(process.task), "failed_jobs.log"), "r") as f:
+                self.assertIn("201", f.read())
+            self.assertNotIn(process._batch_job_ids, _batch_job_status_cache._job_ids)
+        finally:
+            b2luigi.clear_setting("log_dir")
