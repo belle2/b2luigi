@@ -3,11 +3,11 @@ import os
 import shutil
 
 import b2luigi
-from b2luigi.basf2_helper.targets import ROOTLocalTarget
+from b2luigi.contrib.basf2.targets import ROOTLocalTarget
 
 import subprocess
 
-from b2luigi.basf2_helper.utils import get_basf2_git_hash
+from b2luigi.contrib.basf2.utils import get_basf2_git_hash
 from b2luigi.core.utils import (
     create_output_dirs,
     get_serialized_parameters,

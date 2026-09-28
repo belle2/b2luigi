@@ -65,7 +65,7 @@ import generators as ge
 import simulation as si
 
 import b2luigi
-from b2luigi.basf2_helper import Basf2PathTask
+from b2luigi.contrib.basf2 import Basf2PathTask
 
 
 class SimulationTask(Basf2PathTask):

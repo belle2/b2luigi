@@ -1,5 +1,5 @@
 import b2luigi as luigi
-from b2luigi.basf2_helper import Basf2PathTask, Basf2nTupleMergeTask
+from b2luigi.contrib.basf2 import Basf2PathTask, Basf2nTupleMergeTask
 
 from enum import Enum
 

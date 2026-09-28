@@ -15,7 +15,7 @@ import vertex as vx
 
 
 import b2luigi
-from b2luigi.basf2_helper import Basf2PathTask
+from b2luigi.contrib.basf2 import Basf2PathTask
 from Ex06_basf2_reconstruction import ReconstructionTask
 
 

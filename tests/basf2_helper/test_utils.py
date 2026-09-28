@@ -6,7 +6,7 @@ import warnings
 from unittest import TestCase
 from unittest.mock import patch
 
-from b2luigi.basf2_helper.utils import get_basf2_git_hash
+from b2luigi.contrib.basf2.utils import get_basf2_git_hash
 
 
 class TestGetBasf2GitHash(TestCase):

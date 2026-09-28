@@ -19,7 +19,7 @@ import reconstruction as re
 import mdst
 
 import b2luigi
-from b2luigi.basf2_helper import Basf2PathTask
+from b2luigi.contrib.basf2 import Basf2PathTask
 from Ex05_basf2_simulation import SimulationTask
 
 

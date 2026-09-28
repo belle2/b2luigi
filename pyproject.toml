@@ -43,6 +43,7 @@ b2luigi = "b2luigi.cli:main"
 tui = [
     "textual>=8.0.0",
 ]
+basf2 = []
 
 [project.urls]
 Homepage = "https://github.com/belle2/b2luigi"

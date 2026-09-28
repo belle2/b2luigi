@@ -19,7 +19,7 @@ from typing import Iterable, List, Optional, Set, Tuple
 from jinja2 import Template
 from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_exponential
 
-from b2luigi.basf2_helper.utils import get_basf2_git_hash
+from b2luigi.contrib.basf2.utils import get_basf2_git_hash
 from b2luigi.batch.processes import BatchProcess, JobStatus
 from b2luigi.core.settings import get_setting
 from b2luigi.core.utils import flatten_to_dict, get_log_file_dir, get_task_file_dir
