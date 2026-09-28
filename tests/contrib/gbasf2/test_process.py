@@ -10,8 +10,8 @@ from unittest.mock import MagicMock, Mock, patch
 import b2luigi
 from b2luigi.contrib.gbasf2.process import Gbasf2Process, JobStatus, get_unique_project_name
 
-from ..helpers import B2LuigiTestCase
-from .batch_task_1 import MyTask
+from ...helpers import B2LuigiTestCase
+from ...batch.batch_task_1 import MyTask
 
 
 class MyGbasf2Task(MyTask):
@@ -41,10 +41,10 @@ class TestGbasf2RescheduleJobs(B2LuigiTestCase):
 
     def assert_rescheduled_jobs(self, job_status_fname, expected_jobs_to_be_rescheduled):
         with patch(
-            "b2luigi.batch.processes.gbasf2.get_gbasf2_project_job_status_dict",
+            "b2luigi.contrib.gbasf2.process.get_gbasf2_project_job_status_dict",
             MagicMock(return_value=self._get_job_status_dict(job_status_fname)),
         ):
-            with patch("b2luigi.batch.processes.gbasf2.Gbasf2Process._reschedule_jobs", new=self._reschedule_jobs):
+            with patch("b2luigi.contrib.gbasf2.process.Gbasf2Process._reschedule_jobs", new=self._reschedule_jobs):
                 Gbasf2Process._reschedule_failed_jobs(self.gb2_mock_process)
 
                 self.assertCountEqual(
@@ -90,7 +90,7 @@ class TestGbasf2GetJobStatus(B2LuigiTestCase):
 
     def assert_job_status(self, job_status_fname, expected_job_status):
         with patch(
-            "b2luigi.batch.processes.gbasf2.get_gbasf2_project_job_status_dict",
+            "b2luigi.contrib.gbasf2.process.get_gbasf2_project_job_status_dict",
             MagicMock(return_value=self._get_job_status_dict(job_status_fname)),
         ):
             job_status = Gbasf2Process.get_job_status(self.gb2_mock_process)
