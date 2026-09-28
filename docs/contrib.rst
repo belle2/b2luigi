@@ -6,12 +6,13 @@ Contrib Packages
 We try to keep the core of ``b2luigi`` as lightweight and general-purpose as possible.
 Specialized functionalities that are dependent on other software libraries or have a more specific use case are implemented in the contrib packages.
 
-Currently, ``b2luigi.contrib`` holds the integrations with the Belle II software:
+Currently, ``b2luigi.contrib`` holds the integrations with the Belle II software and other libraries:
 
 * :ref:`contrib-basf2-label` (``b2luigi.contrib.basf2``): tasks for running ``basf2`` paths
   and merging their outputs.
 * :ref:`contrib-gbasf2-label` (``b2luigi.contrib.gbasf2``): a batch process that submits
   ``basf2`` paths to the LHC Computing Grid with ``gbasf2``.
+* :ref:`contrib-polars-label` (``b2luigi.contrib.polars``): parameters holding ``polars`` expressions.
 
 
 .. note::
@@ -29,6 +30,7 @@ While the contrib packages are always installed with ``b2luigi``, you can ensure
 
     pip3 install "b2luigi[basf2]"    # basf2 integration
     pip3 install "b2luigi[gbasf2]"   # gbasf2 grid submission
+    pip3 install "b2luigi[polars]"   # polars expression parameters
     pip3 install "b2luigi[contrib]"  # all contrib packages
 
 .. toctree::
@@ -37,3 +39,4 @@ While the contrib packages are always installed with ``b2luigi``, you can ensure
     contrib/basf2
     contrib/basf2-examples
     contrib/gbasf2
+    contrib/polars

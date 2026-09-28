@@ -47,7 +47,8 @@ tui = [
 ]
 basf2 = []
 gbasf2 = ["jinja2"]
-contrib = ["b2luigi[basf2,gbasf2]"]
+polars = ["polars>=1.0"]
+contrib = ["b2luigi[basf2,gbasf2,polars]"]
 
 [project.urls]
 Homepage = "https://github.com/belle2/b2luigi"
