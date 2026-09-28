@@ -8,14 +8,14 @@ Introduction to ``Basf2PathTask``
     This example demonstrates how to create a simple b2luigi task that executes a
     ``basf2`` simulation.
     The key points to be learned from this example are the
-    :class:`Basf2PathTask <b2luigi.basf2_helper.tasks.Basf2PathTask>` class
-    and :meth:`create_path <b2luigi.basf2_helper.tasks.Basf2PathTask.create_path>` method.
+    :class:`Basf2PathTask <b2luigi.contrib.basf2.tasks.Basf2PathTask>` class
+    and :meth:`create_path <b2luigi.contrib.basf2.tasks.Basf2PathTask.create_path>` method.
 
 For directly working with the Belle II Analysis Software Framework (``basf2``),
-``b2luigi`` provides the :class:`Basf2PathTask <b2luigi.basf2_helper.tasks.Basf2PathTask>`
+``b2luigi`` provides the :class:`Basf2PathTask <b2luigi.contrib.basf2.tasks.Basf2PathTask>`
 task class.
 This class provides help for the user to create and execute a ``basf2`` path.
-The :class:`Basf2PathTask <b2luigi.basf2_helper.tasks.Basf2PathTask>` also provides the
+The :class:`Basf2PathTask <b2luigi.contrib.basf2.tasks.Basf2PathTask>` also provides the
 following parameters that can be useful when executing ``basf2`` processes:
 
 - ``num_processes``: number of parallel processes to use for the ``basf2`` execution.
@@ -27,10 +27,10 @@ following parameters that can be useful when executing ``basf2`` processes:
   print statistics after processing. Off by default.
 
 In contrast to the normal ``(b2)luigi`` tasks, the execution logic of a
-:class:`Basf2PathTask <b2luigi.basf2_helper.tasks.Basf2PathTask>` is not defined in
+:class:`Basf2PathTask <b2luigi.contrib.basf2.tasks.Basf2PathTask>` is not defined in
 a ``run`` method but in
-:meth:`create_path <b2luigi.basf2_helper.tasks.Basf2PathTask.create_path>`.
-The :meth:`create_path <b2luigi.basf2_helper.tasks.Basf2PathTask.create_path>` method needs
+:meth:`create_path <b2luigi.contrib.basf2.tasks.Basf2PathTask.create_path>`.
+The :meth:`create_path <b2luigi.contrib.basf2.tasks.Basf2PathTask.create_path>` method needs
 to return the ``basf2`` path that is created in the steering file.
 Furthermore, the ``Progress`` module is automatically added and, if
 ``calculate_statistics`` is True, ``basf2`` statistics are printed after the path
@@ -38,7 +38,7 @@ is processed. Note that ``calculate_statistics`` is False by default; set it to
 True to enable statistics output.
 
 .. warning::
-    Due to technical reasons, the path needs to be created within the :meth:`create_path <b2luigi.basf2_helper.tasks.Basf2PathTask.create_path>`
+    Due to technical reasons, the path needs to be created within the :meth:`create_path <b2luigi.contrib.basf2.tasks.Basf2PathTask.create_path>`
     method. The path can be used in further objects, however, it is not possible
     for it to originate from an outer scope.
 
