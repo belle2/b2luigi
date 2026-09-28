@@ -23,7 +23,7 @@ class Basf2Task(b2luigi.DispatchableTask):
     """
 
     #: A parameter representing the ``basf2`` git hash. It is set to the
-    #: current ``basf2`` git hash (see: :meth:`get_basf2_git_hash <b2luigi.basf2_helper.utils.get_basf2_git_hash>`) by default and marked as non-significant to avoid affecting the
+    #: current ``basf2`` git hash (see: :meth:`get_basf2_git_hash <b2luigi.contrib.basf2.utils.get_basf2_git_hash>`) by default and marked as non-significant to avoid affecting the
     #: task's unique ID.
     git_hash = b2luigi.Parameter(default=get_basf2_git_hash(), significant=False)
 
@@ -31,7 +31,7 @@ class Basf2Task(b2luigi.DispatchableTask):
         """
         Determines the appropriate output file target based on the file extension.
 
-        If the output file has a ".root" extension, it returns a :class:`b2luigi.basf2_helper.ROOTLocalTarget`
+        If the output file has a ".root" extension, it returns a :class:`b2luigi.contrib.basf2.targets.ROOTLocalTarget`
         for the specified file. Otherwise, it delegates to the superclass
         implementation of :meth:`b2luigi.Task.get_output_file_target`.
 
@@ -42,7 +42,7 @@ class Basf2Task(b2luigi.DispatchableTask):
                       superclass method.
 
         Returns:
-            Target: A :class:`b2luigi.basf2_helper.ROOTLocalTarget`  if the file extension is ".root", otherwise
+            Target: A :class:`b2luigi.contrib.basf2.targets.ROOTLocalTarget`  if the file extension is ".root", otherwise
                     the result of the superclass's ``get_output_file_target`` method.
         """
         file_name = self.get_output_file_name(*args, **kwargs)
@@ -65,17 +65,17 @@ class Basf2PathTask(Basf2Task):
     A task for running a ``basf2`` processing path within the ``b2luigi`` framework.
 
     In contrast to the normal ``(b2)luigi`` tasks, the execution logic of a
-    :class:`Basf2PathTask <b2luigi.basf2_helper.tasks.Basf2PathTask>` is not defined in
+    :class:`Basf2PathTask <b2luigi.contrib.basf2.tasks.Basf2PathTask>` is not defined in
     a ``run`` method but in
-    :meth:`create_path <b2luigi.basf2_helper.tasks.Basf2PathTask.create_path>`.
-    The :meth:`create_path <b2luigi.basf2_helper.tasks.Basf2PathTask.create_path>` method needs
+    :meth:`create_path <b2luigi.contrib.basf2.tasks.Basf2PathTask.create_path>`.
+    The :meth:`create_path <b2luigi.contrib.basf2.tasks.Basf2PathTask.create_path>` method needs
     to return the ``basf2`` path that is created in the steering file.
     Furthermore, the ``Progress`` module is automatically added and
     if ``self.calculate_statistics`` is set to True, ``print(b2.statistics)``
     is called after the path is processed.
 
     .. warning::
-        Due to technical reasons, the path needs to be created within the :meth:`create_path <b2luigi.basf2_helper.tasks.Basf2PathTask.create_path>`
+        Due to technical reasons, the path needs to be created within the :meth:`create_path <b2luigi.contrib.basf2.tasks.Basf2PathTask.create_path>`
         method. The path can be used in further objects, however, it is not possible
         for it to originate from an outer scope.
     """
@@ -90,7 +90,7 @@ class Basf2PathTask(Basf2Task):
     @b2luigi.on_temporary_files
     def process(self):
         """
-        Runs :meth:`_process <b2luigi.basf2_helper.tasks.Basf2PathTask._process>` wrapped in
+        Runs :meth:`_process <b2luigi.contrib.basf2.tasks.Basf2PathTask._process>` wrapped in
         :meth:`b2luigi.on_temporary_files` (with its default ``inputs=True, outputs=True`` settings).
 
         Override this method in a subclass if a different temporary-file behavior is needed, e.g.::
@@ -100,7 +100,7 @@ class Basf2PathTask(Basf2Task):
                 def process(self):
                     self._process()
 
-        The actual processing logic lives in :meth:`_process <b2luigi.basf2_helper.tasks.Basf2PathTask._process>`
+        The actual processing logic lives in :meth:`_process <b2luigi.contrib.basf2.tasks.Basf2PathTask._process>`
         so it does not have to be duplicated when only the wrapper needs to change.
         """
         self._process()
@@ -215,7 +215,7 @@ class MergerTask(Basf2Task):
     @b2luigi.on_temporary_files
     def process(self):
         """
-        Runs :meth:`_process <b2luigi.basf2_helper.tasks.MergerTask._process>` wrapped in
+        Runs :meth:`_process <b2luigi.contrib.basf2.tasks.MergerTask._process>` wrapped in
         :meth:`b2luigi.on_temporary_files` (with its default ``inputs=True, outputs=True`` settings).
 
         Override this method in a subclass to change the temporary-file behavior, e.g. to avoid
@@ -226,7 +226,7 @@ class MergerTask(Basf2Task):
                 def process(self):
                     self._process()
 
-        The actual processing logic lives in :meth:`_process <b2luigi.basf2_helper.tasks.MergerTask._process>`
+        The actual processing logic lives in :meth:`_process <b2luigi.contrib.basf2.tasks.MergerTask._process>`
         so it does not have to be duplicated when only the wrapper needs to change.
         """
         self._process()
