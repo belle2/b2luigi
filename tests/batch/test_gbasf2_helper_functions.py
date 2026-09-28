@@ -17,7 +17,7 @@ from subprocess import CalledProcessError
 from typing import Iterable
 from unittest import mock
 
-from b2luigi.batch.processes.gbasf2 import (
+from b2luigi.contrib.gbasf2.process import (
     _get_lfn_upto_reschedule_number,
     _move_downloaded_dataset_to_output_dir,
     _split_all_extensions,

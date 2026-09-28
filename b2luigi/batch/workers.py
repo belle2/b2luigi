@@ -8,7 +8,7 @@ import luigi.worker
 from b2luigi.batch.processes.lsf import LSFProcess
 from b2luigi.batch.processes.htcondor import HTCondorProcess
 from b2luigi.batch.processes.slurm import SlurmProcess
-from b2luigi.batch.processes.gbasf2 import Gbasf2Process
+from b2luigi.contrib.gbasf2.process import Gbasf2Process
 from b2luigi.batch.processes.apptainer import ApptainerProcess
 from b2luigi.batch.processes.test import TestProcess
 from b2luigi.core.settings import get_setting

@@ -23,7 +23,7 @@ from b2luigi.contrib.basf2.utils import get_basf2_git_hash
 from b2luigi.batch.processes import BatchProcess, JobStatus
 from b2luigi.core.settings import get_setting
 from b2luigi.core.utils import flatten_to_dict, get_log_file_dir, get_task_file_dir
-from b2luigi.batch.processes.gbasf2_utils.gbasf2_download_utils import search_pattern_in_folder
+from b2luigi.contrib.gbasf2.gbasf2_utils.gbasf2_download_utils import search_pattern_in_folder
 from luigi.target import Target
 
 
@@ -682,7 +682,7 @@ class Gbasf2Process(BatchProcess):
                 "Gbasf2 batch process can only used with tasks that generate basf2 paths with "
                 "a ``create_path()`` method, e.g. are an instance of ``Basf2PathTask``."
             ) from err
-        from b2luigi.batch.processes.gbasf2_utils.pickle_utils import write_path_and_state_to_file
+        from b2luigi.contrib.gbasf2.gbasf2_utils.pickle_utils import write_path_and_state_to_file
 
         write_path_and_state_to_file(basf2_path, self.pickle_file_path)
 

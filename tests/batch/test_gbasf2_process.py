@@ -8,7 +8,7 @@ from typing import List
 from unittest.mock import MagicMock, Mock, patch
 
 import b2luigi
-from b2luigi.batch.processes.gbasf2 import Gbasf2Process, JobStatus, get_unique_project_name
+from b2luigi.contrib.gbasf2.process import Gbasf2Process, JobStatus, get_unique_project_name
 
 from ..helpers import B2LuigiTestCase
 from .batch_task_1 import MyTask
