@@ -59,7 +59,6 @@ dependencies = [
     { name = "cachetools" },
     { name = "click" },
     { name = "colorama" },
-    { name = "jinja2" },
     { name = "luigi" },
     { name = "parse" },
     { name = "shellingham" },
@@ -70,6 +69,12 @@ dependencies = [
 ]
 
 [package.optional-dependencies]
+contrib = [
+    { name = "jinja2" },
+]
+gbasf2 = [
+    { name = "jinja2" },
+]
 tui = [
     { name = "textual" },
 ]
@@ -121,10 +126,11 @@ test = [
 
 [package.metadata]
 requires-dist = [
+    { name = "b2luigi", extras = ["basf2", "gbasf2"], marker = "extra == 'contrib'" },
     { name = "cachetools", specifier = ">=5.0.0" },
     { name = "click", specifier = ">=8.0.0" },
     { name = "colorama", specifier = ">=0.3.9" },
-    { name = "jinja2" },
+    { name = "jinja2", marker = "extra == 'gbasf2'" },
     { name = "luigi", specifier = ">=3.0.2" },
     { name = "parse", specifier = ">=1.8.4" },
     { name = "shellingham", specifier = ">=1.5" },
@@ -134,7 +140,7 @@ requires-dist = [
     { name = "webdavclient3", specifier = ">=3.14.7" },
     { name = "xrootd", specifier = ">=5.7.0" },
 ]
-provides-extras = ["tui"]
+provides-extras = ["tui", "basf2", "gbasf2", "contrib"]
 
 [package.metadata.requires-dev]
 dev = [
