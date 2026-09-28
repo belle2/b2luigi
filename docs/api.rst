@@ -12,6 +12,7 @@ for steering the batch execution.
 
 If you are not yet familiar with ``luigi`` itself, we recommend you to read its current documentation: `luigi Documentation <https://luigi.readthedocs.io/en/stable/index.html>`_
 A few highlights are already included in the :ref:`luigi-features-label` section.
+The API of the ``basf2`` and ``gbasf2`` integrations is documented in the :ref:`contrib-label` chapter.
 
 
 .. toctree::
@@ -29,5 +30,4 @@ A few highlights are already included in the :ref:`luigi-features-label` section
     api/apptainer
     api/batch_core
     api/batch_processes
-    api/basf2_helper
     api/cli

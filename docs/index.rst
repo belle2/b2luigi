@@ -91,6 +91,7 @@ Content
     starterkit/index
     features
     examples
+    contrib
     api
     faq
     development

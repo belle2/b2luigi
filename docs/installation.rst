@@ -36,6 +36,8 @@ Install ``b2luigi`` with the Belle II software
 In the current versions of the Belle II software externals, ``b2luigi`` is not included.
 The main reason is to have a faster release cycle for ``b2luigi``.
 It is very highly recommended to create a `b2venv <https://software.belle2.org/development/sphinx/build/tools_doc/b2venv.html>`_ and install ``b2luigi`` there.
+To submit ``basf2`` paths to the grid with ``gbasf2``, install the ``gbasf2`` extra with ``pip3 install "b2luigi[gbasf2]"``
+(or ``b2luigi[contrib]`` for all contrib packages, see :ref:`contrib-label`).
 Please also have a look into the :ref:`basf2-example-label`.
 
 Local Development Installation

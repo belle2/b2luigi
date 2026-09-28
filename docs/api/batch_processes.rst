@@ -27,10 +27,4 @@ Slurm
    :private-members:
    :show-inheritance:
 
-``gbasf2``
-----------
-
-.. automodule:: b2luigi.batch.processes.gbasf2
-   :members:
-   :private-members:
-   :show-inheritance:
+The ``gbasf2`` batch process is documented in :ref:`contrib-gbasf2-label`.
