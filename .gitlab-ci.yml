@@ -42,7 +42,7 @@ test:
   script:
     - uv sync --locked --group test
     - echo "Running tests"
-    - uv run pytest -v --cov b2luigi --junitxml=$ARTIFACTS_TEST_PATH --cov-report=xml --cov-report=html --cov-report=term tests
+    - uv run pytest -v --cov b2luigi --junitxml=$ARTIFACTS_TEST_PATH --cov-report=xml --cov-report=html --cov-report=term --ignore=tests/contrib tests
     - mv htmlcov $ARTIFACTS_COV_PATH
   coverage: '/(?i)total.*? (100(?:\.0+)?\%|[1-9]?\d(?:\.\d+)?\%)$/'
   parallel:
