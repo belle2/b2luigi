@@ -1,5 +1,7 @@
 from ..helpers import B2LuigiTestCase
 
+import os
+
 import b2luigi
 from b2luigi.core.utils import get_filled_params
 
@@ -82,3 +84,24 @@ class TaskTestCase(B2LuigiTestCase):
 
         for i in range(100):
             self.assertIn(f"results/some_parameter={i}/file_a", input_file_names)
+
+
+class DefaultRemoveOutputTestCase(B2LuigiTestCase):
+    """:meth:`b2luigi.Task.remove_output` exists by default and removes ``add_to_output`` targets."""
+
+    def test_default_remove_output_deletes_add_to_output_targets(self):
+        class MyTask(b2luigi.Task):
+            def output(self):
+                yield self.add_to_output("some_file.txt")
+
+        b2luigi.set_setting("result_dir", "results")
+        task = MyTask()
+        path = task.get_output_file_name("some_file.txt")
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+        with open(path, "w") as f:
+            f.write("x")
+        self.assertTrue(os.path.exists(path))
+
+        task.remove_output()
+
+        self.assertFalse(os.path.exists(path))

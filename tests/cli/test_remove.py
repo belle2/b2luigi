@@ -4,7 +4,9 @@
     output removal, confirmation prompts, and error handling.
 """
 
+import json
 import os
+import shutil
 
 from .helpers import CLITestCase
 
@@ -71,11 +73,12 @@ class TestRemove(CLITestCase):
     def test_remove_with_requirements_and_keep(self) -> None:
         """remove RootTask --with-requirements --keep LeafTask -y filters LeafTask out before removal.
 
-        ``cli_show_tasks.py``'s ``LeafTask``/``RootTask`` don't implement ``remove_output()``, so no
-        file actually gets removed either way (mirrors ``test_remove_with_requirements_root_task``'s
-        return-code-only assertion). This test's point is narrower: verify ``--keep`` is honored (the
-        "Keeping" message appears and LeafTask is never attempted) rather than silently ignored, which
-        was the bug (``--keep`` combined with ``--with-requirements`` was previously a silent no-op).
+        ``cli_show_tasks.py``'s ``LeafTask``/``RootTask`` define ``output()`` directly, so the default
+        ``remove_output()`` finds no ``add_to_output`` targets and no file is removed either way. This
+        test's point is narrower: verify ``--keep`` is honored (the "Keeping" message appears and
+        LeafTask is never attempted) rather than silently ignored, which was the bug (``--keep``
+        combined with ``--with-requirements`` was previously a silent no-op). The on-disk effect is
+        pinned by ``TestRemoveDefaultImplementation``.
         """
         returncode, stdout, stderr = self._run_cli(
             "remove", ["RootTask", "--with-requirements", "--keep", "LeafTask", "-y"]
@@ -140,3 +143,52 @@ class TestRemoveNonRootTaskCorrectness(CLITestCase):
         combined = stdout + stderr
         self.assertIn("ChildTask", combined)
         self.assertNotIn("ParentTask", combined)
+
+
+class TestRemoveDefaultImplementation(CLITestCase):
+    """``b2luigi remove`` deletes ``add_to_output`` targets of tasks that override nothing.
+
+    Pins the default :meth:`b2luigi.Task.remove_output`: the fixture tasks in
+    ``cli_default_remove_tasks.py`` declare their outputs via ``add_to_output``
+    and do **not** define ``remove_output`` themselves.
+    """
+
+    def setUp(self) -> None:
+        super().setUp()
+        test_dir = os.path.dirname(__file__)
+        shutil.copy(
+            os.path.join(test_dir, "cli_default_remove_tasks.py"),
+            os.path.join(self.tmp_dir, "tasks.py"),
+        )
+        shutil.copy(
+            os.path.join(test_dir, "cli_show_parameters.py"),
+            os.path.join(self.tmp_dir, "parameters.py"),
+        )
+        with open(os.path.join(self.tmp_dir, "settings.json"), "w") as f:
+            json.dump({"result_dir": "results"}, f)
+        # Output layout is result_dir/param=value/filename, no task-class component.
+        output_dir = os.path.join(self.tmp_dir, "results", "split=1")
+        os.makedirs(output_dir)
+        self.root_file = os.path.join(output_dir, "root.txt")
+        self.leaf_file = os.path.join(output_dir, "leaf.txt")
+        for path in (self.root_file, self.leaf_file):
+            with open(path, "w") as f:
+                f.write("x")
+
+    def test_remove_deletes_outputs_without_user_override(self) -> None:
+        """remove RootTask --with-requirements -y deletes both files via the default remove_output."""
+        returncode, stdout, stderr = self._run_cli("remove", ["RootTask", "--with-requirements", "-y"])
+        self.assertEqual(returncode, 0, f"Command failed with stderr: {stderr}")
+        self.assertNotIn("Skipping", stdout + stderr)
+        self.assertFalse(os.path.exists(self.root_file))
+        self.assertFalse(os.path.exists(self.leaf_file))
+
+    def test_remove_keep_preserves_kept_task_files(self) -> None:
+        """--keep LeafTask leaves LeafTask's file on disk while RootTask's is deleted."""
+        returncode, stdout, stderr = self._run_cli(
+            "remove", ["RootTask", "--with-requirements", "--keep", "LeafTask", "-y"]
+        )
+        self.assertEqual(returncode, 0, f"Command failed with stderr: {stderr}")
+        self.assertIn("Keeping LeafTask outputs", stdout + stderr)
+        self.assertFalse(os.path.exists(self.root_file))
+        self.assertTrue(os.path.exists(self.leaf_file))
