@@ -21,8 +21,20 @@ DEVELOPMENT_NAME = "dev"
 #: Release tags that stay published no matter how old they are.
 PINNED_TAGS = frozenset({"v1.2.9"})  # last release supporting Python 3.8
 
-#: Number of most recent release tags to publish.
-KEEP_NEWEST = 2
+#: Oldest release whose minor version is still published.
+OLDEST_PUBLISHED = (1, 0, 0)
+
+#: Number of patch releases published of the newest minor version.
+KEEP_NEWEST_PATCHES = 2
+
+#: First release packaged with uv. Only from here on the newest minor version keeps several patch releases.
+FIRST_UV_RELEASE = (1, 3, 0)
+
+#: Python version the documentation of a revision is built with.
+DEFAULT_PYTHON = "3.12"
+
+#: Minor versions built with another Python version: up to v1.2.5 the metadata excludes Python 3.12.
+PYTHON_VERSIONS = {"v1.0": "3.11", "v1.1": "3.11"}
 
 #: Release tags look like ``v1.2.3``.
 TAG_PATTERN = re.compile(r"^v\d+\.\d+\.\d+$")
@@ -45,12 +57,30 @@ def retained_tags(tags: list[str]) -> list[str]:
     """
     Select the release tags to publish, newest first.
 
-    Keeps the :data:`KEEP_NEWEST` most recent release tags plus every tag in
-    :data:`PINNED_TAGS`. Non-release tags are ignored.
+    Keeps the newest patch release of every minor version since
+    :data:`OLDEST_PUBLISHED`, the :data:`KEEP_NEWEST_PATCHES` newest patch
+    releases of the newest minor version once that is :data:`FIRST_UV_RELEASE`
+    or later, and every tag in :data:`PINNED_TAGS`. Non-release tags are ignored.
     """
     releases = sorted((t for t in tags if is_release_tag(t)), key=version_key, reverse=True)
-    newest = set(releases[:KEEP_NEWEST])
-    return [t for t in releases if t in newest or t in PINNED_TAGS]
+    newest_patch: dict[tuple[int, ...], str] = {}
+    for tag in releases:
+        newest_patch.setdefault(version_key(tag)[:2], tag)
+    keep = {t for t in newest_patch.values() if version_key(t) >= OLDEST_PUBLISHED}
+    if releases and version_key(releases[0]) >= FIRST_UV_RELEASE:
+        newest_minor = version_key(releases[0])[:2]
+        keep.update([t for t in releases if version_key(t)[:2] == newest_minor][:KEEP_NEWEST_PATCHES])
+    return [t for t in releases if t in keep or t in PINNED_TAGS]
+
+
+def minor_version(name: str) -> str | None:
+    """The minor version a release tag belongs to, e.g. ``v1.2`` for ``v1.2.9``; ``None`` for other names."""
+    return name.rpartition(".")[0] if is_release_tag(name) else None
+
+
+def python_version(name: str) -> str:
+    """Python version the documentation of the revision published as ``name`` is built with."""
+    return PYTHON_VERSIONS.get(minor_version(name) or "", DEFAULT_PYTHON)
 
 
 def published_name(ref_name: str) -> str:
@@ -77,9 +107,10 @@ def switcher_entries(names: list[str], base_url: str = BASE_URL) -> list[dict[st
     """
     releases = sorted((n for n in names if is_release_tag(n)), key=version_key, reverse=True)
     others = [n for n in names if not is_release_tag(n)]
+    newest = newest_release(names)
     entries: list[dict[str, object]] = []
-    for index, name in enumerate(releases + others):
-        stable = index == 0 and is_release_tag(name)
+    for name in releases + others:
+        stable = name == newest
         if stable:
             label = "stable"
         elif name == DEVELOPMENT_NAME:

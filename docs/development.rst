@@ -103,9 +103,14 @@ You want to help developing ``b2luigi``? Great! Here are some first steps to hel
     Please make sure the documentation looks fine before creating a pull request.
 
     The published documentation is versioned: the website serves the newest release at its root, the
-    development version of ``main`` under ``/dev/`` and older releases under ``/vX.Y.Z/``, with a
+    development version of ``main`` under ``/dev/`` and, under ``/vX.Y.Z/``, the newest patch release
+    of every minor version since 1.0 plus the second newest one of the current minor version, with a
     version switcher in the sidebar. `sphinx-polyversion`_ builds every published version from a
     checkout of ``main``; which versions are published is decided in ``docs/_polyversion/policy.py``.
+    Every version is built in its own locked environment, which uv creates with the Python version the
+    policy assigns to it (downloading that Python if necessary): from the ``uv.lock`` of the version
+    or, for the releases up to v1.2.9 that have none, from the requirements file of its minor version
+    in ``docs/_polyversion/requirements``.
     To build the complete website locally and serve it:
 
     .. code-block:: bash

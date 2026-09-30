@@ -9,12 +9,33 @@ _spec.loader.exec_module(policy)
 
 
 class TestRetainedTags(unittest.TestCase):
-    def test_keeps_newest_and_pinned_tags_only(self):
-        tags = ["v1.2.7", "v1.2.8", "v1.2.9", "v1.3.0", "v1.10.0", "v0.9.0"]
-        self.assertEqual(policy.retained_tags(tags), ["v1.10.0", "v1.3.0", "v1.2.9"])
+    OLD = ["v1.0.0", "v1.0.2", "v1.1.0", "v1.1.2", "v1.2.7", "v1.2.8", "v1.2.9"]
 
-    def test_pinned_tag_is_not_duplicated_when_among_newest(self):
-        self.assertEqual(policy.retained_tags(["v1.2.8", "v1.2.9"]), ["v1.2.9", "v1.2.8"])
+    def test_keeps_only_the_newest_patch_of_the_minor_versions_before_uv(self):
+        self.assertEqual(policy.retained_tags(self.OLD), ["v1.2.9", "v1.1.2", "v1.0.2"])
+
+    def test_first_uv_release_is_added(self):
+        self.assertEqual(policy.retained_tags([*self.OLD, "v1.3.0"]), ["v1.3.0", "v1.2.9", "v1.1.2", "v1.0.2"])
+
+    def test_newest_minor_version_keeps_its_two_newest_patches(self):
+        tags = [*self.OLD, "v1.3.0", "v1.3.1", "v1.3.2"]
+        self.assertEqual(policy.retained_tags(tags), ["v1.3.2", "v1.3.1", "v1.2.9", "v1.1.2", "v1.0.2"])
+
+    def test_superseded_minor_version_keeps_only_its_newest_patch(self):
+        tags = [*self.OLD, "v1.3.0", "v1.3.1", "v1.3.2", "v1.4.0"]
+        self.assertEqual(policy.retained_tags(tags), ["v1.4.0", "v1.3.2", "v1.2.9", "v1.1.2", "v1.0.2"])
+        self.assertEqual(
+            policy.retained_tags([*tags, "v1.4.1"]), ["v1.4.1", "v1.4.0", "v1.3.2", "v1.2.9", "v1.1.2", "v1.0.2"]
+        )
+
+    def test_drops_minor_versions_older_than_the_oldest_published(self):
+        self.assertEqual(policy.retained_tags(["v1.1.0", "v1.0.0", "v0.11.3", "v0.9.0"]), ["v1.1.0", "v1.0.0"])
+
+    def test_pinned_tag_survives_a_newer_patch_release(self):
+        self.assertEqual(policy.retained_tags(["v1.2.8", "v1.2.9", "v1.2.10"]), ["v1.2.10", "v1.2.9"])
+
+    def test_pinned_tag_is_not_duplicated_when_newest_patch(self):
+        self.assertEqual(policy.retained_tags(["v1.2.8", "v1.2.9"]), ["v1.2.9"])
 
     def test_ignores_non_release_tags(self):
         self.assertEqual(policy.retained_tags(["v1.3.0rc1", "build-2026", "v1.3.0"]), ["v1.3.0"])
@@ -27,6 +48,17 @@ class TestNames(unittest.TestCase):
     def test_development_branch_is_published_as_dev(self):
         self.assertEqual(policy.published_name("main"), "dev")
         self.assertEqual(policy.published_name("v1.3.0"), "v1.3.0")
+
+    def test_minor_version(self):
+        self.assertEqual(policy.minor_version("v1.2.9"), "v1.2")
+        self.assertEqual(policy.minor_version("v1.10.0"), "v1.10")
+        self.assertIsNone(policy.minor_version("dev"))
+
+    def test_python_version_defaults_unless_the_minor_version_needs_another(self):
+        self.assertEqual(policy.python_version("dev"), "3.12")
+        self.assertEqual(policy.python_version("v1.2.9"), "3.12")
+        self.assertEqual(policy.python_version("v1.1.2"), "3.11")
+        self.assertEqual(policy.python_version("v1.0.2"), "3.11")
 
     def test_newest_release(self):
         self.assertEqual(policy.newest_release(["dev", "v1.2.9", "v1.3.0"]), "v1.3.0")

@@ -12,7 +12,6 @@ here="$(cd "$(dirname "$0")" && pwd)"
 
 if ! grep -q 'POLYVERSION_SWITCHER' "${src}/conf.py"; then
     cat "${here}/switcher_conf.py" >> "${src}/conf.py"
-    echo "prepare.sh: appended the version switcher configuration to ${src}/conf.py"
 fi
 mkdir -p "${src}/_polyversion"
 cp -R "${here}/static" "${here}/sphinx_templates" "${src}/_polyversion/"

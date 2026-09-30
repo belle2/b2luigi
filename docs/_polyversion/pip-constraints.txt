@@ -1,3 +1,0 @@
-# Constraints for the per-version build environments of sphinx-polyversion.
-# Tags up to v1.2.9 use the [tool.flit.metadata] table, which flit_core 4 rejects.
-flit_core<4

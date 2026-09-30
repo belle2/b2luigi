@@ -1,0 +1,8 @@
+# Documentation dependencies of the flit-era releases (up to v1.2.9), an input of pin.py.
+# The `doc` extra of the tags cannot be used: up to v1.1.2 it pins sphinx 4.3.2 and a
+# sphinx-book-theme that predates the version switcher.
+sphinx
+sphinx-book-theme
+sphinx-gallery
+sphinx-sitemap
+sphinx-notfound-page
