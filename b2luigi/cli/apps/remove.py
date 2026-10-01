@@ -1,20 +1,10 @@
 from typing import Annotated, Optional
 
-import luigi
 import typer
 
 from b2luigi.cli import runner
-from b2luigi.cli.errors import CliUserError
 from b2luigi.cli.options import Params, ParamsFile, TaskFile, class_names_arg
-from b2luigi.cli.utils import (
-    build_task_list,
-    check_param_applicability,
-    cli_error_boundary,
-    parse_classnames,
-    resolve_task_context,
-)
-from b2luigi.core.settings import get_setting
-from b2luigi.core.utils import task_iterator
+from b2luigi.cli.utils import cli_error_boundary, resolve_removal_targets
 
 remove_app = typer.Typer(
     name="remove",
@@ -87,66 +77,15 @@ def remove(
         which is the safe direction.
     """
     with cli_error_boundary():
-        ctx = resolve_task_context(task_filename, parameter_filename, params)
-        index, merged_params, param_dicts = ctx.index, ctx.merged_params, ctx.param_dicts
-
-        names = classnames
-        keep_names = parse_classnames(keep)
-        keep_classes = index.resolve_many(keep_names) if keep_names else None
-
-        if names is None:
-            target_classes = index.all_classes()
-        else:
-            target_classes = index.resolve_many(names)
-
-        effective_direct = direct or bool(get_setting("direct_mode", default=False))
-
-        task_list, unresolved = build_task_list(target_classes, index, param_dicts, effective_direct)
-
-        if unresolved:
-            for cls in sorted(unresolved, key=index.qualified_name):
-                filtered = {k: v for k, v in merged_params.items() if k in {n for n, _ in cls.get_params()}}
-                try:
-                    cls(**filtered)
-                except luigi.parameter.MissingParameterException as e:
-                    raise CliUserError(
-                        f"Cannot instantiate {index.qualified_name(cls)} directly — {e}\n"
-                        f"Add the missing parameter(s) with --param <key>=<value> or set in parameters.py."
-                    ) from e
-            # Should be unreachable: build_task_list only populates unresolved when
-            # try_instantiate returned None, which means MissingParameterException will
-            # reproduce above. Guard against future exception hierarchy changes.
-            raise CliUserError(
-                f"Cannot instantiate task(s) {sorted(index.qualified_name(c) for c in unresolved)!r} in direct mode. "
-                f"Add missing parameters with --param <key>=<value> or set in parameters.py."
-            )
-
-        # The considered set must cover everything this invocation will delete.
-        # Under --with-requirements that is the whole requirement tree, exactly
-        # as `show --with-requirements` considers it — otherwise a config key
-        # only a requirement declares would be reported as inapplicable here
-        # while `show` stays silent on the identical project.
-        considered = list(target_classes)
-        if with_requirements and names is not None:
-            for task in task_list:
-                for required in task_iterator(task):
-                    considered.append(type(required))
-        check_param_applicability(
-            param_dicts[0],
-            considered,
-            ctx.override_keys,
-            named=names is not None,
-            target=", ".join(index.qualified_name(cls) for cls in target_classes) if names is not None else "any task",
-            strict=True,
+        targets = resolve_removal_targets(
+            task_filename, parameter_filename, params, classnames, keep, direct, with_requirements
         )
-
-        keep_tasks = [cls.__name__ for cls in keep_classes] if keep_classes else None
-        if with_requirements and names is not None:
-            runner.remove_requirement_outputs(task_list, auto_confirm=yes, keep_tasks=keep_tasks)
+        if with_requirements and targets.named:
+            runner.remove_requirement_outputs(targets.task_list, auto_confirm=yes, keep_tasks=targets.keep_names)
         else:
             runner.remove_outputs(
-                task_list,
-                target_tasks=[cls.__name__ for cls in target_classes],
+                targets.task_list,
+                target_tasks=targets.target_names,
                 auto_confirm=yes,
-                keep_tasks=keep_tasks,
+                keep_tasks=targets.keep_names,
             )

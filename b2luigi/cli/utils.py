@@ -13,7 +13,7 @@ from typing import Any, Dict, Generator, List, Optional, Tuple, Type
 import luigi
 import b2luigi
 from b2luigi.cli.errors import CliUserError, _render_cli_error
-from b2luigi.core.settings import set_setting
+from b2luigi.core.settings import get_setting, set_setting
 from b2luigi.core.utils import task_iterator, SYNTHETIC_TASK_MODULE
 from click import Context as ClickContext, Parameter as ClickParameter
 from click.shell_completion import CompletionItem
@@ -647,6 +647,124 @@ def resolve_task_context(
         merged_params=merged_params,
         param_dicts=expand_parameters(merged_params),
         override_keys=frozenset(overrides),
+    )
+
+
+@dataclass(frozen=True)
+class RemovalTargets:
+    """The resolved selection of a removal-style command (``remove``, ``cleanup``).
+
+    :param task_list: The instantiated tasks the command starts from.
+    :type task_list: List[b2luigi.Task]
+    :param target_names: Bare class names of the targeted classes, the key the
+        runner matches on.
+    :type target_names: List[str]
+    :param keep_names: Bare class names to protect, or ``None``.
+    :type keep_names: Optional[List[str]]
+    :param named: ``True`` if the user named tasks on the command line, ``False``
+        if the whole project was targeted.
+    :type named: bool
+    """
+
+    task_list: List[b2luigi.Task]
+    target_names: List[str]
+    keep_names: Optional[List[str]]
+    named: bool
+
+
+def resolve_removal_targets(
+    task_filename: str | None,
+    parameter_filename: str | None,
+    params: Optional[List[str]],
+    classnames: Optional[List[str]],
+    keep: Optional[str],
+    direct: bool,
+    with_requirements: bool,
+) -> RemovalTargets:
+    """Resolve which tasks a removal-style command acts on.
+
+    Shared preamble of ``b2luigi remove`` and ``b2luigi cleanup``: build the task
+    context, resolve the named (or all) classes and the ``--keep`` names, instantiate
+    the tasks (direct or via graph discovery), and run the strict ``--param``
+    applicability check over everything the command will touch.
+
+    :param task_filename: Explicit task file or ``None``.
+    :type task_filename: str | None
+    :param parameter_filename: Explicit parameters file or ``None``.
+    :type parameter_filename: str | None
+    :param params: Raw ``key=value`` strings from ``--param``.
+    :type params: Optional[List[str]]
+    :param classnames: Task class names from the command line, or ``None`` for all.
+    :type classnames: Optional[List[str]]
+    :param keep: Comma-separated class names to protect, or ``None``.
+    :type keep: Optional[str]
+    :param direct: Skip graph traversal (``--direct``); ORed with the ``direct_mode`` setting.
+    :type direct: bool
+    :param with_requirements: Whether the command will also act on the requirement tree.
+    :type with_requirements: bool
+    :returns: The resolved tasks and names.
+    :rtype: RemovalTargets
+    :raises CliUserError: On unknown names, uninstantiable tasks in direct mode, or an
+        inapplicable ``--param`` override.
+    """
+    ctx = resolve_task_context(task_filename, parameter_filename, params)
+    index, merged_params, param_dicts = ctx.index, ctx.merged_params, ctx.param_dicts
+
+    keep_list = parse_classnames(keep)
+    keep_classes = index.resolve_many(keep_list) if keep_list else None
+
+    if classnames is None:
+        target_classes = index.all_classes()
+    else:
+        target_classes = index.resolve_many(classnames)
+
+    effective_direct = direct or bool(get_setting("direct_mode", default=False))
+
+    task_list, unresolved = build_task_list(target_classes, index, param_dicts, effective_direct)
+
+    if unresolved:
+        for cls in sorted(unresolved, key=index.qualified_name):
+            filtered = {k: v for k, v in merged_params.items() if k in {n for n, _ in cls.get_params()}}
+            try:
+                cls(**filtered)
+            except luigi.parameter.MissingParameterException as e:
+                raise CliUserError(
+                    f"Cannot instantiate {index.qualified_name(cls)} directly — {e}\n"
+                    f"Add the missing parameter(s) with --param <key>=<value> or set in parameters.py."
+                ) from e
+        # Should be unreachable: build_task_list only populates unresolved when
+        # try_instantiate returned None, which means MissingParameterException will
+        # reproduce above. Guard against future exception hierarchy changes.
+        raise CliUserError(
+            f"Cannot instantiate task(s) {sorted(index.qualified_name(c) for c in unresolved)!r} in direct mode. "
+            f"Add missing parameters with --param <key>=<value> or set in parameters.py."
+        )
+
+    # The considered set must cover everything this invocation will delete.
+    # Under --with-requirements that is the whole requirement tree, exactly
+    # as `show --with-requirements` considers it — otherwise a config key
+    # only a requirement declares would be reported as inapplicable here
+    # while `show` stays silent on the identical project.
+    named = classnames is not None
+    considered = list(target_classes)
+    if with_requirements and named:
+        for task in task_list:
+            for required in task_iterator(task):
+                considered.append(type(required))
+    check_param_applicability(
+        param_dicts[0],
+        considered,
+        ctx.override_keys,
+        named=named,
+        target=", ".join(index.qualified_name(cls) for cls in target_classes) if named else "any task",
+        strict=True,
+    )
+
+    return RemovalTargets(
+        task_list=task_list,
+        target_names=[cls.__name__ for cls in target_classes],
+        keep_names=[cls.__name__ for cls in keep_classes] if keep_classes else None,
+        named=named,
     )
 
 
