@@ -32,12 +32,14 @@ dependencies = [
     "xrootd>=5.7.0",
     "typer>=0.12.0",
     "shellingham>=1.5",
-    "click>=8.0.0",
-    "jinja2" # temporary due to gbasf2 process still being imported in main module
+    "click>=8.0.0"
 ]
 
 [project.scripts]
 b2luigi = "b2luigi.cli:main"
+
+[project.entry-points."b2luigi.batch_systems"]
+gbasf2 = "b2luigi.contrib.gbasf2.process:Gbasf2Process"
 
 [project.optional-dependencies]
 tui = [
