@@ -12,6 +12,7 @@ from rich.console import Console
 from rich.panel import Panel
 
 from b2luigi.cli.apps.batch_runner import batch_runner_app
+from b2luigi.cli.apps.cleanup import cleanup_app
 from b2luigi.cli.apps.graph import graph_app
 from b2luigi.cli.apps.remove import remove_app
 from b2luigi.cli.apps.run import run_app
@@ -51,6 +52,7 @@ app = typer.Typer(
 app.add_typer(run_app, name="run")
 app.add_typer(show_app, name="show")
 app.add_typer(remove_app, name="remove")
+app.add_typer(cleanup_app, name="cleanup")
 app.add_typer(test_app, name="test")
 app.add_typer(tasks_app, name="tasks")
 app.add_typer(batch_runner_app, name="batch-runner", hidden=True)

@@ -34,6 +34,8 @@ Subcommands overview
      - Render the task dependency graph as a Rich terminal tree or Graphviz DOT
    * - ``b2luigi remove``
      - Delete output files for one or more tasks
+   * - ``b2luigi cleanup``
+     - Delete log files and batch submission files for one or more tasks
    * - ``b2luigi test``
      - Wrap an arbitrary script as a b2luigi task for debugging
    * - ``b2luigi about``
@@ -410,6 +412,30 @@ transitively depends on:
 .. code-block:: bash
 
     b2luigi remove MyTask --with-requirements -y
+
+b2luigi cleanup
+---------------
+
+Remove the log files (``stdout``, ``stderr``, batch job logs) and the batch
+submission files (submit files, executable wrappers) of one or more tasks.
+Task outputs are never touched; use ``b2luigi remove`` for those. Task
+selection, ``--with-requirements``, ``--keep``, ``--direct`` and ``-y`` work
+exactly as for ``remove``:
+
+.. code-block:: bash
+
+    b2luigi cleanup MyTask --with-requirements -y
+
+Use ``--logs-only`` or ``--task-files-only`` to remove just one of the two:
+
+.. code-block:: bash
+
+    b2luigi cleanup --task-files-only -y
+
+Under the hood this calls :meth:`b2luigi.Task.remove_log_files` and
+:meth:`b2luigi.Task.remove_task_files`, which by default delete the
+per-task directories below the ``log_dir`` and ``task_file_dir`` settings.
+Override them in your task if it stores these files elsewhere.
 
 b2luigi test
 ------------
