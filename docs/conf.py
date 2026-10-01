@@ -22,54 +22,14 @@ sys.path.insert(0, pathlib.Path(__file__).parents[1].resolve().as_posix())
 # -- Project information -----------------------------------------------------
 
 
-def get_latest_tag():
-    """
-    Helper function that returns the name of the tag if the latest commit is tagged,
-    otherwise it simply returns "latest"
-    """
-
-    default = "latest"
-
-    try:
-        import git
-    except ImportError:
-        print("GitPython module is not installed")
-        return default
-
-    current_directory = os.getcwd()
-
-    while True:
-        try:
-            repo = git.Repo(current_directory)
-            latest_commit = repo.head.commit
-            tags = repo.tags
-            for tag in tags:
-                if tag.commit == latest_commit:
-                    return tag.name
-            # If the latest commit has not tags, then it's the latest version
-            return default
-        except git.InvalidGitRepositoryError:
-            # No Git repository found in the current directory
-            parent_directory = os.path.dirname(current_directory)
-            # Check if we have reached the root directory: if yes, break the loop and then return
-            if parent_directory == current_directory:
-                break
-            # Move to the parent directory
-            current_directory = parent_directory
-
-    print("GitPython did not find a valid repository")
-    return default
-
-
 project = "b2luigi"
 copyright = "2018-2023, Nils Braun, Michael Eliachevitch, The Belle II Collaboration"
 author = "Nils Braun, Michael Eliachevitch, The Belle II Collaboration"
 
-# The short X.Y version
-_version = get_latest_tag()
-version = _version
-# The full version, including alpha/beta/rc tags
-release = _version
+# The version is set by docs/_polyversion/switcher_conf.py when the documentation
+# is built with sphinx-polyversion (see docs/poly.py); a plain sphinx-build carries none.
+version = ""
+release = ""
 
 
 # -- General configuration ---------------------------------------------------
@@ -229,3 +189,15 @@ texinfo_documents = [
         "Miscellaneous",
     ),
 ]
+
+# -- Versioned documentation -------------------------------------------------
+
+# The version switcher and the settings it needs live in a separate file so that
+# docs/_polyversion/prepare.sh can append the same file to the conf.py of older
+# tags. It only changes the build when it runs under sphinx-polyversion
+# (see docs/poly.py).
+with open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "_polyversion", "switcher_conf.py")) as _f:
+    exec(compile(_f.read(), _f.name, "exec"))
+
+# Sphinx would compose "b2luigi  documentation" with two spaces when there is no release.
+html_title = " ".join(part for part in (project, release, "documentation") if part)

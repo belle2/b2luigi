@@ -78,7 +78,7 @@ docs:
       artifacts: false
   script:
     - uv sync --locked --group docs
-    - uv run sphinx-build docs/ $ARTIFACTS_DOCS_PATH
+    - uv run sphinx-polyversion docs/poly.py --local -o OUTPUT_DIR=$ARTIFACTS_DOCS_PATH
   artifacts:
     paths:
       - docs-build/

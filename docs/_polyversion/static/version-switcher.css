@@ -1,0 +1,18 @@
+/* Version switcher in the primary sidebar: match the search field's width and add a title. */
+.bd-sidebar-primary .version-switcher-titled__title {
+  margin: 0 0 0.25rem 0;
+  font-size: 0.8rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--pst-color-text-muted);
+}
+.bd-sidebar-primary .version-switcher__container { width: 100%; }
+.bd-sidebar-primary .version-switcher__button {
+  width: 100%;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.9rem;
+}
+.bd-sidebar-primary .version-switcher__menu { width: 100%; }
