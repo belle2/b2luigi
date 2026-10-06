@@ -24,7 +24,7 @@ It is as simple as
     if __name__ == "__main__":
         b2luigi.process(MyTask(), batch=True)
 
-Jump right into it with out :ref:`quick-start-label`.
+Jump right into it with our :ref:`quick-start-label`.
 
 If you have never worked with ``luigi`` before, you may want to have a look into the `luigi documentation`_.
 But you can learn most of the nice features also from this documentation!
