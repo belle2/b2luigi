@@ -29,7 +29,7 @@ class SlurmJobStatusCache(BatchJobStatusCache):
         wait=wait_exponential(multiplier=2, min=2, exp_base=3),  # 2, 6, 18 seconds
         reraise=True,
     )
-    def _ask_for_job_status(self, job_id: int = None):
+    def _ask_for_job_status(self, job_id: str = None):
         """
         With Slurm, you can check the progress of your jobs using the ``squeue`` command.
         If no ``jobID`` is given as argument, this command shows you the status of all queued jobs.
@@ -120,6 +120,9 @@ class SlurmJobStatusCache(BatchJobStatusCache):
             - If the output is empty, an empty set is returned.
             - Lines in the output that are empty or contain unexpected formatting
               are skipped.
+            - Job IDs are kept as strings. Array jobs report IDs like ``123456_7``, which are not
+              integers, and the output covers every job of the user, including job arrays that
+              were not submitted by b2luigi.
             - Job states with a '+' suffix (e.g., 'CANCELLED+') are normalized by
               stripping the '+' character.
         """
@@ -141,7 +144,6 @@ class SlurmJobStatusCache(BatchJobStatusCache):
                 len(job_info) == 2
             ), "Unexpected behaviour has occurred whilst retrieving job information. There may be an issue with the sqeue, sacct or scontrol commands."
             id, state_string = job_info
-            id = int(id)
             # Manually cancelling jobs gives the state 'CANCELLED+'
             state_string = state_string.strip("+")
             self[id] = self._get_SlurmJobStatus_from_string(state_string)
@@ -280,9 +282,9 @@ class SlurmProcess(BatchProcess):
 
         # One id per submitted job: a single entry for a plain task, one per scalar
         # sub-task for a parameter-grouped task (see :obj:`expand_grouped_task`).
-        self._batch_job_ids: list[int] = []
+        self._batch_job_ids: list[str] = []
         # Log directory of every submitted job, keyed by job id, for ``failed_jobs.log``.
-        self._job_log_dirs: dict[int, str] = {}
+        self._job_log_dirs: dict[str, str] = {}
 
     def get_job_status(self) -> JobStatus:
         """
@@ -312,7 +314,7 @@ class SlurmProcess(BatchProcess):
         return status
 
     @staticmethod
-    def _get_job_status_for_id(job_id: int) -> JobStatus:
+    def _get_job_status_for_id(job_id: str) -> JobStatus:
         """
         Determine the status of one batch job based on its Slurm job status.
 
@@ -370,7 +372,7 @@ class SlurmProcess(BatchProcess):
             RuntimeError: If the batch submission fails or the job ID cannot be extracted.
 
         Attributes:
-            self._batch_job_ids (list[int]): The IDs of the submitted Slurm batch jobs.
+            self._batch_job_ids (list[str]): The IDs of the submitted Slurm batch jobs.
         """
         sub_tasks = expand_grouped_task(self.task)
         if not sub_tasks:
@@ -389,7 +391,7 @@ class SlurmProcess(BatchProcess):
             match = re.search(r"[0-9]+", output)
             if not match:
                 raise RuntimeError("Batch submission failed with output " + output)
-            job_id = int(match.group(0))
+            job_id = match.group(0)
             self._batch_job_ids.append(job_id)
             # Avoid a full squeue for the first status check of every new job
             _batch_job_status_cache.seed_submitted([job_id], SlurmJobStatus.pending)

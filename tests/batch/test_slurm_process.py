@@ -199,9 +199,22 @@ class TestSlurmJobStatusCache(unittest.TestCase):
         squeue_error = subprocess.CalledProcessError(1, ["mock", "squeue"])
         squeue_error.stderr = b"slurm_load_jobs error: Invalid job id specified"
         mock_check_output.side_effect = [squeue_error, self.mock_status_string]
-        self.slurm_job_status_cache._ask_for_job_status(job_id=12344)
+        self.slurm_job_status_cache._ask_for_job_status(job_id="12344")
         self.assertEqual(mock_check_output.call_count, 2)
-        self.assertEqual(self.slurm_job_status_cache[12344].value, "COMPLETED")
+        self.assertEqual(self.slurm_job_status_cache["12344"].value, "COMPLETED")
+
+    @mock.patch("subprocess.check_output")
+    def test_ask_for_job_status_accepts_array_job_ids(self, mock_check_output):
+        """
+        squeue reports every job of the user, including job arrays b2luigi did not submit itself.
+        Their ids (e.g. ``123456_0``) are not integers and must not crash the status query
+        (https://github.com/belle2/b2luigi/issues/5).
+        """
+        mock_check_output.return_value = b"12344 COMPLETED\n123456_0 RUNNING\n123456_1 PENDING\n"
+        self.slurm_job_status_cache._ask_for_job_status()
+        self.assertEqual(self.slurm_job_status_cache["12344"], SlurmJobStatus.completed)
+        self.assertEqual(self.slurm_job_status_cache["123456_0"], SlurmJobStatus.running)
+        self.assertEqual(self.slurm_job_status_cache["123456_1"], SlurmJobStatus.pending)
 
 
 class TestSlurmJobStatus:
@@ -260,7 +273,7 @@ class TestSlurmGroupedSubmission(B2LuigiTestCase):
 
         process.start_job()
 
-        self.assertEqual(process._batch_job_ids, [101, 102, 103])
+        self.assertEqual(process._batch_job_ids, ["101", "102", "103"])
         self.assertEqual(check_output.call_count, 3)
         for value, call in zip((0, 1, 2), check_output.call_args_list):
             self.assertEqual(call.args[0][0], "sbatch")
@@ -274,7 +287,7 @@ class TestSlurmGroupedSubmission(B2LuigiTestCase):
 
         process.start_job()
 
-        self.assertEqual(process._batch_job_ids, [7])
+        self.assertEqual(process._batch_job_ids, ["7"])
         self.assertEqual(check_output.call_count, 1)
 
     @mock.patch("subprocess.check_output")
@@ -286,7 +299,7 @@ class TestSlurmGroupedSubmission(B2LuigiTestCase):
 
         process.start_job()
 
-        self.assertEqual(process._batch_job_ids, [101, 103])
+        self.assertEqual(process._batch_job_ids, ["101", "103"])
         cwds = [str(call.kwargs["cwd"]) for call in check_output.call_args_list]
         self.assertFalse(any("grouped=1" in cwd for cwd in cwds))
 
@@ -318,17 +331,17 @@ class TestSlurmGroupedSubmission(B2LuigiTestCase):
 
     def test_status_is_aggregated_over_all_jobs(self):
         process = self._make_process(MyGroupedTask(plain=0, grouped=(0, 1, 2)))
-        process._batch_job_ids = [101, 102, 103]
+        process._batch_job_ids = ["101", "102", "103"]
 
-        _batch_job_status_cache[101] = SlurmJobStatus.completed
-        _batch_job_status_cache[102] = SlurmJobStatus.running
-        _batch_job_status_cache[103] = SlurmJobStatus.failed
+        _batch_job_status_cache["101"] = SlurmJobStatus.completed
+        _batch_job_status_cache["102"] = SlurmJobStatus.running
+        _batch_job_status_cache["103"] = SlurmJobStatus.failed
         self.assertEqual(process.get_job_status(), JobStatus.running)
 
-        _batch_job_status_cache[102] = SlurmJobStatus.completed
+        _batch_job_status_cache["102"] = SlurmJobStatus.completed
         self.assertEqual(process.get_job_status(), JobStatus.aborted)
 
-        _batch_job_status_cache[103] = SlurmJobStatus.completed
+        _batch_job_status_cache["103"] = SlurmJobStatus.completed
         self.assertEqual(process.get_job_status(), JobStatus.successful)
 
     def test_status_without_job_ids_is_aborted(self):
@@ -347,9 +360,9 @@ class TestSlurmGroupedSubmission(B2LuigiTestCase):
         process = self._make_process(task)
         process.start_job()
 
-        _batch_job_status_cache[101] = SlurmJobStatus.completed
-        _batch_job_status_cache[102] = SlurmJobStatus.failed
-        _batch_job_status_cache[103] = SlurmJobStatus.completed
+        _batch_job_status_cache["101"] = SlurmJobStatus.completed
+        _batch_job_status_cache["102"] = SlurmJobStatus.failed
+        _batch_job_status_cache["103"] = SlurmJobStatus.completed
         self.assertEqual(process.get_job_status(), JobStatus.aborted)
 
         failed_jobs_log = os.path.join(get_log_file_dir(task), "failed_jobs.log")
@@ -363,7 +376,7 @@ class TestSlurmGroupedSubmission(B2LuigiTestCase):
     @mock.patch("subprocess.run")
     def test_terminate_cancels_every_job(self, run):
         process = self._make_process(MyGroupedTask(plain=0, grouped=(0, 1)))
-        process._batch_job_ids = [101, 102]
+        process._batch_job_ids = ["101", "102"]
 
         process.terminate_job()
 
