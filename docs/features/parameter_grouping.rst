@@ -60,10 +60,32 @@ Every supported batch system expands a group at submission time into one job per
 
 - **HTCondor** writes one ``queue 1`` block per value into a single submit file, so one ``condor_submit`` call creates all jobs.
 - **Slurm** creates one submit script per value and calls ``sbatch`` once per value.
+  With the ``submission_type`` setting set to ``"array"`` or ``"mpi"``, the whole group is instead
+  submitted with a single ``sbatch`` call, as one Slurm job array or as one job spanning multiple nodes
+  (see :ref:`slurm-submission-types-label`).
 - **LSF** calls ``bsub`` once per value.
 
 In all three cases each job runs exactly one scalar task with its own log directory, and the group is reported to luigi as one task
 that finishes when the last of its jobs has finished.
+
+.. _slurm-submission-types-label:
+
+Slurm submission types
+^^^^^^^^^^^^^^^^^^^^^^
+
+On Slurm, the ``submission_type`` setting controls how the sub-tasks of a group are submitted:
+
+- ``"single"`` (default): one independent ``sbatch`` submission per sub-task.
+- ``"array"``: all sub-tasks are submitted as a single Slurm job array (``#SBATCH --array=...``),
+  dispatched by ``$SLURM_ARRAY_TASK_ID``. Every array element is tracked as a job of its own
+  (``<job id>_<index>``), so a ``failed_jobs.log`` names exactly the elements that failed.
+- ``"mpi"``: all sub-tasks are submitted as a single Slurm job spanning multiple nodes,
+  dispatched by ``$SLURM_PROCID`` after being launched via ``srun``. Use the ``tasks_per_node``
+  setting to tell b2luigi how many sub-tasks may be packed onto a single node (defaults to 64);
+  b2luigi does not query the cluster's hardware configuration, so this must match your cluster's partition.
+
+In every case each sub-task writes its ``stdout``/``stderr`` into its own log directory.
+A complete example can be found in ``examples/slurm/grouping_example.py``.
 
 .. _grouping-locally-label:
 
