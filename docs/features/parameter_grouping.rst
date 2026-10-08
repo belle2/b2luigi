@@ -8,7 +8,8 @@ Parameter Grouping
 
 .. note::
    Parameter grouping is available for the HTCondor, Slurm and LSF batch systems.
-   Other batch systems (e.g. gbasf2) refuse a grouped task with ``max_grouping_size > 1``.
+   On the ``local`` batch system grouping is skipped automatically (see :ref:`grouping-locally-label`),
+   other batch systems (e.g. gbasf2) refuse a group.
    Help extending it is very welcome, so if you want to contribute, please check out the :ref:`development-label`.
 
 Overview
@@ -63,6 +64,50 @@ Every supported batch system expands a group at submission time into one job per
 
 In all three cases each job runs exactly one scalar task with its own log directory, and the group is reported to luigi as one task
 that finishes when the last of its jobs has finished.
+
+.. _grouping-locally-label:
+
+Running Grouped Tasks Locally
+-----------------------------
+
+Whether a group can be formed depends on whether anyone is able to take it apart again.
+Only the HTCondor, Slurm and LSF processes do so, by submitting one job per task in the group.
+
+On the ``local`` batch system there is no such step, so grouping is **skipped automatically**:
+the group is never formed and the tasks simply run one after another, exactly as if no parameter
+had ``grouping=True``. A warning is emitted once per task class, and nothing else changes — in particular
+the output paths are the normal per-value ones, not the hashed group path.
+
+This is not only a convenience for debugging, it is what makes grouping usable together with a
+batch system chosen at runtime. Grouping is declared on the task *class*: ``grouping=True`` is part of
+the parameter definition and ``max_grouping_size`` is a class attribute, neither of which can be changed
+for a single task instance. The ``batch_system``, on the other hand, can be a property and therefore
+differ from instance to instance, e.g. depending on a configuration or the stage of a workflow.
+Without this behaviour, a task class with grouped parameters could never run on the ``local`` batch
+system at all. With it, the class is defined once and each instance is grouped wherever its batch
+system supports it:
+
+.. code-block:: python
+
+    class MyTask(b2luigi.Task):
+        my_parameter = b2luigi.Parameter(grouping=True)
+
+        max_grouping_size = 10
+
+        # Grouped on Slurm, silently ungrouped when this is "local".
+        @property
+        def batch_system(self):
+            return "local" if debugging else "slurm"
+
+The decision is made per task, not per task class, so a workflow may mix grouped Slurm tasks
+and ungrouped local tasks of the same class in a single run.
+
+The same applies in test mode (``b2luigi.process(..., test=True)``), which runs every task
+in process.
+
+On the remaining batch systems (``gbasf2``, ``test`` and ``custom``) grouping is still
+an error rather than being skipped, so that a custom process class implementing grouping itself
+is not silently bypassed.
 
 Failure Semantics and Resubmission
 ----------------------------------
