@@ -16,6 +16,7 @@ from b2luigi.cli import app
 
 EXPECTED_VISIBLE_COMMANDS = [
     "about",
+    "cleanup",
     "graph",
     "init",
     "remove",

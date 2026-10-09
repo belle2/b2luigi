@@ -82,7 +82,7 @@ class TestSharedOptionsDoNotDrift(TestCase):
         """Guards against a command silently dropping the shared option."""
         self.assertEqual(
             set(_declarations("--task-file")),
-            {"run", "show", "remove", "graph", "tasks", "tasks info", "batch-runner"},
+            {"run", "show", "remove", "cleanup", "graph", "tasks", "tasks info", "batch-runner"},
         )
 
 

@@ -1022,19 +1022,46 @@ def dry_run(task_list):
     raise SystemExit(0)
 
 
+#: Method(s) and message noun used by ``b2luigi remove``: the task's outputs.
+REMOVE_OUTPUT_ACTION: tuple[tuple[str, ...], str] = (("remove_output",), "outputs")
+
+
+def _call_remove_methods(task: Any, methods: tuple[str, ...]) -> bool:
+    """Call every ``methods`` entry on ``task`` that it provides, printing each call.
+
+    :param task: The task instance to clean up.
+    :type task: Any
+    :param methods: Method names to call, e.g. ``("remove_output",)``.
+    :type methods: tuple[str, ...]
+    :returns: ``True`` if at least one method was called.
+    :rtype: bool
+    """
+    called = False
+    for method in methods:
+        if hasattr(task, method):
+            console.print(f"\tcall: {method}()")
+            getattr(task, method)()
+            called = True
+        else:
+            console.print(f"\t[yellow]Skipping {task.__class__.__name__}: not a b2luigi.Task, no {method}().[/yellow]")
+    return called
+
+
 def _confirm_and_remove(
     to_be_removed_tasks: dict,
     target_tasks: list[str],
     matched_target_tasks: set,
     auto_confirm: bool = False,
     keep_tasks: list[str] | None = None,
+    methods: tuple[str, ...] = REMOVE_OUTPUT_ACTION[0],
+    noun: str = REMOVE_OUTPUT_ACTION[1],
 ) -> None:
     """Confirm removal of tasks and execute the removal (shared logic).
 
-    Helper function called by both :func:`remove_outputs` and
-    :func:`legacy_remove_outputs` after they have computed the set of tasks
-    to be removed. Handles keep-task filtering, confirmation prompt,
-    and the actual removal loop.
+    Helper function called by :func:`remove_outputs`,
+    :func:`legacy_remove_outputs` and ``b2luigi cleanup`` after they have
+    computed the set of tasks to be removed. Handles keep-task filtering,
+    confirmation prompt, and the actual removal loop.
 
     :param to_be_removed_tasks: Mapping of task class names to sets of task
         instances to remove.
@@ -1049,13 +1076,20 @@ def _confirm_and_remove(
     :type auto_confirm: bool
     :param keep_tasks: List of task class names to KEEP outputs for.
     :type keep_tasks: list[str] | None
+    :param methods: Task method names to call on every selected task. Defaults
+        to ``("remove_output",)``; ``cleanup`` passes ``remove_log_files`` and/or
+        ``remove_task_files``.
+    :type methods: tuple[str, ...]
+    :param noun: What is being removed, for the messages (``"outputs"``,
+        ``"log files"``, ...).
+    :type noun: str
     :raises SystemExit: Always raises ``SystemExit(0)`` on completion.
     """
     if keep_tasks:
         keep_tasks = set(keep_tasks)
         for keep_class in keep_tasks:
             if keep_class in to_be_removed_tasks:
-                console.print(f"[yellow]Keeping {keep_class} outputs.[/yellow]")
+                console.print(f"[yellow]Keeping {keep_class} {noun}.[/yellow]")
                 del to_be_removed_tasks[keep_class]
         console.print()
 
@@ -1072,12 +1106,12 @@ def _confirm_and_remove(
                 console.print(f"\t- [bold]{task}[/bold]")
             console.print()
 
-        console.print("The following task outputs will be removed:")
+        console.print(f"The following task {noun} will be removed:")
         for task_class in sorted(to_be_removed_tasks):
             console.print(f"\t- [bold]{task_class}[/bold]")
         console.print()
 
-        confirmed = Confirm.ask("Remove these outputs?")
+        confirmed = Confirm.ask(f"Remove these {noun}?")
     else:
         confirmed = True
 
@@ -1090,18 +1124,14 @@ def _confirm_and_remove(
         console.print(f"[bold]{task_class}[/bold]")
         for task in to_be_removed_tasks[task_class]:
             console.print(f"\t[green]Removing...[/green] {task}")
-            if hasattr(task, "remove_output"):
-                console.print("\tcall: remove_output()")
-                task.remove_output()
+            if _call_remove_methods(task, methods):
                 removed_tasks += 1
-            else:
-                console.print(f"\t[yellow]Skipping {task_class}: not a b2luigi.Task, no remove_output().[/yellow]")
             console.print()
 
     if removed_tasks:
-        console.print(f"[green]Removed outputs for {removed_tasks} tasks.[/green]")
+        console.print(f"[green]Removed {noun} for {removed_tasks} tasks.[/green]")
     else:
-        console.print("[yellow]No outputs were removed.[/yellow]")
+        console.print(f"[yellow]No {noun} were removed.[/yellow]")
 
     raise SystemExit(0)
 
@@ -1111,6 +1141,8 @@ def remove_outputs(
     target_tasks: list[str],
     auto_confirm: bool = False,
     keep_tasks: list[str] | None = None,
+    methods: tuple[str, ...] = REMOVE_OUTPUT_ACTION[0],
+    noun: str = REMOVE_OUTPUT_ACTION[1],
 ) -> None:
     """Remove the outputs of the specified tasks (new ``b2luigi remove`` CLI).
 
@@ -1128,6 +1160,10 @@ def remove_outputs(
     :type auto_confirm: bool
     :param keep_tasks: List of task class names to KEEP outputs for.
     :type keep_tasks: list[str] | None
+    :param methods: Task method names to call, see :func:`_confirm_and_remove`.
+    :type methods: tuple[str, ...]
+    :param noun: Message noun, see :func:`_confirm_and_remove`.
+    :type noun: str
     :raises SystemExit: Always raises ``SystemExit(0)`` on completion.
     """
     all_tasks: set = set()
@@ -1157,7 +1193,9 @@ def remove_outputs(
             matched_target_tasks.add(target_class)
             to_be_removed_tasks[target_class].update(matched)
 
-    _confirm_and_remove(to_be_removed_tasks, target_tasks, matched_target_tasks, auto_confirm, keep_tasks)
+    _confirm_and_remove(
+        to_be_removed_tasks, target_tasks, matched_target_tasks, auto_confirm, keep_tasks, methods=methods, noun=noun
+    )
 
 
 def _collect_all_dependents(task: Any, child_to_parents: dict) -> set:
@@ -1261,7 +1299,11 @@ def legacy_remove_outputs(
 
 
 def remove_requirement_outputs(
-    task_list: list, auto_confirm: bool = False, keep_tasks: list[str] | None = None
+    task_list: list,
+    auto_confirm: bool = False,
+    keep_tasks: list[str] | None = None,
+    methods: tuple[str, ...] = REMOVE_OUTPUT_ACTION[0],
+    noun: str = REMOVE_OUTPUT_ACTION[1],
 ) -> None:
     """Remove outputs for the given tasks and all tasks they transitively require.
 
@@ -1274,6 +1316,10 @@ def remove_requirement_outputs(
     :type auto_confirm: bool
     :param keep_tasks: List of task class names to KEEP outputs for.
     :type keep_tasks: list[str] | None
+    :param methods: Task method names to call, see :func:`_confirm_and_remove`.
+    :type methods: tuple[str, ...]
+    :param noun: Message noun, see :func:`_confirm_and_remove`.
+    :type noun: str
     :returns: None
     :rtype: None
     """
@@ -1289,7 +1335,7 @@ def remove_requirement_outputs(
         keep_tasks_set = set(keep_tasks)
         kept_classes = {t.__class__.__name__ for t in flat_list} & keep_tasks_set
         for keep_class in sorted(kept_classes):
-            console.print(f"[yellow]Keeping {keep_class} outputs.[/yellow]")
+            console.print(f"[yellow]Keeping {keep_class} {noun}.[/yellow]")
         if kept_classes:
             console.print()
         flat_list = [t for t in flat_list if t.__class__.__name__ not in keep_tasks_set]
@@ -1299,11 +1345,11 @@ def remove_requirement_outputs(
         raise SystemExit(0)
 
     if not auto_confirm:
-        console.print("The following task outputs will be removed:")
+        console.print(f"The following task {noun} will be removed:")
         for task_class in sorted({t.__class__.__name__ for t in flat_list}):
             console.print(f"\t- [bold]{task_class}[/bold]")
         console.print()
-        confirmed = Confirm.ask("Remove these outputs?")
+        confirmed = Confirm.ask(f"Remove these {noun}?")
     else:
         confirmed = True
 
@@ -1315,20 +1361,14 @@ def remove_requirement_outputs(
     for task in flat_list:
         console.print(f"[bold]{task.__class__.__name__}[/bold]")
         console.print(f"\t[green]Removing...[/green] {task}")
-        if hasattr(task, "remove_output"):
-            console.print("\tcall: remove_output()")
-            task.remove_output()
+        if _call_remove_methods(task, methods):
             removed_tasks += 1
-        else:
-            console.print(
-                f"\t[yellow]Skipping {task.__class__.__name__}: not a b2luigi.Task, no remove_output().[/yellow]"
-            )
         console.print()
 
     if removed_tasks:
-        console.print(f"[green]Removed outputs for {removed_tasks} tasks.[/green]")
+        console.print(f"[green]Removed {noun} for {removed_tasks} tasks.[/green]")
     else:
-        console.print("[yellow]No outputs were removed.[/yellow]")
+        console.print(f"[yellow]No {noun} were removed.[/yellow]")
 
     raise SystemExit(0)
 
