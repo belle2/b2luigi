@@ -67,6 +67,7 @@ class TaskTestCase(B2LuigiTestCase):
         b2luigi.set_setting("my_old_setting", "my value")
 
         with warnings.catch_warnings(record=True) as w:
+            warnings.simplefilter("always")
             self.assertEqual("my value", b2luigi.get_setting("my_setting", deprecated_keys=["my_old_setting"]))
 
             self.assertEqual(len(w), 1)
@@ -76,6 +77,7 @@ class TaskTestCase(B2LuigiTestCase):
         b2luigi.set_setting("my_setting", "my new_value")
 
         with warnings.catch_warnings(record=True) as w:
+            warnings.simplefilter("always")
             self.assertEqual(
                 "my new_value", b2luigi.get_setting("my_setting", default="default", deprecated_keys=["my_old_setting"])
             )

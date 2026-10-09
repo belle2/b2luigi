@@ -95,6 +95,8 @@ exclude_patterns = ["_build", "Thumbs.db", ".DS_Store"]
 pygments_style = "sphinx"
 
 autodoc_member_order = "bysource"
+# optional contrib dependencies, which are not installed in the docs environment
+autodoc_mock_imports = ["polars"]
 
 # -- Options for HTML output -------------------------------------------------
 
