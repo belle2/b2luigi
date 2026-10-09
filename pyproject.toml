@@ -27,13 +27,13 @@ dependencies = [
     "parse>=1.8.4",
     "colorama>=0.3.9",
     "cachetools>=5.0.0",
-    "jinja2",
     "tenacity>=8,<9",
     "webdavclient3>=3.14.7",
     "xrootd>=5.7.0",
     "typer>=0.12.0",
     "shellingham>=1.5",
-    "click>=8.0.0"
+    "click>=8.0.0",
+    "jinja2" # temporary due to gbasf2 process still being imported in main module
 ]
 
 [project.scripts]
@@ -43,6 +43,9 @@ b2luigi = "b2luigi.cli:main"
 tui = [
     "textual>=8.0.0",
 ]
+basf2 = []
+gbasf2 = ["jinja2"]
+contrib = ["b2luigi[basf2,gbasf2]"]
 
 [project.urls]
 Homepage = "https://github.com/belle2/b2luigi"
@@ -95,6 +98,7 @@ line-length = 120
 
 [tool.ruff.extend-per-file-ignores]
 "__init__.py" = ["F401", "F403", "E402"]
+"b2luigi/basf2_helper/*.py" = ["F401", "F403", "E402"] # deprecated re-export shims
 "examples/gbasf2/example_mdst_analysis.py" = ["E501"]
 "examples/tutorial/Ex13_plot_invariant_mass.py" = ["E402"]
 

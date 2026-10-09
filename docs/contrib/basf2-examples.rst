@@ -91,7 +91,7 @@ nTuple Generation
 .. code-block:: python
 
     import b2luigi as luigi
-    from b2luigi.basf2_helper import Basf2PathTask, Basf2nTupleMergeTask
+    from b2luigi.contrib.basf2 import Basf2PathTask, Basf2nTupleMergeTask
 
     import basf2
 
@@ -152,7 +152,7 @@ nTuple Generation
         luigi.process(AnalysisWrapperTask(), workers=500)
 
 .. note::
-    :class:`Basf2PathTask <b2luigi.basf2_helper.tasks.Basf2PathTask>` also accepts a
+    :class:`Basf2PathTask <b2luigi.contrib.basf2.tasks.Basf2PathTask>` also accepts a
     ``calculate_statistics`` parameter (``False`` by default) which, when set to ``True``,
     prints ``basf2`` statistics after the path is processed.
 

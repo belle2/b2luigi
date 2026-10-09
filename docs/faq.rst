@@ -156,13 +156,14 @@ And with that, the exec function created by b2luigi for batch submission can be 
 Can I check how the `gbasf2` command will be build before the submission?
 -------------------------------------------------------------------------
 
-Yes! You can use the :meth:`build_gbasf2_submit_command <b2luigi.batch.processes.gbasf2.build_gbasf2_submit_command>` method to check for the submission command.
+Yes! You can use the :meth:`build_gbasf2_submit_command <b2luigi.contrib.gbasf2.process.build_gbasf2_submit_command>` method to check for the submission command.
 This method rebuilds as closley as possible the submission command. An example usage is:
 
 .. code-block:: python
 
     import shlex
     import b2luigi
+    from b2luigi.contrib.gbasf2.process import build_gbasf2_submit_command
 
     class MyTask(b2luigi.Task):
         parameter = b2luigi.IntParameter()
@@ -176,7 +177,7 @@ This method rebuilds as closley as possible the submission command. An example u
             return "my_input_dataset"
 
         def dry_run(self):
-            gbasf2_command = b2luigi.batch.processes.gbasf2.build_gbasf2_submit_command(self)
+            gbasf2_command = build_gbasf2_submit_command(self)
             print(shlex.join(gbasf2_command)) # shlex.join is used to create a shell-friendly command string
 
 

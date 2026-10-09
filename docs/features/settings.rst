@@ -203,7 +203,8 @@ Slurm specific settings
 
 ``gbasf2`` specific settings
 ++++++++++++++++++++++++++++
-To see a list of b2luigi settings mapped to ``gbasf2`` command line options, see :class:`Gbasf2Process <b2luigi.batch.processes.gbasf2.Gbasf2Process>`.
+To see a list of b2luigi settings mapped to ``gbasf2`` command line options, see :class:`Gbasf2Process <b2luigi.contrib.gbasf2.process.Gbasf2Process>`
+in :ref:`contrib-gbasf2-label`.
 
 Custom settings
 ---------------

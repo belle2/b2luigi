@@ -1,25 +1,8 @@
-import os
-import fnmatch
+import warnings
 
+warnings.warn(
+    "b2luigi.batch.processes.gbasf2_utils.gbasf2_download_utils has been moved to b2luigi.contrib.gbasf2.gbasf2_utils.gbasf2_download_utils.\n"
+    "In a future release, this move will be finalized and old imports from b2luigi.batch.processes.gbasf2_utils.gbasf2_download_utils will no longer work."
+)
 
-def search_pattern_in_folder(path: str, pattern: str):
-    """
-    Recursively search for a pattern in the folder structure starting from 'path'.
-
-    Args:
-      path (str): The root directory to start the search from.
-      pattern (str): The pattern to search for in file and folder names. It can include wildcards.
-    Returns:
-      str
-    """
-    if not os.path.isdir(path):
-        raise FileNotFoundError(f"Search root '{path}' does not exist or is not a directory.")
-
-    for root, dirs, files in os.walk(path):
-        for dir_name in dirs:
-            if fnmatch.fnmatch(dir_name, pattern):
-                return root
-        for file_name in files:
-            if fnmatch.fnmatch(file_name, pattern):
-                return root
-    raise FileNotFoundError(f"Pattern '{pattern}' not found anywhere under '{path}'. ")
+from b2luigi.contrib.gbasf2.gbasf2_utils.gbasf2_download_utils import *  # noqa: E402, F401, F403

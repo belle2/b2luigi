@@ -7,7 +7,7 @@
 .. hint::
     This example demonstrates how to submit a ``basf2`` analysis task via ``gbasf2``.
     Here, we do not rely on the self simulated and reconstructed data but use a MC dataset that is available on the grid as input.
-    In addition, this exercise explains every setting that can be set for a :class:`Basf2PathTask <b2luigi.basf2_helper.tasks.Basf2PathTask>` that is submitted via ``gbasf2``.
+    In addition, this exercise explains every setting that can be set for a :class:`Basf2PathTask <b2luigi.contrib.basf2.tasks.Basf2PathTask>` that is submitted via ``gbasf2``.
 
 To submit jobs via ``gbasf2``, the user will need to have a valid grid certificate.
 In principle, ``b2luigi`` will execute the ``gbasf2`` setup with
@@ -22,9 +22,9 @@ However, it is recommended to have an active proxy before submitting the job sin
 **gbasf2 Project Submission**
 
 The ``gbasf2`` batch process takes the ``basf2`` path returned by the
-:meth:`create_path <b2luigi.basf2_helper.tasks.Basf2PathTask.create_path>` method of the task, saves it into a pickle file to the
+:meth:`create_path <b2luigi.contrib.basf2.tasks.Basf2PathTask.create_path>` method of the task, saves it into a pickle file to the
 disk and creates a wrapper steering file that executes the saved path.
-Any ``basf2`` variable aliases added in the ``basf2.Path()`` or :meth:`create_path <b2luigi.basf2_helper.tasks.Basf2PathTask.create_path>`
+Any ``basf2`` variable aliases added in the ``basf2.Path()`` or :meth:`create_path <b2luigi.contrib.basf2.tasks.Basf2PathTask.create_path>`
 method are also stored in the pickle file. It then sends both the pickle
 file and the steering file wrapper to the grid via the Belle II-specific
 DIRAC-wrapper ``gbasf2``.
@@ -89,7 +89,7 @@ import vertex as vx
 
 
 import b2luigi
-from b2luigi.basf2_helper import Basf2PathTask
+from b2luigi.contrib.basf2 import Basf2PathTask
 
 
 class AnalysisTask(Basf2PathTask):
@@ -214,7 +214,7 @@ if __name__ == "__main__":
 #         "gbasf2_additional_params",  "--banned_site LCG.KEK.jp"
 #   )
 #
-# More settings can be found in the :class:`Gbasf2Process <b2luigi.batch.processes.gbasf2.Gbasf2Process>` section.
+# More settings can be found in the :class:`Gbasf2Process <b2luigi.contrib.gbasf2.process.Gbasf2Process>` section.
 #
 # .. hint::
 #   Changing the batch to ``gbasf2`` means you also have to adapt

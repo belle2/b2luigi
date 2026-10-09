@@ -1,5 +1,5 @@
 import b2luigi
-from b2luigi.basf2_helper.tasks import Basf2PathTask
+from b2luigi.contrib.basf2.tasks import Basf2PathTask
 
 import example_mdst_analysis
 
