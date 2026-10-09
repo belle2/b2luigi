@@ -20,8 +20,6 @@ workflow:
 
 default:
   image: python:${PYTHON_VERSION}
-  tags:
-    - gitlab-runner12
   before_script:
     - pip install "uv~=0.12.18"
   cache:
