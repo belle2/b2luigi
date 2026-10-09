@@ -150,29 +150,3 @@ class RemoveLogAndTaskFilesTestCase(B2LuigiTestCase):
 
         task.remove_log_files()
         task.remove_task_files()
-
-    def test_override_returning_base_directory_is_refused(self):
-        log_base = self.log_base
-
-        class MyTask(b2luigi.Task):
-            def get_log_file_dir(self):
-                return log_base
-
-        self._populate(os.path.join(self.log_base, "other_task"))
-
-        MyTask().remove_log_files()
-
-        self.assertTrue(os.path.exists(os.path.join(self.log_base, "other_task", "stdout")))
-
-    def test_override_returning_path_outside_base_is_refused(self):
-        outside = os.path.join(self.test_dir, "elsewhere")
-
-        class MyTask(b2luigi.Task):
-            def get_task_file_dir(self):
-                return outside
-
-        self._populate(outside)
-
-        MyTask().remove_task_files()
-
-        self.assertTrue(os.path.exists(os.path.join(outside, "stdout")))

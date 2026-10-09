@@ -469,29 +469,17 @@ class Task(luigi.Task):
         """
         self._remove_output()
 
-    def _remove_directory_under_base(self, directory: str, base_dir: str, method_name: str) -> None:
+    @staticmethod
+    def _remove_directory(directory: str) -> None:
         """
-        Removes ``directory`` recursively, but only if it lies strictly inside ``base_dir``.
+        Removes ``directory`` recursively.
 
-        Shared guard behind :obj:`remove_log_files` and :obj:`remove_task_files`. A
-        directory equal to the base or outside it can only come from a user override of
-        ``get_log_file_dir``/``get_task_file_dir``; such a directory is left untouched and a
-        message asks the user to override ``method_name`` as well. A missing directory is a
-        silent no-op, and any error raised while removing is printed and swallowed so that a
-        sweep over many tasks never aborts halfway.
+        Shared by :obj:`remove_log_files` and :obj:`remove_task_files`. A missing directory
+        is a silent no-op, and any error raised while removing is printed and swallowed so
+        that a sweep over many tasks never aborts halfway.
 
         :param directory: The directory to remove.
-        :param base_dir: The configured base directory the removal must stay inside of.
-        :param method_name: The public method to name in the refusal message.
         """
-        directory = os.path.abspath(directory)
-        base_dir = os.path.abspath(base_dir)
-        if directory == base_dir or not utils.is_subdir(directory, base_dir):
-            print(
-                f"Refusing to remove {directory}: it is not inside {base_dir}. "
-                f"Override {method_name}() if your task customises this directory."
-            )
-            return
         if not os.path.isdir(directory):
             return
         try:
@@ -504,36 +492,32 @@ class Task(luigi.Task):
         Removes the log directory of this task (``stdout``, ``stderr``, batch job logs).
 
         The default implementation removes the directory returned by
-        :obj:`b2luigi.core.utils.get_log_file_dir`, provided it lies strictly inside the
-        directory configured by the ``log_dir`` setting. Override this method if your task
-        overrides ``get_log_file_dir`` to point somewhere else.
+        :obj:`b2luigi.core.utils.get_log_file_dir`.
 
         .. warning::
-            This is not reversible.
+            This is not reversible. If your task overrides ``get_log_file_dir``, whatever
+            directory it returns is removed.
 
         Returns:
             None
         """
-        base_dir = utils.map_folder(get_setting("log_dir", task=self, default="logs", deprecated_keys=["log_folder"]))
-        self._remove_directory_under_base(utils.get_log_file_dir(self), base_dir, "remove_log_files")
+        self._remove_directory(utils.get_log_file_dir(self))
 
     def remove_task_files(self) -> None:
         """
         Removes the task file directory of this task (submission files, executable wrapper).
 
         The default implementation removes the directory returned by
-        :obj:`b2luigi.core.utils.get_task_file_dir`, provided it lies strictly inside the
-        directory configured by the ``task_file_dir`` setting. Override this method if your
-        task overrides ``get_task_file_dir`` to point somewhere else.
+        :obj:`b2luigi.core.utils.get_task_file_dir`.
 
         .. warning::
-            This is not reversible.
+            This is not reversible. If your task overrides ``get_task_file_dir``, whatever
+            directory it returns is removed.
 
         Returns:
             None
         """
-        base_dir = utils.map_folder(get_setting("task_file_dir", task=self, default="task_files"))
-        self._remove_directory_under_base(utils.get_task_file_dir(self), base_dir, "remove_task_files")
+        self._remove_directory(utils.get_task_file_dir(self))
 
     @classmethod
     def grouped_param_names(cls):
