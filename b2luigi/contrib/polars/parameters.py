@@ -14,7 +14,14 @@ from collections.abc import Mapping
 from luigi.freezing import FrozenOrderedDict
 
 import b2luigi
-import polars as pl
+
+try:
+    import polars as pl
+except ImportError as err:
+    raise ImportError(
+        "The polars parameters need the optional dependencies of b2luigi.contrib.polars. "
+        "Install them with `pip install 'b2luigi[polars]'`."
+    ) from err
 
 #: Key of the marker dictionary that wraps a serialized :class:`polars.Expr`.
 POLARS_EXPR_KEY = "__polars_expr__"
