@@ -4,7 +4,7 @@ build-backend = "uv_build"
 
 [project]
 name = "b2luigi"
-version = "1.2.9"
+version = "1.3.0"
 description = "b2luigi - bringing batch 2 luigi"
 readme = "README.rst"
 requires-python = ">=3.11"
