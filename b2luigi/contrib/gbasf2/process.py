@@ -16,7 +16,14 @@ from getpass import getpass
 from glob import glob
 from itertools import groupby
 from typing import Iterable, List, Optional, Set, Tuple
-from jinja2 import Template
+
+try:
+    from jinja2 import Template
+except ImportError as err:
+    raise ImportError(
+        "The gbasf2 batch system needs the optional dependencies of b2luigi.contrib.gbasf2. "
+        "Install them with `pip install 'b2luigi[gbasf2]'`."
+    ) from err
 from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_exponential
 
 from b2luigi.contrib.basf2.utils import get_basf2_git_hash

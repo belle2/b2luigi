@@ -47,7 +47,7 @@ def _resolve_batch_system(name: str) -> str:
         reported with a did-you-mean, since the historical failure mode here was a
         silently ignored value rather than a rejection.
     """
-    valid = [system.value for system in BatchSystems] + ["auto"]
+    valid = [system.value for system in BatchSystems]
     if name in valid:
         return name
     hint = suggest(name, valid)
