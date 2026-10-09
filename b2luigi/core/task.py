@@ -425,16 +425,10 @@ class Task(luigi.Task):
             This is not reversible.
 
         .. hint::
-            If you are very sure in what you are doing, you can use this method
-            to remove all output files of this task by calling it in the
-            :obj:`remove_output` method of your task.
+            This is what the default :obj:`remove_output` calls. Override
+            :obj:`remove_output` only if your outputs are not declared via
+            :obj:`add_to_output`.
 
-        Example:
-            .. code-block:: python
-
-              class TheSuperFancyTask(b2luigi.Task):
-                  def remove_output(self):
-                      self._remove_output()
         Returns:
             None
         """
@@ -445,6 +439,33 @@ class Task(luigi.Task):
                 )
             except Exception as ex:
                 print(f"Could not remove output file {key}: {ex}")
+
+    def remove_output(self) -> None:
+        """
+        Removes all output files of this task. Called by ``b2luigi remove``.
+
+        The default implementation calls :obj:`_remove_output`, which removes
+        every target declared via :obj:`add_to_output`. Override this method if
+        your task defines ``output()`` directly (those targets are not covered
+        by the default) or needs custom clean-up logic.
+
+        .. warning::
+            This is not reversible.
+
+        Example:
+            .. code-block:: python
+
+              class TheSuperFancyTask(b2luigi.Task):
+                  def output(self):
+                      return b2luigi.LocalTarget("custom_output.txt")
+
+                  def remove_output(self):
+                      self.output().remove()
+
+        Returns:
+            None
+        """
+        self._remove_output()
 
     @classmethod
     def grouped_param_names(cls):

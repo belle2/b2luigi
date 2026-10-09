@@ -50,20 +50,21 @@ where mode can be one of:
 
 *   **remove**: Remove all output files of the tasks and the tasks on which it depends on. This is useful if you
     want to re-run a task and the tasks depending on it which has already been run before. This will not run the task
-    but just execute the ``remove_output`` method of the task if implemented:
+    but just execute the ``remove_output`` method of each task. By default (:meth:`b2luigi.Task.remove_output`) this
+    removes every target declared via :meth:`b2luigi.Task.add_to_output`. Override it if your task defines
+    ``output()`` directly or needs custom clean-up:
 
     .. code-block:: python
 
         class SomeTask(b2luigi.Task):
-            [...]
-            def remove_output(self):
-                # if a method with this name is provided, it will be executed
-                # automatically when starting the processing in remove mode
-                do_some_stuff_in_remove_mode()
+            def output(self):
+                return b2luigi.LocalTarget("custom_output.txt")
 
-    If you are very sure in what you are doing, check out the :meth:`b2luigi.Task._remove_output` private method. Before
-    executing the ``remove_output`` method of each task, you have to confirm once that you want to remove the output. To
-    skip the confirmation, add the ``--yes`` or ``-y`` flag to the command line.
+            def remove_output(self):
+                self.output().remove()
+
+    Before executing the ``remove_output`` method of each task, you have to confirm once that you want to remove the
+    output. To skip the confirmation, add the ``--yes`` or ``-y`` flag to the command line.
 
 *   **remove_only**: Similar to the ``remove`` mode, but only remove the output of the given task(s).
 

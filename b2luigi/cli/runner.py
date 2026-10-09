@@ -1095,7 +1095,7 @@ def _confirm_and_remove(
                 task.remove_output()
                 removed_tasks += 1
             else:
-                console.print(f"\t[yellow]No remove_output() implemented for {task_class}.[/yellow]")
+                console.print(f"\t[yellow]Skipping {task_class}: not a b2luigi.Task, no remove_output().[/yellow]")
             console.print()
 
     if removed_tasks:
@@ -1320,7 +1320,9 @@ def remove_requirement_outputs(
             task.remove_output()
             removed_tasks += 1
         else:
-            console.print(f"\t[yellow]No remove_output() implemented for {task.__class__.__name__}.[/yellow]")
+            console.print(
+                f"\t[yellow]Skipping {task.__class__.__name__}: not a b2luigi.Task, no remove_output().[/yellow]"
+            )
         console.print()
 
     if removed_tasks:
