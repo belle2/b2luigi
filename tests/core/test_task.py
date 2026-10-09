@@ -3,7 +3,7 @@ from ..helpers import B2LuigiTestCase
 import os
 
 import b2luigi
-from b2luigi.core.utils import get_filled_params
+from b2luigi.core.utils import get_filled_params, get_log_file_dir, get_task_file_dir
 
 
 class TaskTestCase(B2LuigiTestCase):
@@ -105,3 +105,48 @@ class DefaultRemoveOutputTestCase(B2LuigiTestCase):
         task.remove_output()
 
         self.assertFalse(os.path.exists(path))
+
+
+class RemoveLogAndTaskFilesTestCase(B2LuigiTestCase):
+    """:meth:`b2luigi.Task.remove_log_files` and :meth:`b2luigi.Task.remove_task_files` defaults."""
+
+    def setUp(self):
+        super().setUp()
+        self.log_base = os.path.join(self.test_dir, "logs")
+        self.task_base = os.path.join(self.test_dir, "task_files")
+        b2luigi.set_setting("log_dir", self.log_base)
+        b2luigi.set_setting("task_file_dir", self.task_base)
+
+    @staticmethod
+    def _populate(directory):
+        os.makedirs(directory, exist_ok=True)
+        with open(os.path.join(directory, "stdout"), "w") as f:
+            f.write("x")
+
+    def test_default_removes_populated_directories(self):
+        class MyTask(b2luigi.Task):
+            number = b2luigi.IntParameter()
+
+        task = MyTask(number=3)
+        log_dir = get_log_file_dir(task)
+        task_dir = get_task_file_dir(task)
+        self._populate(log_dir)
+        self._populate(task_dir)
+
+        task.remove_log_files()
+        task.remove_task_files()
+
+        self.assertFalse(os.path.exists(log_dir))
+        self.assertFalse(os.path.exists(task_dir))
+        self.assertTrue(os.path.isdir(self.log_base))
+        self.assertTrue(os.path.isdir(self.task_base))
+
+    def test_missing_directory_is_a_noop(self):
+        class MyTask(b2luigi.Task):
+            pass
+
+        task = MyTask()
+        self.assertFalse(os.path.exists(get_log_file_dir(task)))
+
+        task.remove_log_files()
+        task.remove_task_files()
