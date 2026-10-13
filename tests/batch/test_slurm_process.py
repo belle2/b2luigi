@@ -199,9 +199,42 @@ class TestSlurmJobStatusCache(unittest.TestCase):
         squeue_error = subprocess.CalledProcessError(1, ["mock", "squeue"])
         squeue_error.stderr = b"slurm_load_jobs error: Invalid job id specified"
         mock_check_output.side_effect = [squeue_error, self.mock_status_string]
-        self.slurm_job_status_cache._ask_for_job_status(job_id=12344)
+        self.slurm_job_status_cache._ask_for_job_status(job_id="12344")
         self.assertEqual(mock_check_output.call_count, 2)
-        self.assertEqual(self.slurm_job_status_cache[12344].value, "COMPLETED")
+        self.assertEqual(self.slurm_job_status_cache["12344"].value, "COMPLETED")
+
+    @mock.patch("subprocess.check_output")
+    def test_ask_for_job_status_accepts_array_job_ids(self, mock_check_output):
+        """
+        squeue reports every job of the user, including job arrays b2luigi did not submit itself.
+        Their ids (e.g. ``123456_0``) are not integers and must not crash the status query
+        (https://github.com/belle2/b2luigi/issues/5).
+        """
+        mock_check_output.return_value = b"12344 COMPLETED\n123456_0 RUNNING\n123456_1 PENDING\n"
+        self.slurm_job_status_cache._ask_for_job_status()
+        self.assertEqual(self.slurm_job_status_cache["12344"], SlurmJobStatus.completed)
+        self.assertEqual(self.slurm_job_status_cache["123456_0"], SlurmJobStatus.running)
+        self.assertEqual(self.slurm_job_status_cache["123456_1"], SlurmJobStatus.pending)
+
+    def test_fill_from_output_expands_pending_array_elements(self):
+        """
+        Array elements that have not started yet are summarised by Slurm in one line. Every element
+        must still be found under its own id, otherwise a pending element counts as unknown (aborted).
+        """
+        output = "123_[0-2,5,8-12:2%3] PENDING\n123_3 RUNNING\n456 RUNNING\n"
+        seen_ids = self.slurm_job_status_cache._fill_from_output(output)
+
+        pending = ["123_0", "123_1", "123_2", "123_5", "123_8", "123_10", "123_12"]
+        self.assertEqual(seen_ids, {*pending, "123_3", "456"})
+        for job_id in pending:
+            self.assertEqual(self.slurm_job_status_cache[job_id], SlurmJobStatus.pending)
+        self.assertEqual(self.slurm_job_status_cache["123_3"], SlurmJobStatus.running)
+        self.assertEqual(self.slurm_job_status_cache["456"], SlurmJobStatus.running)
+
+    def test_expand_array_job_id_leaves_other_ids_alone(self):
+        self.assertEqual(SlurmJobStatusCache._expand_array_job_id("456"), ["456"])
+        self.assertEqual(SlurmJobStatusCache._expand_array_job_id("123_4"), ["123_4"])
+        self.assertEqual(SlurmJobStatusCache._expand_array_job_id("123_[7]"), ["123_7"])
 
 
 class TestSlurmJobStatus:
@@ -260,7 +293,7 @@ class TestSlurmGroupedSubmission(B2LuigiTestCase):
 
         process.start_job()
 
-        self.assertEqual(process._batch_job_ids, [101, 102, 103])
+        self.assertEqual(process._batch_job_ids, ["101", "102", "103"])
         self.assertEqual(check_output.call_count, 3)
         for value, call in zip((0, 1, 2), check_output.call_args_list):
             self.assertEqual(call.args[0][0], "sbatch")
@@ -274,7 +307,7 @@ class TestSlurmGroupedSubmission(B2LuigiTestCase):
 
         process.start_job()
 
-        self.assertEqual(process._batch_job_ids, [7])
+        self.assertEqual(process._batch_job_ids, ["7"])
         self.assertEqual(check_output.call_count, 1)
 
     @mock.patch("subprocess.check_output")
@@ -286,7 +319,7 @@ class TestSlurmGroupedSubmission(B2LuigiTestCase):
 
         process.start_job()
 
-        self.assertEqual(process._batch_job_ids, [101, 103])
+        self.assertEqual(process._batch_job_ids, ["101", "103"])
         cwds = [str(call.kwargs["cwd"]) for call in check_output.call_args_list]
         self.assertFalse(any("grouped=1" in cwd for cwd in cwds))
 
@@ -318,17 +351,17 @@ class TestSlurmGroupedSubmission(B2LuigiTestCase):
 
     def test_status_is_aggregated_over_all_jobs(self):
         process = self._make_process(MyGroupedTask(plain=0, grouped=(0, 1, 2)))
-        process._batch_job_ids = [101, 102, 103]
+        process._batch_job_ids = ["101", "102", "103"]
 
-        _batch_job_status_cache[101] = SlurmJobStatus.completed
-        _batch_job_status_cache[102] = SlurmJobStatus.running
-        _batch_job_status_cache[103] = SlurmJobStatus.failed
+        _batch_job_status_cache["101"] = SlurmJobStatus.completed
+        _batch_job_status_cache["102"] = SlurmJobStatus.running
+        _batch_job_status_cache["103"] = SlurmJobStatus.failed
         self.assertEqual(process.get_job_status(), JobStatus.running)
 
-        _batch_job_status_cache[102] = SlurmJobStatus.completed
+        _batch_job_status_cache["102"] = SlurmJobStatus.completed
         self.assertEqual(process.get_job_status(), JobStatus.aborted)
 
-        _batch_job_status_cache[103] = SlurmJobStatus.completed
+        _batch_job_status_cache["103"] = SlurmJobStatus.completed
         self.assertEqual(process.get_job_status(), JobStatus.successful)
 
     def test_status_without_job_ids_is_aborted(self):
@@ -347,9 +380,9 @@ class TestSlurmGroupedSubmission(B2LuigiTestCase):
         process = self._make_process(task)
         process.start_job()
 
-        _batch_job_status_cache[101] = SlurmJobStatus.completed
-        _batch_job_status_cache[102] = SlurmJobStatus.failed
-        _batch_job_status_cache[103] = SlurmJobStatus.completed
+        _batch_job_status_cache["101"] = SlurmJobStatus.completed
+        _batch_job_status_cache["102"] = SlurmJobStatus.failed
+        _batch_job_status_cache["103"] = SlurmJobStatus.completed
         self.assertEqual(process.get_job_status(), JobStatus.aborted)
 
         failed_jobs_log = os.path.join(get_log_file_dir(task), "failed_jobs.log")
@@ -363,7 +396,217 @@ class TestSlurmGroupedSubmission(B2LuigiTestCase):
     @mock.patch("subprocess.run")
     def test_terminate_cancels_every_job(self, run):
         process = self._make_process(MyGroupedTask(plain=0, grouped=(0, 1)))
-        process._batch_job_ids = [101, 102]
+        process._batch_job_ids = ["101", "102"]
+
+        process.terminate_job()
+
+        run.assert_called_once()
+        self.assertEqual(run.call_args.args[0], ["scancel", "101", "102"])
+
+
+class TestSlurmArrayAndMpiSubmission(B2LuigiTestCase):
+    """
+    ``submission_type`` "array" and "mpi": a group is submitted as one Slurm job, dispatched to the
+    sub-tasks by ``$SLURM_ARRAY_TASK_ID`` or ``$SLURM_PROCID``. Array elements are tracked one by one.
+    """
+
+    def setUp(self):
+        super().setUp()
+        _batch_job_status_cache.clear()
+        b2luigi.set_setting("log_dir", os.path.join(self.test_dir, "logs"))
+        b2luigi.set_setting("task_file_dir", os.path.join(self.test_dir, "task_files"))
+
+    def tearDown(self):
+        for setting in ("log_dir", "task_file_dir", "submission_type", "tasks_per_node", "slurm_settings"):
+            b2luigi.clear_setting(setting)
+        _batch_job_status_cache.clear()
+        super().tearDown()
+
+    _make_process = staticmethod(TestSlurmGroupedSubmission._make_process)
+    _mark_complete = staticmethod(TestSlurmGroupedSubmission._mark_complete)
+
+    @staticmethod
+    def _read_submitted_files(check_output):
+        """Return the lines of the submit file and of the dispatch file of the (only) ``sbatch`` call."""
+        submit_dir = pathlib.Path(check_output.call_args.kwargs["cwd"])
+        submit_lines = (submit_dir / check_output.call_args.args[0][1]).read_text().splitlines()
+        dispatch_lines = (submit_dir / "slurm_dispatch.sh").read_text().splitlines()
+        return submit_lines, dispatch_lines
+
+    @staticmethod
+    def _log_dir(task):
+        return pathlib.Path(get_log_file_dir(task)).resolve()
+
+    @mock.patch("subprocess.check_output")
+    def test_array_is_submitted_as_one_job_array(self, check_output):
+        b2luigi.set_setting("submission_type", "array")
+        check_output.return_value = b"Submitted batch job 101"
+        task = MyGroupedTask(plain=0, grouped=(0, 1, 2))
+        process = self._make_process(task)
+
+        process.start_job()
+
+        check_output.assert_called_once()
+        self.assertEqual(process._batch_job_ids, ["101_0", "101_1", "101_2"])
+        submit_lines, dispatch_lines = self._read_submitted_files(check_output)
+        self.assertIn("#SBATCH --array=0-2", submit_lines)
+        dispatch_file = (pathlib.Path(check_output.call_args.kwargs["cwd"]) / "slurm_dispatch.sh").resolve()
+        # Started by its absolute path, so that it does not depend on PATH (unset with export=NONE)
+        self.assertEqual(submit_lines[-1], f"exec {dispatch_file}")
+        self.assertTrue(os.access(dispatch_file, os.X_OK))
+        self.assertIn("case $SLURM_ARRAY_TASK_ID in", dispatch_lines)
+        for index, value in enumerate((0, 1, 2)):
+            log_dir = self._log_dir(task.clone(None, grouped=value))
+            case_line = dispatch_lines.index(f"  {index})")
+            self.assertTrue(
+                dispatch_lines[case_line + 1].endswith(f"> {log_dir / 'stdout'} 2> {log_dir / 'stderr'}"),
+                dispatch_lines[case_line + 1],
+            )
+            self.assertEqual(process._job_log_dirs[f"101_{index}"], get_log_file_dir(task.clone(None, grouped=value)))
+
+    @mock.patch("subprocess.check_output")
+    def test_new_array_elements_are_served_from_cache(self, check_output):
+        b2luigi.set_setting("submission_type", "array")
+        check_output.return_value = b"Submitted batch job 101"
+        process = self._make_process(MyGroupedTask(plain=0, grouped=(0, 1)))
+
+        process.start_job()
+
+        self.assertEqual(process.get_job_status(), JobStatus.running)
+        check_output.assert_called_once()
+
+    @mock.patch("subprocess.check_output")
+    def test_complete_sub_tasks_are_left_out_of_the_array(self, check_output):
+        b2luigi.set_setting("submission_type", "array")
+        check_output.return_value = b"Submitted batch job 101"
+        task = MyGroupedTask(plain=0, grouped=(0, 1, 2))
+        self._mark_complete(task.clone(None, grouped=1))
+        process = self._make_process(task)
+
+        process.start_job()
+
+        self.assertEqual(process._batch_job_ids, ["101_0", "101_1"])
+        submit_lines, dispatch_lines = self._read_submitted_files(check_output)
+        self.assertIn("#SBATCH --array=0-1", submit_lines)
+        # The indices are renumbered: element 1 runs the sub-task with grouped=2.
+        log_dir = self._log_dir(task.clone(None, grouped=2))
+        self.assertIn(str(log_dir / "stdout"), dispatch_lines[dispatch_lines.index("  1)") + 1])
+        self.assertEqual(process._job_log_dirs["101_1"], get_log_file_dir(task.clone(None, grouped=2)))
+
+    @mock.patch("subprocess.check_output")
+    def test_array_status_is_tracked_per_element(self, check_output):
+        b2luigi.set_setting("submission_type", "array")
+        check_output.return_value = b"Submitted batch job 101"
+        task = MyGroupedTask(plain=0, grouped=(0, 1, 2))
+        process = self._make_process(task)
+        process.start_job()
+
+        _batch_job_status_cache["101_0"] = SlurmJobStatus.completed
+        _batch_job_status_cache["101_1"] = SlurmJobStatus.failed
+        _batch_job_status_cache["101_2"] = SlurmJobStatus.running
+        self.assertEqual(process.get_job_status(), JobStatus.running)
+
+        _batch_job_status_cache["101_2"] = SlurmJobStatus.completed
+        self.assertEqual(process.get_job_status(), JobStatus.aborted)
+
+        with open(os.path.join(get_log_file_dir(task), "failed_jobs.log")) as f:
+            lines = f.read().splitlines()
+        self.assertEqual(lines, [f"101_1: {get_log_file_dir(task.clone(None, grouped=1))}"])
+
+    @mock.patch("subprocess.check_output")
+    def test_mpi_is_submitted_as_one_multi_node_job(self, check_output):
+        b2luigi.set_setting("submission_type", "mpi")
+        b2luigi.set_setting("tasks_per_node", 2)
+        check_output.return_value = b"Submitted batch job 101"
+        task = MyGroupedTask(plain=0, grouped=(0, 1, 2))
+        process = self._make_process(task)
+
+        process.start_job()
+
+        check_output.assert_called_once()
+        self.assertEqual(process._batch_job_ids, ["101"])
+        submit_lines, dispatch_lines = self._read_submitted_files(check_output)
+        self.assertIn("#SBATCH --nodes=2", submit_lines)
+        self.assertIn("#SBATCH --ntasks=3", submit_lines)
+        dispatch_file = (pathlib.Path(check_output.call_args.kwargs["cwd"]) / "slurm_dispatch.sh").resolve()
+        # srun starts the dispatch file by its absolute path; without PATH it could not find "bash"
+        self.assertEqual(submit_lines[-1], f"exec srun {dispatch_file}")
+        self.assertTrue(os.access(dispatch_file, os.X_OK))
+        self.assertIn("case $SLURM_PROCID in", dispatch_lines)
+
+    @mock.patch("subprocess.check_output")
+    def test_failed_mpi_job_lists_every_sub_task_in_failed_jobs_log(self, check_output):
+        b2luigi.set_setting("submission_type", "mpi")
+        check_output.return_value = b"Submitted batch job 101"
+        task = MyGroupedTask(plain=0, grouped=(0, 1))
+        process = self._make_process(task)
+        process.start_job()
+
+        _batch_job_status_cache["101"] = SlurmJobStatus.failed
+        self.assertEqual(process.get_job_status(), JobStatus.aborted)
+
+        with open(os.path.join(get_log_file_dir(task), "failed_jobs.log")) as f:
+            lines = f.read().splitlines()
+        self.assertEqual(
+            lines,
+            [
+                f"101 (task {index}): {get_log_file_dir(task.clone(None, grouped=value))}"
+                for index, value in enumerate((0, 1))
+            ],
+        )
+
+    @mock.patch("subprocess.check_output")
+    def test_mpi_overrides_ntasks_from_slurm_settings(self, check_output):
+        b2luigi.set_setting("submission_type", "mpi")
+        b2luigi.set_setting("slurm_settings", {"ntasks": 1, "partition": "some_partition"})
+        check_output.return_value = b"Submitted batch job 101"
+        self._make_process(MyGroupedTask(plain=0, grouped=(0, 1))).start_job()
+
+        submit_lines, _ = self._read_submitted_files(check_output)
+        self.assertIn("#SBATCH --ntasks=2", submit_lines)
+        self.assertNotIn("#SBATCH --ntasks=1", submit_lines)
+        self.assertIn("#SBATCH --partition=some_partition", submit_lines)
+        # The group settings must not end up in the setting itself, i.e. in later submissions.
+        self.assertEqual(b2luigi.get_setting("slurm_settings"), {"ntasks": 1, "partition": "some_partition"})
+
+    @mock.patch("subprocess.check_output")
+    def test_ungrouped_task_ignores_the_submission_type(self, check_output):
+        b2luigi.set_setting("submission_type", "array")
+        check_output.return_value = b"Submitted batch job 7"
+        process = self._make_process(MyTask("some_parameter"))
+
+        process.start_job()
+
+        self.assertEqual(process._batch_job_ids, ["7"])
+        submit_dir = pathlib.Path(check_output.call_args.kwargs["cwd"])
+        submit_file = (submit_dir / "slurm_parameters.sh").read_text()
+        self.assertNotIn("--array", submit_file)
+        self.assertFalse((submit_dir / "slurm_dispatch.sh").exists())
+
+    @mock.patch("subprocess.check_output")
+    def test_unknown_submission_type_raises(self, check_output):
+        b2luigi.set_setting("submission_type", "parallel")
+        process = self._make_process(MyGroupedTask(plain=0, grouped=(0, 1)))
+
+        with self.assertRaises(ValueError) as ctx:
+            process.start_job()
+        self.assertIn("parallel", str(ctx.exception))
+        check_output.assert_not_called()
+
+    @mock.patch("subprocess.check_output")
+    def test_tasks_per_node_below_one_raises(self, check_output):
+        b2luigi.set_setting("submission_type", "mpi")
+        b2luigi.set_setting("tasks_per_node", 0)
+        process = self._make_process(MyGroupedTask(plain=0, grouped=(0, 1)))
+
+        with self.assertRaises(ValueError):
+            process.start_job()
+        check_output.assert_not_called()
+
+    @mock.patch("subprocess.run")
+    def test_terminate_cancels_an_array_via_its_job_id(self, run):
+        process = self._make_process(MyGroupedTask(plain=0, grouped=(0, 1)))
+        process._batch_job_ids = ["101_0", "101_1", "102"]
 
         process.terminate_job()
 

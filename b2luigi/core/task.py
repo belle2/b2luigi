@@ -6,6 +6,7 @@ from typing import Any, Union, List, Dict, Optional, Type
 
 import luigi
 
+from b2luigi.batch.workers import supports_grouping
 from b2luigi.core.utils import create_output_file_name
 from b2luigi.core.target import LocalTarget, FileSystemTarget
 from b2luigi.core.settings import get_setting, _no_value
@@ -538,6 +539,49 @@ class Task(luigi.Task):
             bool: ``True`` if at least one parameter has grouping enabled.
         """
         return bool(cls.grouped_param_names())
+
+    def is_grouped(self) -> bool:
+        """
+        Check whether this task instance actually carries a group of parameter values,
+        as opposed to merely declaring grouped parameters.
+
+        A task that declares grouped parameters still holds plain scalar values until
+        the scheduler decides to combine several of them, in which case the grouped
+        parameters hold tuples.
+
+        Returns:
+            bool: ``True`` if this instance stands for a group of tasks.
+        """
+        grouped_params = self.grouped_param_names()
+
+        if not grouped_params:
+            return False
+
+        return isinstance(self.param_kwargs[grouped_params[0]], tuple)
+
+    @property
+    def batchable(self):
+        """
+        Whether this task may be combined into a group with other tasks of its family.
+
+        On top of the ``luigi`` behaviour (batchable if any parameter has a batch
+        method), a task is only batchable if its batch system is able to expand the
+        group again, see :obj:`supports_grouping <b2luigi.batch.workers.supports_grouping>`.
+        Where it is not, the group is never formed and the tasks run individually, which
+        keeps a task with ``grouping=True`` runnable e.g. locally.
+
+        This has to be decided per instance: grouping is declared on the class (parameter
+        definitions and ``max_grouping_size``) and cannot be switched off for one instance,
+        whereas ``batch_system`` may be a property that differs between instances of the
+        same class.
+
+        Returns:
+            bool: ``True`` if the scheduler may group this task.
+        """
+        if not self.has_grouped_params():
+            return super().batchable
+
+        return super().batchable and supports_grouping(self)
 
 
 class ExternalTask(Task, luigi.ExternalTask):

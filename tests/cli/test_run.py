@@ -245,20 +245,32 @@ class TestRunGroupedTask(CLITestCase):
             os.path.join(os.path.dirname(__file__), "cli_grouped_tasks.py"),
             os.path.join(self.tmp_dir, "tasks.py"),
         )
+
+    def _write_settings(self, batch_system: str) -> None:
         with open(os.path.join(self.tmp_dir, "settings.json"), "w") as f:
-            json.dump({"result_dir": "results", "log_dir": "logs", "batch_system": "local"}, f)
+            json.dump({"result_dir": "results", "log_dir": "logs", "batch_system": batch_system}, f)
 
     def test_batched_task_is_rebuilt_from_the_task_module(self) -> None:
         """
         The batched instance must be rebuilt, not reported as unknown.
 
-        Grouping is refused on the local backend by the batch-system guard, which
-        fires *after* the reconstruction, so this asserts on luigi's batching log
-        rather than on outputs: batching must have happened (otherwise the negative
-        assertions would be vacuous), and the rebuild must not have failed.
+        The ``test`` backend lets luigi batch the grouped tasks, but refuses the group in
+        the batch-system guard, which fires *after* the reconstruction, so this asserts on
+        luigi's batching log rather than on outputs: batching must have happened (otherwise
+        the negative assertions would be vacuous), and the rebuild must not have failed.
         """
-        _code, stdout, stderr = self._run_cli("run", ["RunAll"])
+        self._write_settings("test")
+        _code, stdout, stderr = self._run_cli("run", ["RunAll", "--batch"])
         combined = stdout + stderr
         self.assertIn("will load it dynamically", combined)
         self.assertNotIn("ModuleNotFoundError", combined)
         self.assertNotIn("Cannot find task(s) sent by scheduler", combined)
+
+    def test_grouped_task_runs_individually_on_the_local_backend(self) -> None:
+        """On the local backend no group is formed: every grouped task simply runs on its own."""
+        self._write_settings("local")
+        _code, stdout, stderr = self._run_cli("run", ["RunAll"])
+        combined = stdout + stderr
+        self.assertNotIn("will load it dynamically", combined)
+        self.assertIn("run individually", combined)
+        self.assertIn("looks :)", combined)
